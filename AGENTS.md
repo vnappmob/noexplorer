@@ -17,11 +17,11 @@ TypeScript UI. The UI is in English. License: MIT.
 
 | | |
 |---|---|
-| Version | `0.1.0`, not yet released |
+| Version | `0.1.0` released 2026-10-15 ([release](https://github.com/vnappmob/noexplorer/releases/tag/v0.1.0)). `main` has unreleased features (see CHANGELOG → Unreleased) |
 | Last updated | 2026-10-15 |
 | Works and is verified | Dual-pane browse; drag both ways; drop files from the OS; multipart upload (tested with 2 GB); folder up/download; quick look (image/video/audio/pdf/text, local and remote); presigned links; delete; mkdir; transfer progress/cancel; **multiple S3 accounts** (picker + manager, v1 config migration); **Σ folder size** (remote and local) and full-path bar; **theme + text size**; **resizable split** |
 | Tested on | macOS (Apple Silicon) against SeaweedFS. Windows and Linux are only checked for compilation in CI |
-| Next up | Publish v0.1.0 (draft exists; the GITHUB_TOKEN can't create releases in this org, see RELEASING) → ship the Unreleased features as v0.2.0. See [docs/ROADMAP.md](docs/ROADMAP.md) |
+| Next up | Ship the Unreleased features as v0.2.0: from v0.2.0 the .dmg is notarized and stapled too (v0.1.0 notarized only the .app). See [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 ## Map
 

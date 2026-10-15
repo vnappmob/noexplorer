@@ -6,8 +6,7 @@ can start right away. When you finish an item, move it to `CHANGELOG.md` and upd
 
 ## Next (v0.1.x → v0.2)
 
-1. **First public release.** Set the signing secrets, tag `v0.1.0`, publish, and confirm the
-   website download buttons work. See [RELEASING.md](RELEASING.md).
+1. **Release v0.2.0** with the Unreleased features. Check that the new .dmg notarization step in `release.yml` passes.
 2. **Real screenshots and a GIF on the website.** `site/index.html` currently draws an HTML
    mock-up of the app in the hero.
 3. **Smoke-test on Windows and Linux.** CI compiles both but nobody has used them yet. Pay
