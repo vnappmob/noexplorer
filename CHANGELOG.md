@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-15
+
 ### Changed
 - **New look.** Each pane has a two-row header: **account › bucket** dropdowns (or **This computer** with your places) above a separate **path bar**. Click a folder in the path to go there, or click empty space (⌘L) to type a path. Bundled Geist fonts, stroke icons, refreshed light and dark themes.
 - Actions for the selection now appear in a **floating bar** at the bottom of the pane (Upload / Download, Quick look, Open, Link, Delete, ⋯).
