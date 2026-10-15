@@ -19,7 +19,7 @@ npm install
 npm run tauri dev
 ```
 
-On first launch the Settings dialog opens. Enter:
+On first launch Settings → Accounts opens. Enter:
 
 | Field | Value |
 |---|---|
@@ -69,7 +69,11 @@ The frontend has no automated tests yet (roadmap). Use the manual checklist belo
 
 Run against `dev-s3.sh` **and**, before a release, against a real MinIO.
 
-- [ ] First launch: Settings opens; **Test** shows the bucket list; **Save** loads the bucket
+- [ ] First launch: Settings → Accounts opens; **Test** shows the bucket list; **Save & use** loads the bucket
+- [ ] Add a second account; switch with the picker (each account remembers its bucket/folder); remove one
+- [ ] An old single-connection `config.json` still loads (migrated to one account)
+- [ ] Σ Size on the current folder (path bar) and on selected folders (Size column), both panes
+- [ ] Appearance: System/Light/Dark and all text sizes; the splitter drags and double-click resets it
 - [ ] Wrong secret: Test shows a readable error and Save is blocked
 - [ ] Left pane: Places menu, breadcrumbs, ↑, filter, sorting, show hidden files
 - [ ] Drag a file and a folder left → right; drop on a folder row and on a breadcrumb

@@ -6,9 +6,9 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import type { Pane } from "./pane";
 import { local, remote } from "./panes";
 import { openPreview } from "./preview";
-import { app } from "./state";
-import type { Item } from "./types";
-import { askText, fail, plural, store, toast } from "./util";
+import { activeProfile, app } from "./state";
+import type { Item, SizeInfo } from "./types";
+import { askText, fail, fmtSize, plural, store, toast } from "./util";
 
 /**
  * Copies `items` from `from` to the other pane: local → upload to S3, remote → download.
@@ -17,7 +17,7 @@ import { askText, fail, plural, store, toast } from "./util";
  */
 export async function transfer(from: Pane, items: Item[], targetDir?: string) {
   if (!items.length) return;
-  if (!app.cfg || !app.bucket) return toast("Set up the S3 connection first", true);
+  if (!activeProfile() || !app.bucket) return toast("Add an S3 account first", true);
   try {
     if (from === local) {
       await invoke("upload", { bucket: app.bucket, prefix: targetDir ?? remote.cwd, paths: items.map((e) => e.key) });
@@ -90,6 +90,48 @@ export async function mkdir(p: Pane) {
   }
 }
 
+async function sizeOf(p: Pane, key: string) {
+  return p.isRemote
+    ? invoke<SizeInfo>("remote_size", { bucket: app.bucket, prefix: key })
+    : invoke<SizeInfo>("local_size", { path: key });
+}
+
+/**
+ * "Σ Size": selected folders get their recursive size in the Size column; with no folder
+ * selected, the current folder's total goes into the path bar.
+ */
+export async function calcSize(p: Pane) {
+  const dirs = p.selectedItems().filter((e) => e.dir);
+  if (!dirs.length) return calcCurrentDir(p);
+  p.q(".dirsize").textContent = `Calculating ${plural(dirs.length, "folder")}…`;
+  try {
+    await Promise.all(
+      dirs.map(async (d) => {
+        const s = await sizeOf(p, d.key);
+        d.size = s.bytes;
+        d.calc = true;
+      }),
+    );
+    p.render();
+  } catch (e) {
+    fail(e);
+  }
+  p.q(".dirsize").textContent = "";
+}
+
+async function calcCurrentDir(p: Pane) {
+  const where = p.cwd;
+  const out = p.q(".dirsize");
+  out.textContent = "Calculating…";
+  try {
+    const s = await sizeOf(p, where);
+    if (p.cwd === where) out.textContent = `${fmtSize(s.bytes)} · ${plural(s.files, "file")}`;
+  } catch (e) {
+    out.textContent = "";
+    fail(e);
+  }
+}
+
 /** Runs a named action on `p`'s selection (footer buttons and context menu). */
 export function paneAction(p: Pane, act: string) {
   const sel = p.selectedItems();
@@ -105,6 +147,7 @@ export function paneAction(p: Pane, act: string) {
       navigator.clipboard.writeText(p.isRemote ? `${app.bucket}/${one.key}` : one.key).then(() => toast("Copied")),
     reveal: () => invoke("reveal", { path: one ? one.key : p.cwd }).catch(fail),
     delete: () => p.isRemote && deleteRemote(sel),
+    size: () => calcSize(p),
     mkdir: () => mkdir(p),
     refresh: () => p.load(true),
     hidden: () => {

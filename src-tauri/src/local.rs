@@ -8,7 +8,7 @@ use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 use tokio::io::AsyncReadExt;
 
-use crate::remote::Entry;
+use crate::remote::{Entry, SizeInfo};
 
 #[derive(Serialize)]
 pub struct Crumb {
@@ -125,6 +125,23 @@ pub async fn list_local(path: Option<String>, hidden: bool) -> Result<LocalListi
     .map_err(|e| e.to_string())?
 }
 
+/// Recursive size of a local folder (symlinks are not followed, so loops can't happen).
+#[tauri::command]
+pub async fn local_size(path: String) -> Result<SizeInfo, String> {
+    tokio::task::spawn_blocking(move || {
+        let (mut bytes, mut files) = (0, 0);
+        for e in walkdir::WalkDir::new(&path).into_iter().filter_map(Result::ok) {
+            if e.file_type().is_file() {
+                bytes += e.metadata().map(|m| m.len()).unwrap_or(0);
+                files += 1;
+            }
+        }
+        SizeInfo { bytes, files }
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
 /// First `max` bytes of a local file as (lossy) UTF-8, for the text preview.
 #[tauri::command]
 pub async fn read_local_text(path: String, max: u64) -> Result<String, String> {
@@ -174,6 +191,17 @@ mod tests {
 
         let l = list_local(path, true).await.unwrap();
         assert_eq!(l.entries.len(), 3);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn local_size_sums_nested_files() {
+        let dir = std::env::temp_dir().join(format!("noexplorer-ut-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(dir.join("a/b")).unwrap();
+        std::fs::write(dir.join("x.bin"), [0u8; 10]).unwrap();
+        std::fs::write(dir.join("a/b/y.bin"), [0u8; 5]).unwrap();
+        let s = local_size(dir.to_string_lossy().into()).await.unwrap();
+        assert_eq!((s.bytes, s.files), (15, 2));
         std::fs::remove_dir_all(dir).unwrap();
     }
 

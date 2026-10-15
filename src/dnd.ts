@@ -12,7 +12,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { transfer } from "./actions";
 import type { Pane } from "./pane";
 import { local, remote } from "./panes";
-import { app } from "./state";
+import { activeProfile, app } from "./state";
 import type { Item } from "./types";
 import { $, plural } from "./util";
 
@@ -114,7 +114,7 @@ async function setupOsDrop() {
     // Positions are physical pixels; elementFromPoint wants CSS pixels.
     const dpr = window.devicePixelRatio || 1;
     const t = dropTargetAt(p.position.x / dpr, p.position.y / dpr);
-    const ok = !!t?.pane.isRemote && !!app.cfg && !!app.bucket;
+    const ok = !!t?.pane.isRemote && !!activeProfile() && !!app.bucket;
     if (p.type === "drop") {
       overlay.hidden = true;
       highlight(null);
@@ -130,7 +130,7 @@ async function setupOsDrop() {
     highlight(ok ? t : null);
     $("drop-text").textContent = ok
       ? `Drop to upload to ${app.bucket}/${t!.dir}`
-      : app.cfg
+      : activeProfile()
         ? "Drop on the S3 pane (right) to upload"
         : "Set up the S3 connection first";
     overlay.hidden = false;

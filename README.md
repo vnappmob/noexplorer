@@ -45,8 +45,10 @@ and you're done.
   collide become `name (1).ext`, and partial downloads never look complete.
 - **Self-hosted friendly**: path-style requests are on by default, and the connection test
   works even when the key can't list buckets.
+- **Multiple accounts**: switch between servers from the S3 pane header.
+- **Σ Size** for any folder, local or remote. A path bar always shows where you are.
 - Copy a 7-day share link, create folders, delete from S3, follow progress (with cancel)
-  for every transfer. Light and dark mode. About 10 MB on macOS.
+  for every transfer. Theme and text size settings, resizable panes. About 10 MB on macOS.
 
 ## Install
 
@@ -64,7 +66,8 @@ Download the installer for your OS from the
 
 ## Connect
 
-The first time you launch the app it opens **Settings**:
+The first time you launch the app it opens **Settings → Accounts**. Add as many accounts as
+you like, then switch between them from the picker in the S3 pane header:
 
 | Field | Example |
 |---|---|
@@ -73,7 +76,7 @@ The first time you launch the app it opens **Settings**:
 | Region | `us-east-1` (fine for MinIO) |
 | Path-style requests | ✓ Leave it on for MinIO and other self-hosted servers |
 
-Click **Test**, then **Save**. Credentials are stored only on your computer, in the app's
+Click **Test**, then **Save & use**. Credentials are stored only on your computer, in the app's
 config folder (readable only by your user).
 
 ## Keyboard

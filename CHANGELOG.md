@@ -5,6 +5,17 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Multiple S3 accounts: account picker in the S3 pane header, and an account manager in Settings (add, edit, remove, test).
+- Σ Size: total size of the current folder (shown in the new path bar) or of the selected folders (shown in the Size column), local and remote.
+- Path bar under each pane with the full current location (`/abs/path` or `s3://bucket/prefix`); click to copy.
+- Settings → Appearance: theme (System / Light / Dark) and text size (Small / Default / Large / Extra large).
+- Drag the divider between the panes to resize them; double-click to reset.
+
+### Changed
+- Default text size is slightly larger (13 → 14 px).
+- Existing single-connection settings are migrated automatically to the first account.
+
 ## [0.1.0] - 2026-10-15
 
 ### Added

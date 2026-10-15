@@ -19,9 +19,9 @@ TypeScript UI. The UI is in English. License: MIT.
 |---|---|
 | Version | `0.1.0`, not yet released |
 | Last updated | 2026-10-15 |
-| Works and is verified | Dual-pane browse; drag both ways; drop files from the OS; multipart upload (tested with 2 GB); folder up/download; quick look (image/video/audio/pdf/text, local and remote); presigned links; delete; mkdir; transfer progress/cancel; settings test/save |
+| Works and is verified | Dual-pane browse; drag both ways; drop files from the OS; multipart upload (tested with 2 GB); folder up/download; quick look (image/video/audio/pdf/text, local and remote); presigned links; delete; mkdir; transfer progress/cancel; **multiple S3 accounts** (picker + manager, v1 config migration); **Σ folder size** (remote and local) and full-path bar; **theme + text size**; **resizable split** |
 | Tested on | macOS (Apple Silicon) against SeaweedFS. Windows and Linux are only checked for compilation in CI |
-| Next up | First tagged release → see [docs/ROADMAP.md](docs/ROADMAP.md) |
+| Next up | Publish v0.1.0 (draft exists; the GITHUB_TOKEN can't create releases in this org, see RELEASING) → ship the Unreleased features as v0.2.0. See [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 ## Map
 
@@ -34,12 +34,13 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   dnd.ts             Drag between panes (mouse events) + drops from the OS (Tauri event)
   preview.ts         Quick-look modal
   jobs.ts            Transfers panel, listens to the "job" event
-  settings.ts        Connection dialog + bucket picker
+  settings.ts        Settings dialog (Accounts | Appearance), account + bucket pickers
+  appearance.ts      Theme, text size, pane splitter (localStorage)
   menu.ts            Right-click menu      keyboard.ts  All shortcuts
   types.ts           Types mirrored from Rust     util.ts / files.ts / state.ts  helpers and global state
 index.html           All markup (panes, dialogs, preview)      src/styles.css  All styles (light and dark)
 src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
-  config.rs          Config (persisted JSON) + S3 client construction (path-style, checksums)
+  config.rs          Accounts: Profile/Settings (config.json, v1→v2 migration) + S3 client (path-style, checksums)
   remote.rs          S3 commands: list, presign, read_text, mkdir, delete
   transfer.rs        upload / download / open_object engine (multipart, concurrency)
   jobs.rs            Background Job + "job" progress events + cancel
@@ -113,7 +114,8 @@ Full detail, including the command table, event schema and data flows, is in [do
 
 **Add a preview type:** add extensions in `files.ts` (`KIND`) and a render branch in `preview.ts`. Text types must also be added to `util::is_text_like` in Rust.
 
-**Add a setting:** add the field to `Config` (Rust, `#[serde(default)]` keeps old configs loading), to `types.ts`, to the form in `index.html`, and to `settings.ts` (`readForm`/`openSettings`).
+**Add a per-account setting:** add the field to `Profile` in `config.rs` (`#[serde(default)]` keeps old files loading), to `types.ts`, to `#acct-form` in `index.html`, and to `FIELDS`/`readForm` in `settings.ts`.
+**Add a look/layout preference:** keep it per device in `appearance.ts` (localStorage), add a control to the Appearance tab, and drive it with a CSS variable or `data-*` attribute. Size new CSS from `--fs`/`--fs-sm`/`--fs-xs`, never fixed px font sizes.
 
 **Tune transfer speed:** change the constants at the top of `transfer.rs` and record the reason in ADR-005.
 
@@ -138,6 +140,7 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **`npm run tauri dev` restarts the app when any Rust file changes.** Frontend edits hot-reload.
 - **Tauri drop positions are physical pixels.** Divide by `devicePixelRatio` before calling `elementFromPoint`.
 - **The website deploys from Cloudflare, not GitHub Actions.** Workers Builds watches the repo. Build logs live in the Cloudflare dashboard (Workers & Pages → `noexplorer-site` → Deployments), not under Actions.
+- **The workflow token can't create releases in the vnappmob org** (403 "Resource not accessible by integration"). Create the draft with `gh release create vX.Y.Z --draft --verify-tag` right after pushing the tag; `tauri-action` uploads into it.
 - **macOS signing secrets live in GitHub Actions.** Without them `release.yml` still builds, but unsigned ([docs/RELEASING.md](docs/RELEASING.md)).
 
 ## Conventions

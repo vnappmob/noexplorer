@@ -42,6 +42,23 @@ pub async fn list_all(c: &Client, bucket: &str, prefix: &str) -> Result<Vec<(Str
     Ok(out)
 }
 
+/// Total size of a folder (or file / bucket root). Mirrors `SizeInfo` in `src/types.ts`.
+#[derive(Serialize)]
+pub struct SizeInfo {
+    pub bytes: u64,
+    /// Files only; folder marker objects are not counted.
+    pub files: u64,
+}
+
+/// Recursive size of everything under `prefix` ("" = whole bucket).
+#[tauri::command]
+pub async fn remote_size(state: State<'_, AppState>, bucket: String, prefix: String) -> Result<SizeInfo, String> {
+    let c = state.client()?;
+    let all = list_all(&c, &bucket, &prefix).await?;
+    let files = all.iter().filter(|(k, _)| !k.ends_with('/'));
+    Ok(SizeInfo { bytes: files.clone().map(|(_, s)| s).sum(), files: files.count() as u64 })
+}
+
 /// One folder level: sub-folders (common prefixes) and files directly under `prefix`.
 #[tauri::command]
 pub async fn list(state: State<'_, AppState>, bucket: String, prefix: String) -> Result<Vec<Entry>, String> {

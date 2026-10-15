@@ -1,3 +1,4 @@
+/* Theme tokens. data-theme on <html> = "light" | "dark" | absent (follow the OS). Set by appearance.ts. */
 :root {
   --bg: #ffffff;
   --bg2: #f5f5f7;
@@ -8,21 +9,35 @@
   --sel: #d8e9ff;
   --danger: #ff3b30;
   --ok: #30a46c;
+  /* Base text size; everything else scales from it (Settings → Appearance → Text size). */
+  --fs: 14px;
+  --fs-sm: calc(var(--fs) - 1px);
+  --fs-xs: calc(var(--fs) - 2px);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  font-size: 13px;
+  font-size: var(--fs);
   color: var(--fg);
   background: var(--bg);
-  color-scheme: light dark;
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #1e1e20;
     --bg2: #2a2a2d;
     --fg: #ececf0;
     --muted: #8e8e93;
     --line: #3a3a3e;
     --sel: #1f3d63;
+    color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #1e1e20;
+  --bg2: #2a2a2d;
+  --fg: #ececf0;
+  --muted: #8e8e93;
+  --line: #3a3a3e;
+  --sel: #1f3d63;
+  color-scheme: dark;
 }
 * {
   box-sizing: border-box;
@@ -100,18 +115,35 @@ select:focus {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* --left is set by the splitter (appearance.ts) */
+  grid-template-columns: minmax(0, var(--left, 50%)) 1px minmax(0, 1fr);
 }
 .pane {
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  border-right: 1px solid var(--line);
   position: relative;
 }
-.pane:last-child {
-  border-right: none;
+.splitter {
+  position: relative;
+  background: var(--line);
+  z-index: 5;
+}
+.splitter::before {
+  /* Wider invisible grab area */
+  content: "";
+  position: absolute;
+  inset: 0 -4px;
+  cursor: col-resize;
+}
+.splitter:hover,
+body.resizing .splitter {
+  background: var(--accent);
+}
+body.resizing,
+body.resizing * {
+  cursor: col-resize !important;
 }
 .pane.active .bar {
   box-shadow: inset 0 -2px 0 var(--accent);
@@ -137,6 +169,9 @@ select:focus {
 .roots {
   max-width: 140px;
   font-weight: 600;
+}
+#profile {
+  max-width: 150px;
 }
 .crumbs {
   flex: 1;
@@ -181,14 +216,14 @@ select:focus {
 .cols,
 .row {
   display: grid;
-  grid-template-columns: 1fr 80px 120px;
+  grid-template-columns: 1fr 6.5em 9.5em;
   gap: 10px;
   padding: 0 12px;
   align-items: center;
 }
 .cols {
-  height: 24px;
-  font-size: 11px;
+  height: calc(var(--fs) * 1.8);
+  font-size: var(--fs-xs);
   color: var(--muted);
   border-bottom: 1px solid var(--line);
 }
@@ -211,7 +246,7 @@ select:focus {
   outline: none;
 }
 .row {
-  height: 26px;
+  height: calc(var(--fs) * 2);
   cursor: default;
 }
 .row:nth-child(even) {
@@ -249,7 +284,10 @@ select:focus {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--fs-sm);
+}
+.row .size.calc {
+  color: var(--accent);
 }
 .empty {
   height: 100%;
@@ -275,7 +313,7 @@ select:focus {
   padding: 4px 10px;
   border-radius: 12px;
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
@@ -291,7 +329,7 @@ body.dragging * {
   justify-content: space-between;
   gap: 8px;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   border-top: 1px solid var(--line);
   background: var(--bg2);
   color: var(--muted);
@@ -314,6 +352,38 @@ body.dragging * {
   white-space: nowrap;
 }
 
+/* path bar: full current folder + folder size */
+.pathbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-top: 1px solid var(--line);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.pathbar .path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl; /* ellipsis on the left keeps the deepest folder visible */
+  text-align: left;
+  cursor: pointer;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.pathbar .path:hover {
+  color: var(--fg);
+}
+.pathbar .dirsize {
+  flex: none;
+  white-space: nowrap;
+}
+.pathbar button.link {
+  font-size: var(--fs-xs);
+}
+
 /* jobs */
 #jobs {
   border-top: 1px solid var(--line);
@@ -325,7 +395,7 @@ body.dragging * {
   display: flex;
   justify-content: space-between;
   padding: 6px 12px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 #jobs-list {
@@ -350,7 +420,7 @@ body.dragging * {
 }
 .job .meta {
   grid-column: 2;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 .job .meta.err {
@@ -385,7 +455,7 @@ body.dragging * {
 }
 .job .where {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   margin-left: 6px;
 }
 
@@ -500,7 +570,7 @@ body.dragging * {
   margin: 0;
   padding: 14px;
   font:
-    12px/1.5 ui-monospace,
+    var(--fs-sm) / 1.5 ui-monospace,
     SFMono-Regular,
     Menlo,
     Consolas,
@@ -517,15 +587,17 @@ body.dragging * {
   line-height: 1.8;
 }
 
-/* settings */
+/* dialogs */
 dialog {
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 0;
-  width: min(520px, 92vw);
   background: var(--bg);
   color: var(--fg);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
 }
 #ask {
   width: min(360px, 90vw);
@@ -536,30 +608,93 @@ dialog {
   flex-direction: column;
   gap: 10px;
 }
-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.4);
+
+/* settings: tabs (Accounts | Appearance) */
+#settings {
+  width: min(760px, 94vw);
 }
-#settings-form {
-  padding: 18px 20px;
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 12px 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg2);
+  border-radius: 12px 12px 0 0;
+}
+.tabs button {
+  border: none;
+  background: none;
+  border-radius: 6px 6px 0 0;
+  padding: 6px 14px;
+  color: var(--muted);
+}
+.tabs button.on {
+  background: var(--bg);
+  color: var(--fg);
+  font-weight: 600;
+  box-shadow: 0 1px 0 var(--bg);
+}
+.tabs .spacer {
+  flex: 1;
+}
+.tab {
+  padding: 16px 18px;
+}
+.accounts {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 16px;
+  min-height: 330px;
+}
+.acct-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-right: 1px solid var(--line);
+  padding-right: 12px;
+}
+.acct-list .acct {
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 7px 10px;
+  border-radius: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.acct-list .acct small {
+  display: block;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.acct-list .acct.on {
+  background: var(--sel);
+}
+.acct-list .acct .dot {
+  color: var(--ok);
+}
+.acct-list .add {
+  margin-top: 8px;
+}
+#acct-form {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-#settings-form h2 {
-  margin: 0 0 4px;
-  font-size: 16px;
-}
-#settings-form label {
+#acct-form label,
+.appearance label.field {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
-#settings-form label input {
+#acct-form label input {
   color: var(--fg);
 }
-#settings-form label.check {
+#acct-form label.check {
   flex-direction: row;
   align-items: center;
   gap: 8px;
@@ -570,25 +705,18 @@ dialog::backdrop {
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
-.inline {
-  display: flex;
-  gap: 6px;
-}
-.inline input {
-  flex: 1;
-}
-#settings-msg {
+#acct-msg {
   margin: 0;
   min-height: 18px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   user-select: text;
   -webkit-user-select: text;
   word-break: break-word;
 }
-#settings-msg.ok {
+#acct-msg.ok {
   color: var(--ok);
 }
-#settings-msg.err {
+#acct-msg.err {
   color: var(--danger);
 }
 .buttons {
@@ -597,6 +725,40 @@ dialog::backdrop {
 }
 .spacer {
   flex: 1;
+}
+.appearance {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 330px;
+}
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  width: max-content;
+}
+.seg label {
+  padding: 6px 14px;
+  cursor: pointer;
+  color: var(--fg);
+  border-right: 1px solid var(--line);
+}
+.seg label:last-child {
+  border-right: none;
+}
+.seg input {
+  display: none;
+}
+.seg label:has(input:checked) {
+  background: var(--accent);
+  color: #fff;
+}
+.appearance .hint {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  margin: 0;
 }
 
 #toast {

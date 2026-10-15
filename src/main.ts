@@ -1,7 +1,8 @@
 // Entry point: wires DOM events to the modules and boots the app.
 // Module map: see docs/ARCHITECTURE.md ("Frontend").
 
-import { openItem, paneAction, transfer } from "./actions";
+import { calcSize, openItem, paneAction, transfer } from "./actions";
+import { applyAppearance, setupSplitter } from "./appearance";
 import { setupDnd, armDrag } from "./dnd";
 import { setupJobs } from "./jobs";
 import { setupKeyboard } from "./keyboard";
@@ -9,11 +10,9 @@ import { setupMenu, showMenu } from "./menu";
 import { paneHooks, type Pane } from "./pane";
 import { local, remote, setActive } from "./panes";
 import { closePreview, openPreview, pv, pvItem } from "./preview";
-import { loadBuckets, openSettings, setupSettings } from "./settings";
-import { app } from "./state";
-import type { Config, SortBy } from "./types";
-import { $, fail, store } from "./util";
-import { invoke } from "@tauri-apps/api/core";
+import { initSettings, setupSettings } from "./settings";
+import type { SortBy } from "./types";
+import { $, fail, store, toast } from "./util";
 
 // Remote files preview on Enter; local files open in their default app.
 paneHooks.openFile = (p, e) => (p.isRemote ? openPreview(p, e) : openItem(p, e));
@@ -83,6 +82,11 @@ function bindPane(p: Pane) {
     }),
   );
   p.el.querySelectorAll<HTMLElement>("[data-act]").forEach((b) => (b.onclick = () => paneAction(p, b.dataset.act!)));
+  p.q(".calc-size").onclick = () => calcSize(p);
+  p.q(".path").onclick = () => {
+    const path = p.fullPath();
+    if (path) navigator.clipboard.writeText(path).then(() => toast("Path copied"));
+  };
 }
 
 function bindPreview() {
@@ -95,6 +99,8 @@ function bindPreview() {
 }
 
 async function main() {
+  applyAppearance();
+  setupSplitter();
   bindPane(local);
   bindPane(remote);
   local.q<HTMLSelectElement>(".roots").addEventListener("change", (ev) => {
@@ -113,13 +119,7 @@ async function main() {
 
   local.cwd = store.get("localPath") ?? "";
   const localLoad = local.load();
-  app.cfg = await invoke<Config | null>("get_config");
-  if (!app.cfg) {
-    remote.render();
-    openSettings(); // first run
-  } else {
-    await loadBuckets();
-  }
+  await initSettings();
   await localLoad;
   local.list.focus();
 }

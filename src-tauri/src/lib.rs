@@ -5,7 +5,7 @@
 //! through the `"job"` event (see [`jobs`]).
 //!
 //! Module map (see `docs/ARCHITECTURE.md` for the full picture):
-//! - [`config`]   — connection settings: persisted JSON + S3 client construction
+//! - [`config`]   — S3 accounts (profiles): persisted JSON + S3 client construction
 //! - [`state`]    — shared app state (config, client, cancel flags)
 //! - [`jobs`]     — background job bookkeeping + progress events
 //! - [`remote`]   — S3 browsing: list, presign, read, mkdir, delete
@@ -30,20 +30,22 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(state::AppState::default())
         .setup(|app| {
-            if let Some(cfg) = config::load_config(app.handle()) {
-                app.state::<state::AppState>().set_config(cfg);
-            }
+            let settings = config::load_settings(app.handle());
+            app.state::<state::AppState>().set_settings(settings);
             // Clean previews left over from earlier sessions.
             let _ = std::fs::remove_dir_all(transfer::temp_root());
             Ok(())
         })
         // Keep this list in sync with the command table in docs/ARCHITECTURE.md.
         .invoke_handler(tauri::generate_handler![
-            config::get_config,
-            config::test_config,
-            config::save_config,
+            config::get_settings,
+            config::test_profile,
+            config::save_profile,
+            config::delete_profile,
+            config::set_active_profile,
             config::list_buckets,
             remote::list,
+            remote::remote_size,
             remote::presign,
             remote::read_text,
             remote::mkdir,
@@ -53,6 +55,7 @@ pub fn run() {
             transfer::download,
             transfer::open_object,
             local::list_local,
+            local::local_size,
             local::read_local_text,
             local::mkdir_local,
             local::open_local,

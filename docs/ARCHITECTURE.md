@@ -34,12 +34,12 @@ This is the deep reference. For orientation, read [AGENTS.md](../AGENTS.md) firs
 | Module | Owns | Key items |
 |---|---|---|
 | `lib.rs` | App bootstrap | `run()`: plugins (opener, dialog), loads the config, wipes the temp dir, registers commands |
-| `config.rs` | Connection settings | `Config`, `load_config`, `make_client` (path-style, checksum policy, endpoint normalization) |
-| `state.rs` | Shared state | `AppState { cfg, client, cancels }` behind `Mutex`es. `set_config()` rebuilds the client |
+| `config.rs` | Accounts | `Profile`, `Settings` (upsert/remove/active), `parse_settings` (v1→v2 migration), `make_client` (path-style, checksums, endpoint normalization) |
+| `state.rs` | Shared state | `AppState { settings, client, cancels }` behind `Mutex`es. `set_settings()` rebuilds the client for the active profile |
 | `jobs.rs` | Background jobs | `Job` (atomic counters, errors, cancel flag), `Job::spawn` (250 ms ticker + final event), `cancel` |
-| `remote.rs` | S3 browsing | `Entry` row type, `list` (one level, delimiter `/`), `list_all` (recursive), `presign`, `read_text`, `mkdir`, `delete` |
+| `remote.rs` | S3 browsing | `Entry` row type, `list` (one level, delimiter `/`), `list_all` (recursive), `remote_size`, `presign`, `read_text`, `mkdir`, `delete` |
 | `transfer.rs` | Moving bytes | `upload`/`upload_file` (PUT or multipart), `download`/`download_file` (stream to `.part`), `open_object`, tuning constants |
-| `local.rs` | Local disk (left pane) | `list_local` (+ crumbs and Places roots), `read_local_text`, `mkdir_local`, `open_local`, `reveal` |
+| `local.rs` | Local disk (left pane) | `list_local` (+ crumbs and Places roots), `local_size`, `read_local_text`, `mkdir_local`, `open_local`, `reveal` |
 | `util.rs` | Pure helpers | `err` (full SDK error chain), `safe_rel` (traversal guard), `unique_path`, `job_label`, `file_name`, `is_text_like` |
 
 ## IPC commands
@@ -49,10 +49,14 @@ Every command returns `Result<T, String>`, and the error string is shown to the 
 
 | Command | Args | Returns | Module | Notes |
 |---|---|---|---|---|
-| `get_config` | – | `Config \| null` | config | `null` on first run → the UI opens Settings |
-| `test_config` | `cfg` | `string[]` buckets | config | Falls back to `HeadBucket(cfg.bucket)` if ListBuckets is denied |
-| `save_config` | `cfg` | – | config | Writes `config.json` (0600) and rebuilds the client |
-| `list_buckets` | – | `string[]` | config | `test_config` with the saved config |
+| `get_settings` | – | `Settings` | config | All accounts plus the active id. No profiles means first run → the UI opens Settings |
+| `test_profile` | `profile` | `string[]` buckets | config | Falls back to `HeadBucket(profile.bucket)` if ListBuckets is denied |
+| `save_profile` | `profile` | `Settings` | config | Upsert (an empty `id` means new), make it active, write `config.json` (0600), rebuild the client |
+| `delete_profile` | `id` | `Settings` | config | If it was active, the first remaining account becomes active |
+| `set_active_profile` | `id` | `Settings` | config | Switches the remote pane's account. Running jobs keep their own client |
+| `list_buckets` | – | `string[]` | config | `test_profile` with the active account |
+| `remote_size` | `bucket, prefix` | `SizeInfo {bytes, files}` | remote | Recursive. `""` = whole bucket. Lists every object, so it's slow on huge folders |
+| `local_size` | `path` | `SizeInfo` | local | Recursive walk; symlinks are not followed |
 | `list` | `bucket, prefix` | `Entry[]` | remote | One folder level. Folders have `dir: true` and a key ending in `/` |
 | `presign` | `bucket, key, secs, inline` | URL | remote | `secs` is clamped to 60 s–7 d. `inline` forces Content-Type/Disposition for preview |
 | `read_text` | `bucket, key, max` | string | remote | Range GET `0..max`, decoded as lossy UTF-8 |
@@ -109,9 +113,25 @@ Local media: `convertFileSrc(path)` (asset protocol). Text, local or remote: fir
 `<pre>` filled through `textContent`. Anything else shows "Open with default app"
 (`open_object`/`open_local`).
 
-**Settings**
-Save runs `test_config` first, and only on success calls `save_config` → `loadBuckets()`. If
-the endpoint or access key changed, the remembered bucket and prefix are reset.
+**Accounts (profiles)**
+`config.json` holds `{profiles[], active, download_dir}` (`config::Settings`). The backend keeps
+one S3 client, for the active profile. Settings → Accounts: **Save & use** runs `test_profile`
+first, and only on success calls `save_profile`. That returns the new `Settings`, and
+`applySettings()` then reloads the account picker, the bucket list and the remote pane. The last
+bucket and prefix are remembered **per account** (localStorage `bucket@<id>`, `prefix@<id>`).
+v1 files (one flat connection) are migrated in memory by `config::parse_settings` and written
+back in v2 format on the next save.
+
+**Folder size (Σ Size)**
+`actions.ts::calcSize`: selected folders call `remote_size`/`local_size`, and the result goes
+into the row (`Item.calc = true`, shown in the Size column). With no folder selected, the
+current folder's total goes in the path bar.
+
+**Appearance**
+`appearance.ts` stores theme (`system`/`light`/`dark`), text size (13/14/16/18 px) and the pane
+split (%) in localStorage. It applies them as `<html data-theme>`, the `--fs` CSS variable and
+`#panes --left`. `styles.css` sizes everything from `--fs`. The native window theme follows via
+`getCurrentWindow().setTheme()`.
 
 ## Frontend modules (`src/`)
 
@@ -124,7 +144,8 @@ the endpoint or access key changed, the remembered bucket and prefix are reset.
 | `dnd.ts` | Mouse-event drag between panes (`armDrag` on mousedown, threshold 5 px, ghost label, drop-target highlight) and OS drops |
 | `preview.ts` | Modal state `pv`, `openPreview`, `previewStep`, `closePreview` |
 | `jobs.ts` | `"job"` listener, speed smoothing, Transfers panel, cancel and "Show" buttons |
-| `settings.ts` | Settings dialog and bucket `<select>` |
+| `settings.ts` | Settings dialog (Accounts / Appearance tabs), account picker and bucket picker, `applySettings()` |
+| `appearance.ts` | Theme, text size, pane splitter (per-device prefs) |
 | `menu.ts` / `keyboard.ts` | Context menu / every shortcut |
 | `types.ts`, `files.ts`, `util.ts`, `state.ts` | Shared types, file kinds and icons, DOM and format helpers, global `app` state (`cfg`, `bucket`, `showHidden`) |
 
@@ -135,8 +156,8 @@ Imports go one way to avoid cycles: `main → (actions, dnd, keyboard, menu, set
 
 | What | Where |
 |---|---|
-| Connection config (including the **secret key**, plain JSON, mode 0600) | `<app config dir>/config.json`: macOS `~/Library/Application Support/com.vnappmob.noexplorer/`, Windows `%APPDATA%\com.vnappmob.noexplorer\`, Linux `~/.config/com.vnappmob.noexplorer/` |
-| UI preferences (`localStorage`) | `bucket`, `prefix`, `localPath`, `hidden`, `local.sortBy`, `local.sortDir`, `remote.sortBy`, `remote.sortDir` |
+| Accounts (`Settings`, including **secret keys**, plain JSON, mode 0600) | `<app config dir>/config.json`: macOS `~/Library/Application Support/com.vnappmob.noexplorer/`, Windows `%APPDATA%\com.vnappmob.noexplorer\`, Linux `~/.config/com.vnappmob.noexplorer/` |
+| UI preferences (`localStorage`) | `bucket@<profileId>`, `prefix@<profileId>`, `localPath`, `hidden`, `local.sortBy`, `local.sortDir`, `remote.sortBy`, `remote.sortDir`, `theme`, `textSize`, `split` |
 | "Open" temp files | `$TMP/noexplorer/` (wiped at startup) |
 
 ## Security model

@@ -13,14 +13,15 @@ can start right away. When you finish an item, move it to `CHANGELOG.md` and upd
 3. **Smoke-test on Windows and Linux.** CI compiles both but nobody has used them yet. Pay
    attention to drag positions on HiDPI Windows (`dnd.ts`, `devicePixelRatio`) and to Places
    on Linux (`local.rs::local_roots`).
-4. **Multiple connections (profiles).** `Config` → `Vec<Profile>` with an active id
-   (`config.rs`), a profile picker next to the bucket `<select>` (`index.html`, `settings.ts`).
-   Keep backwards compatibility by migrating the old single config.
-5. **Auto-update.** Add `tauri-plugin-updater` and a signing keypair (`tauri signer generate`).
+4. **Auto-update.** Add `tauri-plugin-updater` and a signing keypair (`tauri signer generate`).
    Put the public key in `tauri.conf.json` and the private key in the
    `TAURI_SIGNING_PRIVATE_KEY` secret. `tauri-action` then publishes `latest.json`.
 
 ## Later
+
+- **Friendlier S3 errors**: map `SignatureDoesNotMatch` → "Wrong secret key", `InvalidAccessKeyId`,
+  `AccessDenied`, `NoSuchBucket`… using the SDK's `ProvideErrorMetadata` (`util::err` / a new `sdk_err`).
+- **Copy between two accounts / two remote panes** (needs a client per pane, see ADR-014).
 
 - **Keychain storage for secrets** with the `keyring` crate (supersedes ADR-008), in `config.rs`.
 - **Windows code signing** via SignPath (OSS), in `release.yml`.

@@ -16,6 +16,7 @@ export function showMenu(p: Pane, x: number, y: number) {
   if (!p.isRemote) items.push(["reveal", "🔎 Show in Finder / Explorer"]);
   if (one && p.isRemote && !one.dir) items.push(["link", "🔗 Copy 7-day link"]);
   if (one) items.push(["copy-path", "📋 Copy path"]);
+  items.push(["size", sel.some((e) => e.dir) ? "Σ Calculate folder size" : "Σ Size of this folder"]);
   if (sel.length && p.isRemote) items.push(["-", ""], ["delete", "🗑 Delete from S3"]);
   items.push(["-", ""], ["mkdir", "＋ New folder"], ["refresh", "⟳ Refresh"]);
   if (!p.isRemote) items.push(["hidden", `${app.showHidden ? "✓ " : ""}Show hidden files`]);

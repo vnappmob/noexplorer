@@ -8,7 +8,7 @@
     <script type="module" src="/src/main.ts" defer></script>
   </head>
   <body>
-    <div class="panes">
+    <div class="panes" id="panes">
       <!-- LOCAL -->
       <section class="pane" id="pane-local" data-pane="local">
         <header class="bar">
@@ -22,6 +22,11 @@
           <span data-sort="name">Name</span><span data-sort="size">Size</span><span data-sort="modified">Modified</span>
         </div>
         <div class="list" tabindex="0"></div>
+        <div class="pathbar">
+          <span class="path" title="Click to copy"></span>
+          <span class="dirsize"></span>
+          <button class="link calc-size" title="Total size of this folder, including subfolders">Σ Size</button>
+        </div>
         <footer class="status">
           <span class="status-text"></span>
           <span class="actions">
@@ -32,9 +37,12 @@
         </footer>
       </section>
 
+      <div class="splitter" title="Drag to resize · double-click to reset"></div>
+
       <!-- REMOTE -->
       <section class="pane" id="pane-remote" data-pane="remote">
         <header class="bar">
+          <select id="profile" title="Account"></select>
           <select class="roots" id="bucket" title="Bucket"></select>
           <button class="icon up" title="Up one folder (⌫)">↑</button>
           <nav class="crumbs"></nav>
@@ -46,6 +54,11 @@
           <span data-sort="name">Name</span><span data-sort="size">Size</span><span data-sort="modified">Modified</span>
         </div>
         <div class="list" tabindex="0"></div>
+        <div class="pathbar">
+          <span class="path" title="Click to copy"></span>
+          <span class="dirsize"></span>
+          <button class="link calc-size" title="Total size of this folder, including subfolders">Σ Size</button>
+        </div>
         <footer class="status">
           <span class="status-text"></span>
           <span class="actions">
@@ -86,26 +99,60 @@
     </div>
 
     <dialog id="settings">
-      <form method="dialog" id="settings-form">
-        <h2>S3 connection</h2>
-        <label>Endpoint
-          <input name="endpoint" placeholder="https://s3.example.com or http://192.168.1.10:9000" required spellcheck="false" />
+      <nav class="tabs">
+        <button type="button" data-tab="accounts" class="on">Accounts</button>
+        <button type="button" data-tab="appearance">Appearance</button>
+        <span class="spacer"></span>
+        <button type="button" id="settings-close" title="Close (Esc)">✕</button>
+      </nav>
+
+      <section class="tab" data-tab="accounts">
+        <div class="accounts">
+          <div class="acct-list">
+            <div id="acct-items"></div>
+            <button type="button" class="add" id="acct-add">＋ Add account</button>
+          </div>
+          <form id="acct-form">
+            <label>Name <input name="name" placeholder="e.g. Home NAS, Company MinIO" spellcheck="false" /></label>
+            <label>Endpoint
+              <input name="endpoint" placeholder="https://s3.example.com or http://192.168.1.10:9000" required spellcheck="false" />
+            </label>
+            <div class="row2">
+              <label>Region <input name="region" placeholder="us-east-1" spellcheck="false" /></label>
+              <label>Default bucket <input name="bucket" placeholder="(optional)" spellcheck="false" /></label>
+            </div>
+            <label>Access key <input name="access_key" required spellcheck="false" autocomplete="off" /></label>
+            <label>Secret key <input name="secret_key" type="password" required autocomplete="off" /></label>
+            <label class="check"><input type="checkbox" name="path_style" checked /> Path-style requests (recommended for MinIO / self-hosted)</label>
+            <p id="acct-msg"></p>
+            <div class="buttons">
+              <button type="button" id="acct-delete" class="danger">Delete</button>
+              <span class="spacer"></span>
+              <button type="button" id="acct-test">Test</button>
+              <button type="submit" class="primary">Save &amp; use</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section class="tab appearance" data-tab="appearance" hidden>
+        <label class="field">Theme
+          <span class="seg" id="ap-theme">
+            <label><input type="radio" name="theme" value="system" />System</label>
+            <label><input type="radio" name="theme" value="light" />Light</label>
+            <label><input type="radio" name="theme" value="dark" />Dark</label>
+          </span>
         </label>
-        <div class="row2">
-          <label>Region <input name="region" placeholder="us-east-1" spellcheck="false" /></label>
-          <label>Default bucket <input name="bucket" placeholder="(optional)" spellcheck="false" /></label>
-        </div>
-        <label>Access key <input name="access_key" required spellcheck="false" autocomplete="off" /></label>
-        <label>Secret key <input name="secret_key" type="password" required autocomplete="off" /></label>
-        <label class="check"><input type="checkbox" name="path_style" checked /> Path-style requests (recommended for MinIO / self-hosted)</label>
-        <p id="settings-msg"></p>
-        <div class="buttons">
-          <button type="button" id="settings-test">Test</button>
-          <span class="spacer"></span>
-          <button type="button" id="settings-cancel">Cancel</button>
-          <button type="submit" class="primary">Save</button>
-        </div>
-      </form>
+        <label class="field">Text size
+          <span class="seg" id="ap-size">
+            <label><input type="radio" name="size" value="13" />Small</label>
+            <label><input type="radio" name="size" value="14" />Default</label>
+            <label><input type="radio" name="size" value="16" />Large</label>
+            <label><input type="radio" name="size" value="18" />Extra large</label>
+          </span>
+        </label>
+        <p class="hint">Changes apply instantly and are saved on this computer. Tip: drag the line between the panes to resize them; double-click it to reset.</p>
+      </section>
     </dialog>
 
     <dialog id="ask">

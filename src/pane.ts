@@ -3,7 +3,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { ICON, kindOf } from "./files";
-import { app } from "./state";
+import { activeProfile, app, profileKey } from "./state";
 import type { Crumb, Item, LocalListing, SortBy } from "./types";
 import { $, esc, fail, fmtDate, fmtSize, plural, store } from "./util";
 
@@ -77,8 +77,8 @@ export class Pane {
   }
 
   private async loadRemote(seq: number) {
-    store.set("bucket", app.bucket);
-    store.set("prefix", this.cwd);
+    store.set(profileKey("bucket"), app.bucket);
+    store.set(profileKey("prefix"), this.cwd);
     this.crumbs = [{ name: app.bucket || "—", path: "" }];
     let acc = "";
     for (const p of this.cwd.split("/").filter(Boolean)) {
@@ -109,6 +109,11 @@ export class Pane {
     this.renderCrumbs();
   }
 
+  /** Full location of `cwd`: an absolute local path, or `s3://bucket/prefix`. */
+  fullPath() {
+    return this.isRemote ? (app.bucket ? `s3://${app.bucket}/${this.cwd}` : "") : this.cwd;
+  }
+
   go(path: string, keepSelection = false) {
     this.cwd = path;
     this.q<HTMLInputElement>(".filter").value = "";
@@ -137,6 +142,9 @@ export class Pane {
       .join("");
     el.scrollLeft = el.scrollWidth; // keep the deepest folder visible
     this.q<HTMLButtonElement>(".up").disabled = this.isRemote ? !this.cwd : !this.parent;
+    // Path bar: the full location, always visible (crumbs can be clipped). Size resets per folder.
+    this.q(".path").textContent = this.fullPath();
+    this.q(".dirsize").textContent = "";
   }
 
   render() {
@@ -155,8 +163,8 @@ export class Pane {
       s.className = s.dataset.sort === sortBy ? (sortDir > 0 ? "asc" : "desc") : "";
     });
 
-    if (this.isRemote && !app.cfg) {
-      this.list.innerHTML = `<div class="empty"><div class="big">⚙</div>Not connected.<br/>Click ⚙ to set up your S3 server.</div>`;
+    if (this.isRemote && !activeProfile()) {
+      this.list.innerHTML = `<div class="empty"><div class="big">⚙</div>No S3 account yet.<br/>Click ⚙ to add one.</div>`;
     } else if (!this.view.length) {
       const hint = this.isRemote
         ? "Drag files here from the left pane<br/>or from Finder / Explorer to upload."
@@ -171,7 +179,7 @@ export class Pane {
             e.dir ? ` data-dir="${esc(e.key)}"` : ""
           }>
           <span class="name"><span class="ico">${e.dir ? "📁" : ICON[kindOf(e.name)]}</span><span>${esc(e.name)}</span></span>
-          <span class="size">${e.dir ? "" : fmtSize(e.size)}</span>
+          <span class="size${e.calc ? " calc" : ""}">${e.dir && !e.calc ? "" : fmtSize(e.size)}</span>
           <span class="date">${fmtDate(e.modified)}</span>
         </div>`,
         )

@@ -14,3 +14,5 @@ perl -0pi -e "s/^version = \".*?\"/version = \"$v\"/m" src-tauri/Cargo.toml
 echo "Version set to $v. Next:"
 echo "  1. Move CHANGELOG.md 'Unreleased' entries under '## [$v] - $(date +%F)'"
 echo "  2. git commit -am 'release: v$v' && git tag v$v && git push && git push origin v$v"
+echo "  3. gh release create v$v --draft --verify-tag --title 'NoExplorer v$v' --notes 'See CHANGELOG.md'"
+echo "     (the org blocks GITHUB_TOKEN from creating releases; the workflow uploads into this draft)"

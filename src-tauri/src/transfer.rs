@@ -181,7 +181,7 @@ pub struct DlItem {
 }
 
 fn default_download_dir(state: &AppState) -> PathBuf {
-    match state.config().map(|c| c.download_dir).filter(|d| !d.trim().is_empty()) {
+    match Some(state.settings().download_dir).filter(|d| !d.trim().is_empty()) {
         Some(d) => PathBuf::from(d.trim()),
         None => dirs::download_dir().unwrap_or_else(|| dirs::home_dir().unwrap_or_default()),
     }
@@ -307,7 +307,7 @@ pub async fn open_object(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{Config, make_client, test_config};
+    use crate::config::{Profile, make_client, test_profile};
     use aws_sdk_s3::presigning::PresigningConfig;
     use std::time::Duration;
 
@@ -344,7 +344,7 @@ mod tests {
             eprintln!("skipping s3_roundtrip: NOEXPLORER_TEST_ENDPOINT not set");
             return;
         };
-        let cfg = Config {
+        let cfg = Profile {
             endpoint,
             access_key: std::env::var("NOEXPLORER_TEST_KEY").unwrap(),
             secret_key: std::env::var("NOEXPLORER_TEST_SECRET").unwrap(),
@@ -353,7 +353,7 @@ mod tests {
         let c = make_client(&cfg);
         let bucket = "noexplorer-test";
         let _ = c.create_bucket().bucket(bucket).send().await;
-        assert!(test_config(cfg.clone()).await.unwrap().contains(&bucket.to_string()));
+        assert!(test_profile(cfg.clone()).await.unwrap().contains(&bucket.to_string()));
 
         let dir = tmp_dir();
         std::fs::create_dir_all(dir.join("folder/sub")).unwrap();

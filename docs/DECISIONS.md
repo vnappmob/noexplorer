@@ -179,3 +179,19 @@ page, preview URLs on pull requests, and an instant rollback (`wrangler rollback
 tokens or secrets in GitHub. The trade-off: deploy logs and the repo connection live in the
 Cloudflare dashboard, not in `.github/workflows`. (An earlier draft deployed through a GitHub
 Action with `wrangler-action`. It was dropped because Workers Builds needs no secrets.)
+
+<a id="adr-014"></a>
+
+## ADR-014: Multiple S3 accounts live in one `config.json` (v2) with a single active client
+Accepted · 2026-10-15 · extends ADR-008
+
+**Context.** Users back up to more than one server (home NAS, company MinIO, R2…).
+**Decision.** `config.json` becomes `{profiles[], active, download_dir}`. The backend holds one
+S3 client, for the active profile. Jobs clone it at start, so switching accounts mid-transfer is
+safe. v1 files are migrated in memory on load (`parse_settings`) and written back as v2 on the
+next save. Last bucket and prefix are remembered per profile in localStorage. Appearance
+(theme, text size, split) is a per-device UI preference, so it lives in localStorage, not in
+`config.json`.
+**Consequences.** The remote pane always shows a single account. Two remote panes, or copying
+between accounts, would need a client per pane (roadmap). Secrets for all accounts sit in the
+same 0600 file. The keychain move (roadmap) should cover all profiles.

@@ -13,6 +13,9 @@ git checkout main && git pull
 git commit -am "release: v0.2.0"
 git tag v0.2.0
 git push && git push origin v0.2.0
+# The org blocks the workflow's GITHUB_TOKEN from *creating* releases (403 "Resource not
+# accessible by integration"), so create the draft yourself; tauri-action then uploads into it:
+gh release create v0.2.0 --draft --verify-tag --title "NoExplorer v0.2.0" --notes "See CHANGELOG.md"
 ```
 
 Then:
