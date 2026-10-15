@@ -20,8 +20,8 @@ gh release create v0.2.0 --draft --verify-tag --title "NoExplorer v0.2.0" --note
 
 Then:
 
-1. **Actions → Release** builds on macOS (universal, signed and notarized), Windows and
-   Linux. It takes about 15–25 minutes; notarization is the slow part.
+1. **Actions → Release** builds on macOS (universal; the `.app` and the `.dmg` are both signed,
+   notarized and stapled), Windows and Linux. It takes about 15–25 minutes; notarization is the slow part.
 2. **Releases** now has a **draft** "NoExplorer v0.2.0" with these assets:
    - `NoExplorer_0.2.0_universal.dmg`
    - `NoExplorer_0.2.0_x64-setup.exe`, `NoExplorer_0.2.0_x64_en-US.msi`
@@ -54,7 +54,9 @@ certificate and double-click to install it. Then export it as above.
 To check a downloaded build:
 
 ```bash
-spctl -a -vvv -t install /Applications/NoExplorer.app   # → "accepted, source=Notarized Developer ID"
+spctl -a -vvv -t exec /Applications/NoExplorer.app                                   # → accepted, source=Notarized Developer ID
+spctl -a -vvv -t open --context context:primary-signature NoExplorer_X.Y.Z_universal.dmg   # → accepted (from v0.2.0)
+xcrun stapler validate NoExplorer_X.Y.Z_universal.dmg
 ```
 
 ## Windows signing (not set up yet)
