@@ -272,4 +272,3 @@ label and app name are unchanged, so enabling overwrites the old entry. `refresh
 an enabled entry at every launch, which repairs entries made by ≤ 0.2.1 and follows a moved app.
 **Consequences.** Two Tauri commands replace the plugin's JS API. One less plugin and
 capability. macOS may show a "Background Items Added" notice once when the entry is rewritten.
-Verified on macOS: after auto-updating to 0.2.2, the existing entry was repaired and Login Items shows "NoExplorer" (2026-10-15).
