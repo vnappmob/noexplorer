@@ -14,11 +14,17 @@
     "windows": [
       {
         "title": "NoExplorer",
-        "width": 1280,
-        "height": 760,
-        "minWidth": 760,
-        "minHeight": 380,
-        "dragDropEnabled": true
+        "width": 1320,
+        "height": 820,
+        "minWidth": 820,
+        "minHeight": 480,
+        "dragDropEnabled": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 18,
+          "y": 24
+        }
       }
     ],
     "security": {

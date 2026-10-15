@@ -59,7 +59,7 @@ Every command returns `Result<T, String>`, and the error string is shown to the 
 | `save_general` | `general` | `Settings` | config | Settings → General (`run_in_background`, `check_updates`, `notify`) |
 | `autostart_enabled` | – | `bool` | autostart | Is "Launch at login" registered with the OS |
 | `set_autostart` | `enabled` | – | autostart | macOS: LaunchAgent **with `AssociatedBundleIdentifiers`**; Windows: Run key; Linux: `.desktop` autostart. Starts with `--hidden` |
-| `list_buckets` | – | `string[]` | config | `test_profile` with the active account |
+| `list_buckets` | – | `BucketInfo[] {name, region}` | config | Buckets of the active account. `region` comes from AWS ListBuckets (null elsewhere) and is shown as a badge in the bucket menu |
 | `remote_size` | `bucket, prefix` | `SizeInfo {bytes, files}` | remote | Recursive. `""` = whole bucket. Lists every object, so it's slow on huge folders |
 | `local_size` | `path` | `SizeInfo` | local | Recursive walk; symlinks are not followed |
 | `list` | `bucket, prefix` | `Entry[]` | remote | One folder level. Folders have `dir: true` and a key ending in `/` |
@@ -155,6 +155,16 @@ The release workflow signs the update bundles (`*.app.tar.gz`, `*-setup.exe`, `*
 then `downloadAndInstall()` + `relaunch()` (`updater.ts`). Drafts are invisible to
 `releases/latest`, so an update ships only when a release is **published**.
 
+**Window and pane layout (v0.3)**
+On macOS the title bar is an overlay (`titleBarStyle: Overlay`): the traffic lights sit in
+`#topbar`'s `.tl-space`, and `data-tauri-drag-region` makes the bar draggable. Each pane has two
+header rows. Row 1 (`.src`) is the source: the "This computer" chip and Places menu, or the
+account chip › bucket chip. Row 2 (`.pathbar`) is the path: up, clickable crumbs (empty space
+or ⌘L switches to typing a path), copy, Σ. A floating `.selbar` appears while rows are selected.
+Transfers show in the activity card, plus the beam: an SVG arc over `#panes`, computed from the
+real element rects on every job tick and resize. The watermarks (`.mark`) hide when the list
+fills the pane (`Pane.fitMark`).
+
 **Appearance**
 `appearance.ts` stores theme (`system`/`light`/`dark`), text size (13/14/16/18 px) and the pane
 split (%) in localStorage. It applies them as `<html data-theme>`, the `--fs` CSS variable and
@@ -171,12 +181,15 @@ split (%) in localStorage. It applies them as `<html data-theme>`, the `--fs` CS
 | `actions.ts` | `transfer`, `openItem`, `copyLink`, `deleteRemote`, `mkdir`, `paneAction(pane, name)` |
 | `dnd.ts` | Mouse-event drag between panes (`armDrag` on mousedown, threshold 5 px, ghost label, drop-target highlight) and OS drops |
 | `preview.ts` | Modal state `pv`, `openPreview`, `previewStep`, `closePreview` |
-| `jobs.ts` | `"job"` listener, speed smoothing, Transfers panel, cancel and "Show" buttons |
+| `jobs.ts` | `"job"` listener, speed smoothing, the activity card (#activity) with the expandable transfer list, and the transfer beam (#beam) from source to destination |
 | `settings.ts` | Settings dialog (Accounts / General / Appearance / About tabs), account picker and bucket picker, `applySettings()`, autostart toggle |
 | `appearance.ts` | Theme, text size, pane splitter (per-device prefs) |
 | `providers.ts` | Provider presets (AWS, R2, B2, Wasabi, DO, self-hosted) for the account form; `describeAccount()` |
+| `icons.ts` | Stroke icon set (`icon()`, `hydrateIcons()` for `data-icon` placeholders) + the pane watermarks |
+| `popover.ts` | Anchored dropdown menus (account, bucket, this computer): search box, ↑/↓/Enter/Esc |
+| `palette.ts` | ⌘K command palette (commands, accounts, buckets, places, files) and path editing (⌘L, `editPath`) |
 | `updater.ts` | Update check (startup + every 6 h, tray, Settings), banner, download progress, relaunch |
-| `menu.ts` / `keyboard.ts` | Context menu / every shortcut |
+| `menu.ts` / `keyboard.ts` | Right-click and "⋯" menu / every shortcut |
 | `types.ts`, `files.ts`, `util.ts`, `state.ts` | Shared types, file kinds and icons, DOM and format helpers, global `app` state (`cfg`, `bucket`, `showHidden`) |
 
 Imports go one way to avoid cycles: `main → (actions, dnd, keyboard, menu, settings, jobs, preview) → panes → pane → (state, util, files, types)`.

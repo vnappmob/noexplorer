@@ -1,19 +1,22 @@
 // Entry point: wires DOM events to the modules and boots the app.
 // Module map: see docs/ARCHITECTURE.md ("Frontend").
 
-import { calcSize, openItem, paneAction, transfer } from "./actions";
+import { calcSize, mkdir, openItem, paneAction, transfer } from "./actions";
 import { applyAppearance, setupSplitter } from "./appearance";
 import { setupDnd, armDrag } from "./dnd";
+import { hydrateIcons } from "./icons";
 import { setupJobs } from "./jobs";
 import { setupKeyboard } from "./keyboard";
 import { setupMenu, showMenu } from "./menu";
+import { copyPath, editPath, setupPalette } from "./palette";
+import { openMenu, setupPopover } from "./popover";
 import { paneHooks, type Pane } from "./pane";
 import { local, remote, setActive } from "./panes";
 import { closePreview, openPreview, pv, pvItem } from "./preview";
 import { initSettings, setupSettings } from "./settings";
 import { setupUpdater } from "./updater";
 import type { SortBy } from "./types";
-import { $, fail, store, toast } from "./util";
+import { $, fail, store } from "./util";
 
 // Remote files preview on Enter; local files open in their default app.
 paneHooks.openFile = (p, e) => (p.isRemote ? openPreview(p, e) : openItem(p, e));
@@ -62,16 +65,31 @@ function bindPane(p: Pane) {
     showMenu(p, ev.clientX, ev.clientY);
   });
 
+  // Path bar: a crumb goes there; empty space switches to typing a path.
   p.q(".crumbs").addEventListener("click", (ev) => {
-    const a = (ev.target as HTMLElement).closest<HTMLElement>("a");
-    if (a) p.go(a.dataset.p!);
+    const c = (ev.target as HTMLElement).closest<HTMLElement>(".crumb");
+    if (c) p.go(c.dataset.p!);
+    else editPath(p);
   });
   p.q(".up").onclick = () => p.up();
   p.q(".refresh").onclick = () => p.load(true);
-  p.q(".filter").addEventListener("input", () => {
+  p.q(".mkdir-btn").onclick = () => mkdir(p);
+  p.q(".copy-path").onclick = () => copyPath(p);
+  const filter = p.q<HTMLInputElement>(".filter");
+  filter.addEventListener("input", () => {
     p.selected.clear();
     p.render();
   });
+  filter.addEventListener("blur", () => {
+    if (!filter.value) p.toggleFilter(false);
+  });
+  p.q(".filter-btn").onclick = () => p.toggleFilter(filter.hidden !== false);
+  // "⋯" in the header and in the selection bar open the same menu as a right-click.
+  p.q(".more-btn").onclick = (ev) => {
+    const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+    setActive(p);
+    showMenu(p, r.left, r.bottom + 6);
+  };
   p.el.querySelectorAll<HTMLElement>(".cols span").forEach((s) =>
     s.addEventListener("click", () => {
       const by = s.dataset.sort as SortBy;
@@ -82,12 +100,32 @@ function bindPane(p: Pane) {
       p.render();
     }),
   );
-  p.el.querySelectorAll<HTMLElement>("[data-act]").forEach((b) => (b.onclick = () => paneAction(p, b.dataset.act!)));
+  p.el.querySelectorAll<HTMLElement>("[data-act]").forEach((b) => {
+    b.onclick = () => {
+      if (b.dataset.act !== "menu") return paneAction(p, b.dataset.act!);
+      const r = b.getBoundingClientRect();
+      showMenu(p, r.left, r.top - 8, true);
+    };
+  });
   p.q(".calc-size").onclick = () => calcSize(p);
-  p.q(".path").onclick = () => {
-    const path = p.fullPath();
-    if (path) navigator.clipboard.writeText(path).then(() => toast("Path copied"));
-  };
+}
+
+/** "This computer ▾": Home, common folders, disks and volumes. */
+function openPlacesMenu() {
+  const items = local.roots.map((r) => {
+    const name = r.name.replace(/^\p{Extended_Pictographic}\s*/u, "");
+    const ic = /Home$/.test(r.name)
+      ? "home"
+      : /Downloads$/.test(r.name)
+        ? "download"
+        : /Desktop$/.test(r.name)
+          ? "desktop"
+          : /^💽/u.test(r.name)
+            ? "drive"
+            : "folder";
+    return { label: name, sub: r.path, icon: ic, checked: local.cwd === r.path, run: () => local.go(r.path) };
+  });
+  openMenu($("places-chip"), items, { width: 260 });
 }
 
 function bindPreview() {
@@ -102,17 +140,19 @@ function bindPreview() {
 async function main() {
   applyAppearance();
   setupSplitter();
+  if (/Mac/.test(navigator.userAgent)) document.body.classList.add("mac"); // room for the traffic lights
+  hydrateIcons();
   bindPane(local);
   bindPane(remote);
-  local.q<HTMLSelectElement>(".roots").addEventListener("change", (ev) => {
-    const v = (ev.target as HTMLSelectElement).value;
-    if (v) local.go(v);
-  });
+  $("places-chip").onclick = openPlacesMenu;
   bindPreview();
+  setupPopover();
+  setupPalette();
   setupMenu();
   setupSettings();
   setupKeyboard();
   window.addEventListener("focus", () => local.load(true)); // pick up changes made outside the app
+  window.addEventListener("resize", () => (local.fitMark(), remote.fitMark()));
   setActive(local);
 
   await setupJobs();

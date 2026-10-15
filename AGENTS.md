@@ -19,7 +19,7 @@ TypeScript UI. The UI is in English. License: MIT.
 |---|---|
 | Version | `0.2.3` released 2026-10-15 ([release](https://github.com/vnappmob/noexplorer/releases/tag/v0.2.3)). Auto-update since 0.2.0; v0.1.0 users upgrade by hand once |
 | Last updated | 2026-10-15 |
-| Works and is verified | Dual-pane browse; drag both ways; drop files from the OS; multipart upload (tested with 2 GB); folder up/download; quick look (image/video/audio/pdf/text, local and remote); presigned links; delete; mkdir; transfer progress/cancel; **multiple S3 accounts** (picker + manager, v1 config migration); **Σ folder size** (remote and local) and full-path bar; **theme + text size**; **resizable split**; **auto-update** (signed, GitHub `latest.json`; real OTA 0.2.0 → 0.2.1 confirmed on macOS 2026-10-15); **tray + background running** (hide on close, live transfer rows, notifications, launch at login: macOS Login Items shows "NoExplorer", confirmed 2026-10-15 after re-registration; single instance); **Settings → General / About** |
+| Works and is verified | Dual-pane browse; drag both ways; drop files from the OS; multipart upload (tested with 2 GB); folder up/download; quick look (image/video/audio/pdf/text, local and remote); presigned links; delete; mkdir; transfer progress/cancel; **multiple S3 accounts** (picker + manager, v1 config migration); **Σ folder size** (remote and local) and full-path bar; **theme + text size**; **resizable split**; **auto-update** (signed, GitHub `latest.json`; real OTA 0.2.0 → 0.2.1 confirmed on macOS 2026-10-15); **tray + background running** (hide on close, live transfer rows, notifications, launch at login: macOS Login Items shows "NoExplorer", confirmed 2026-10-15 after re-registration; single instance); **Settings → General / About**; **v0.3 UI** (two-row pane headers with account/bucket dropdowns, path bar editing, selection bar, activity card, transfer beam, ⌘K palette, watermarks, light/dark), checked in the app against SeaweedFS |
 | Tested on | macOS (Apple Silicon) against SeaweedFS, the maintainer's MinIO, and real AWS S3 (read-only: ap-southeast-1, dotted bucket names, cross-region detection). Windows and Linux are only checked for compilation in CI |
 | Next up | Confirm macOS Login Items now shows "NoExplorer" after the 0.2.2 update; smoke-test tray + auto-update on Windows and Linux (AppImage). See [docs/ROADMAP.md](docs/ROADMAP.md) |
 
@@ -37,6 +37,9 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   settings.ts        Settings dialog (Accounts | Appearance), account + bucket pickers
   appearance.ts      Theme, text size, pane splitter (localStorage)
   providers.ts       Provider presets (AWS, R2, B2, Wasabi, DO…) for the account form
+  icons.ts           Stroke icons + watermarks; `data-icon="name"` in markup, `icon()` in code
+  popover.ts         Dropdown menus anchored to a chip/button (account, bucket, this computer)
+  palette.ts         ⌘K command palette + path editing (⌘L)
   updater.ts         Auto-update: check, banner, install + relaunch
   menu.ts            Right-click menu      keyboard.ts  All shortcuts
   types.ts           Types mirrored from Rust     util.ts / files.ts / state.ts  helpers and global state
@@ -139,6 +142,7 @@ Full detail, including the command table, event schema and data flows, is in [do
 
 ## Gotchas (each of these has cost time before)
 
+- **TypeScript 7's DOM types make `el.hidden` `boolean | "until-found"`.** Compare explicitly (`el.hidden !== false`) when you need a boolean.
 - **The `hidden` attribute loses to CSS `display: flex`.** `styles.css` has `[hidden]{display:none!important}`. Keep that rule.
 - **`requestAnimationFrame` pauses when the window is hidden or covered.** Progress rendering uses `setTimeout` for that reason.
 - **`tauri::generate_context!()` embeds `../dist`.** Run `npm run build` once before any bare `cargo build/test/clippy` on a fresh clone. CI does this.
@@ -147,7 +151,8 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **`npm run tauri dev` restarts the app when any Rust file changes.** Frontend edits hot-reload.
 - **CI lints on Linux, but you probably develop on macOS.** Anything used only inside `#[cfg(target_os = "macos")]` (or another OS) becomes an unused import elsewhere and fails `-D warnings`. Use full paths (`tauri::RunEvent::Reopen`) inside cfg blocks instead of top-level `use`.
 - **macOS keeps a login item's attribution from its first registration.** Rewriting the LaunchAgent plist doesn't change it; check with `sfltool dumpbtm` and re-register (remove, wait ~10 s, add) by bumping `ENTRY_VERSION` in `autostart.rs` ([ADR-018](docs/DECISIONS.md#adr-018)).
-- **Don't test "Launch at login" from a dev build on a machine that has NoExplorer installed.** The entry is keyed by app name, so a dev build overwrites (or deletes) the real app's entry with a path to `target/debug`.
+- **Debug builds register "Launch at login" as `NoExplorer Dev`** (`autostart.rs`), never as `NoExplorer`. Before that rule, a dev build's startup `refresh()` rewrote the installed app's login item to `target/debug`. Don't remove the debug-name split.
+- **Run dev builds with `--config '{"identifier":"com.vnappmob.noexplorer.dev"}'` when NoExplorer is installed and running.** Otherwise single-instance hands every launch to the installed app, and both share one `config.json`.
 - **Tauri drop positions are physical pixels.** Divide by `devicePixelRatio` before calling `elementFromPoint`.
 - **The website deploys from Cloudflare, not GitHub Actions.** Workers Builds watches the repo. Build logs live in the Cloudflare dashboard (Workers & Pages → `noexplorer-site` → Deployments), not under Actions.
 - **The workflow token can't create releases in the vnappmob org** (403 "Resource not accessible by integration"). Create the draft with `gh release create vX.Y.Z --draft --verify-tag` right after pushing the tag; `tauri-action` uploads into it.

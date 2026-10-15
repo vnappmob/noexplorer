@@ -283,3 +283,28 @@ thread with a 12 s delay). Bump `ENTRY_VERSION` whenever entries must be re-crea
 Verified on the maintainer's Mac (2026-10-15): after the remove → re-add, System Settings →
 Login Items shows "NoExplorer". The automatic one-time path in `refresh()` uses the same
 steps but hadn't run on a real stale install yet when v0.2.3 shipped.
+
+<a id="adr-019"></a>
+
+## ADR-019: v0.3 UI: a modern skin on the classic dual-pane layout
+Accepted · 2026-10-15
+
+**Context.** The maintainer wanted a clearer, current-looking UI that keeps the two-pane split
+(the "previous generation" idea). The design was agreed on the canvas "NoExplorer UI Redesign"
+before implementation.
+**Decision.**
+- Two header rows per pane: source chips (account › bucket as dropdowns, or "This computer")
+  over a separate path bar with editable crumbs, copy and Σ.
+- No transfer buttons between the panes: they made the window narrower. Transfers come from the
+  floating selection bar, F5, drag, or ⌘K.
+- Context lives in floating layers: the selection bar, the activity card, and an animated beam
+  while transferring.
+- A ⌘K palette for commands, accounts, buckets, places and files.
+- Faint watermarks (a computer / clouds) mark local vs remote at a glance.
+- Geist and Geist Mono are bundled (`@fontsource-variable/*`, no network). Stroke icons replace
+  emoji. Tokens are redefined for light and dark, and everything sizes from `--fs`.
+- The macOS title bar is an overlay, so the search bar shares the row with the traffic lights.
+**Consequences.** About 70 KB of JS (was about 45 KB) plus about 150 KB of fonts. Windows and
+Linux keep their native title bar above `#topbar`. Animations stop under
+`prefers-reduced-motion`. Dropdowns use our own `popover.ts` instead of native `<select>`, so
+keyboard access is implemented there.

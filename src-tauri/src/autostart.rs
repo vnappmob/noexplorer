@@ -21,7 +21,14 @@ fn launcher(app: &AppHandle) -> Result<AutoLaunch, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let mut b = AutoLaunchBuilder::new();
     // Same label as the old plugin used, so enabling overwrites a previous entry in place.
-    b.set_app_name(&app.package_info().name).set_args(&[HIDDEN_ARG]);
+    // Debug builds get their own label: the entry is keyed by name, and a dev build must never
+    // rewrite (or remove) the installed app's login item. This happened once in development.
+    let name = if cfg!(debug_assertions) {
+        format!("{} Dev", app.package_info().name)
+    } else {
+        app.package_info().name.clone()
+    };
+    b.set_app_name(&name).set_args(&[HIDDEN_ARG]);
     #[cfg(target_os = "macos")]
     {
         let exe = exe.canonicalize().map_err(|e| e.to_string())?;

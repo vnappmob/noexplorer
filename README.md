@@ -94,6 +94,8 @@ config folder (readable only by your user).
 | `F5` or `⌘/Ctrl + Enter` | Copy the selection to the other pane (upload or download) |
 | `Backspace` / `⌘↑` | Up one folder |
 | `⌘⌫` / `Delete` | Delete the selection from S3 |
+| `⌘K` | Command palette: commands, accounts, buckets, places, files |
+| `⌘L` | Type a path |
 | `⌘R` · `⌘F` · `⌘,` | Refresh · Filter · Settings |
 
 ## Limitations

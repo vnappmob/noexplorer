@@ -19,6 +19,9 @@ export type General = { run_in_background: boolean; check_updates: boolean; noti
 /** `config::Settings` — everything in config.json. */
 export type Settings = { profiles: Profile[]; active: string; download_dir: string; general: General };
 
+/** `config::BucketInfo` — an entry of the bucket picker. */
+export type BucketInfo = { name: string; region: string | null };
+
 /** `remote::SizeInfo` — result of `remote_size` / `local_size`. */
 export type SizeInfo = { bytes: number; files: number };
 

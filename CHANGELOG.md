@@ -5,6 +5,17 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **New look.** Each pane has a two-row header: **account › bucket** dropdowns (or **This computer** with your places) above a separate **path bar**. Click a folder in the path to go there, or click empty space (⌘L) to type a path. Bundled Geist fonts, stroke icons, refreshed light and dark themes.
+- Actions for the selection now appear in a **floating bar** at the bottom of the pane (Upload / Download, Quick look, Open, Link, Delete, ⋯).
+- Transfers show in a compact **activity card** (click it for the full list), and an **animated beam** links the source to the destination while files move.
+- Faint watermarks (a computer, clouds) tell the local and remote panes apart at a glance.
+- macOS: the search bar sits in the title bar next to the window buttons.
+
+### Added
+- **⌘K command palette**: search commands, accounts, buckets, places and the files in both panes.
+- The bucket menu is searchable and shows each bucket's region (AWS).
+
 ## [0.2.3] - 2026-10-15
 
 ### Fixed

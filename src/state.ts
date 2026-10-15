@@ -1,6 +1,6 @@
 // Global app state shared across modules. Pane-specific state lives on each `Pane`.
 
-import type { Profile, Settings } from "./types";
+import type { BucketInfo, Profile, Settings } from "./types";
 import { store } from "./util";
 
 export const app = {
@@ -13,6 +13,8 @@ export const app = {
   } as Settings,
   /** Bucket shown in the remote pane. */
   bucket: "",
+  /** Buckets of the active account (bucket picker). */
+  buckets: [] as BucketInfo[],
   /** Show dotfiles in the local pane. */
   showHidden: store.get("hidden") === "1",
 };

@@ -25,7 +25,7 @@ function dropTargetAt(x: number, y: number): DropTarget | null {
   const pane = paneEl === local.el ? local : remote;
   const row = el!.closest<HTMLElement>(".row[data-dir]");
   if (row) return { pane, dir: row.dataset.dir!, el: row };
-  const crumb = el!.closest<HTMLElement>(".crumbs a");
+  const crumb = el!.closest<HTMLElement>(".crumb[data-p]");
   if (crumb) return { pane, dir: crumb.dataset.p!, el: crumb };
   return { pane, dir: pane.cwd, el: null };
 }

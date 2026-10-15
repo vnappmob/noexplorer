@@ -4,12 +4,14 @@ import { deleteRemote, openItem, transfer } from "./actions";
 import { active, local, remote, switchTo } from "./panes";
 import { closePreview, openPreview, previewStep, pv, pvItem } from "./preview";
 import { openSettings } from "./settings";
+import { editPath, openPalette } from "./palette";
 import { $ } from "./util";
 
 function onKey(ev: KeyboardEvent) {
   const mod = ev.metaKey || ev.ctrlKey;
   const inInput = ev.target instanceof Element && ev.target.matches("input, select, textarea");
-  if ($<HTMLDialogElement>("settings").open || $<HTMLDialogElement>("ask").open) return;
+  if ($<HTMLDialogElement>("settings").open || $<HTMLDialogElement>("ask").open || $<HTMLDialogElement>("palette").open)
+    return;
 
   // Preview open: it owns the keyboard.
   if (pv) {
@@ -25,7 +27,9 @@ function onKey(ev: KeyboardEvent) {
 
   if (mod && ev.key === ",") return (ev.preventDefault(), openSettings());
   if (mod && ev.key === "r") return (ev.preventDefault(), active.load(true));
-  if (mod && ev.key === "f") return (ev.preventDefault(), active.q(".filter").focus());
+  if (mod && ev.key === "k") return (ev.preventDefault(), openPalette());
+  if (mod && ev.key === "l") return (ev.preventDefault(), editPath(active));
+  if (mod && ev.key === "f") return (ev.preventDefault(), active.toggleFilter(true));
   if (ev.key === "Tab" && !inInput) return (ev.preventDefault(), switchTo(active.other));
   if (inInput) {
     if (ev.key === "Escape" || ev.key === "ArrowDown") {

@@ -9,14 +9,14 @@ import { appearance, setTextSize, setTheme, type Theme } from "./appearance";
 import { remote } from "./panes";
 import { describeAccount, guessProvider, PRESETS, type ProviderId } from "./providers";
 import { activeProfile, app, profileKey } from "./state";
-import type { General, Profile, Settings } from "./types";
+import { openMenu, type MenuItem } from "./popover";
+import type { BucketInfo, General, Profile, Settings } from "./types";
 import { checkForUpdates } from "./updater";
 import { $, esc, fail, plural, store } from "./util";
 
 const dialog = () => $<HTMLDialogElement>("settings");
 const form = () => $<HTMLFormElement>("acct-form");
 const FIELDS = ["name", "endpoint", "region", "access_key", "secret_key", "bucket"] as const;
-const ADD = "__add__";
 
 /** Id of the account in the form; "" = a new, unsaved account. */
 let editing = "";
@@ -206,42 +206,93 @@ function syncAppearanceControls() {
 
 // ---------- account + bucket pickers (remote pane header) ----------
 
-function renderProfilePicker() {
-  const sel = $<HTMLSelectElement>("profile");
+/** Updates the two chips in the remote pane header from the current state. */
+function renderPickers() {
+  const p = activeProfile();
+  $("profile-label").textContent = p ? p.name : "Add account";
+  $("profile-sub").textContent = p && describeAccount(p) !== p.name ? describeAccount(p) : "";
+  $("bucket-label").textContent = app.bucket || (p ? "No bucket" : "—");
+  $("bucket-chip").hidden = !p;
+  $("bucket-chip").previousElementSibling!.toggleAttribute("hidden", !p); // the › between the chips
+}
+
+export async function switchProfile(id: string) {
+  try {
+    await applySettings(await invoke<Settings>("set_active_profile", { id }));
+  } catch (e) {
+    fail(e);
+  }
+}
+
+export function selectBucket(name: string) {
+  app.bucket = name;
+  renderPickers();
+  remote.go("");
+}
+
+export function addAccount() {
+  openSettings("accounts", "");
+  editAccount(null);
+}
+
+export function openProfileMenu(anchor = $("profile-chip")) {
   const active = activeProfile()?.id;
-  sel.innerHTML =
-    app.settings.profiles
-      .map((p) => `<option value="${esc(p.id)}"${p.id === active ? " selected" : ""}>${esc(p.name)}</option>`)
-      .join("") + `<option value="${ADD}">＋ Add account…</option>`;
-  sel.hidden = app.settings.profiles.length === 0;
+  const items: MenuItem[] = [{ header: "Accounts" }];
+  for (const p of app.settings.profiles) {
+    items.push({
+      label: p.name,
+      sub: describeAccount(p),
+      icon: "cloud",
+      iconClass: "acct-ico",
+      checked: p.id === active,
+      run: () => p.id !== active && switchProfile(p.id),
+    });
+  }
+  if (app.settings.profiles.length) items.push({ sep: true });
+  items.push({ label: "Add account…", icon: "plus", run: addAccount });
+  items.push({ label: "Manage accounts", icon: "sliders", badge: "⌘,", run: () => openSettings("accounts") });
+  openMenu(anchor, items, { width: 300 });
+}
+
+export function openBucketMenu(anchor = $("bucket-chip")) {
+  const items: MenuItem[] = app.buckets.map((b) => ({
+    label: b.name,
+    icon: "bucket",
+    iconClass: "bucket-ico",
+    badge: b.region ?? undefined,
+    checked: b.name === app.bucket,
+    run: () => b.name !== app.bucket && selectBucket(b.name),
+  }));
+  if (!items.length) items.push({ header: "No buckets visible with this key" });
+  openMenu(anchor, items, { width: 300, search: app.buckets.length > 6 ? "Find bucket…" : undefined });
 }
 
 /** Adopts settings returned by the backend and reloads the remote pane. */
 export async function applySettings(s: Settings) {
   const switched = s.active !== app.settings.active;
   app.settings = s;
-  renderProfilePicker();
+  renderPickers();
   if (dialog().open) renderAccountList();
   await loadBuckets(switched);
 }
 
 /** Fills the bucket picker and restores this account's last bucket + prefix when possible. */
 export async function loadBuckets(resetScroll = false) {
-  const sel = $<HTMLSelectElement>("bucket");
   const p = activeProfile();
-  let names: string[] = [];
+  let buckets: BucketInfo[] = [];
   if (p) {
     try {
-      names = await invoke<string[]>("list_buckets");
+      buckets = await invoke<BucketInfo[]>("list_buckets");
     } catch (e) {
       fail(e);
     }
   }
+  const names = buckets.map((b) => b.name);
   const last = store.get(profileKey("bucket"));
   const wanted = p?.bucket ?? "";
+  app.buckets = buckets;
   app.bucket = names.includes(last ?? "") ? last! : names.includes(wanted) ? wanted : (names[0] ?? "");
-  sel.innerHTML = names.map((n) => `<option ${n === app.bucket ? "selected" : ""}>${esc(n)}</option>`).join("");
-  sel.hidden = !p;
+  renderPickers();
   remote.cwd = app.bucket && app.bucket === last ? (store.get(profileKey("prefix")) ?? "") : "";
   if (resetScroll) remote.list.scrollTop = 0;
   await remote.load();
@@ -249,7 +300,7 @@ export async function loadBuckets(resetScroll = false) {
 
 export async function initSettings() {
   app.settings = await invoke<Settings>("get_settings");
-  renderProfilePicker();
+  renderPickers();
   if (app.settings.profiles.length) await loadBuckets();
   else {
     remote.render();
@@ -286,22 +337,6 @@ export function setupSettings() {
   $("ap-size").addEventListener("change", (ev) => setTextSize((ev.target as HTMLInputElement).value));
 
   $("btn-settings").onclick = () => openSettings();
-  $<HTMLSelectElement>("profile").addEventListener("change", async (ev) => {
-    const sel = ev.target as HTMLSelectElement;
-    if (sel.value === ADD) {
-      renderProfilePicker(); // revert the visible choice
-      openSettings("accounts", "");
-      editAccount(null);
-      return;
-    }
-    try {
-      await applySettings(await invoke<Settings>("set_active_profile", { id: sel.value }));
-    } catch (e) {
-      fail(e);
-    }
-  });
-  $<HTMLSelectElement>("bucket").addEventListener("change", (ev) => {
-    app.bucket = (ev.target as HTMLSelectElement).value;
-    remote.go("");
-  });
+  $("profile-chip").onclick = () => (activeProfile() ? openProfileMenu() : addAccount());
+  $("bucket-chip").onclick = () => openBucketMenu();
 }

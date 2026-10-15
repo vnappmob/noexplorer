@@ -8,8 +8,18 @@
     <script type="module" src="/src/main.ts" defer></script>
   </head>
   <body>
+    <header id="topbar" data-tauri-drag-region>
+      <div class="tl-space" data-tauri-drag-region></div>
+      <button id="palette-btn" class="omni" aria-label="Search files, buckets and commands">
+        <span data-icon="search"></span><span class="omni-text">Search files, buckets, commands…</span><kbd>⌘K</kbd>
+      </button>
+      <div class="top-right" data-tauri-drag-region>
+        <button class="ib" id="btn-settings" title="Settings (⌘,)" aria-label="Settings"><span data-icon="sliders"></span></button>
+      </div>
+    </header>
+
     <div id="update-bar" hidden>
-      <span>⬆</span>
+      <span data-icon="arrowUp"></span>
       <span id="upd-text"></span>
       <button class="link" id="upd-notes">What's new</button>
       <span class="spacer"></span>
@@ -19,75 +29,95 @@
 
     <div class="panes" id="panes">
       <!-- LOCAL -->
-      <section class="pane" id="pane-local" data-pane="local">
-        <header class="bar">
-          <select class="roots" title="Places"></select>
-          <button class="icon up" title="Up one folder (⌫)">↑</button>
-          <nav class="crumbs"></nav>
-          <input class="filter" type="search" placeholder="Filter…" spellcheck="false" />
-          <button class="icon refresh" title="Refresh (⌘R)">⟳</button>
+      <section class="pane" id="pane-local" data-pane="local" aria-label="This computer">
+        <div class="mark mark-local" aria-hidden="true"><span data-icon="markComputer"></span></div>
+        <header class="src">
+          <button class="chip" id="places-chip" aria-haspopup="menu"><span class="chip-ico" data-icon="drive"></span><span class="chip-label">This computer</span><span class="chip-sub" id="places-sub"></span><span class="chev" data-icon="chevDown"></span></button>
+          <span class="grow"></span>
+          <input class="filter" type="search" placeholder="Filter…" spellcheck="false" aria-label="Filter this folder" hidden />
+          <button class="ib filter-btn" title="Filter (⌘F)" aria-label="Filter"><span data-icon="search"></span></button>
+          <button class="ib mkdir-btn" title="New folder" aria-label="New folder"><span data-icon="folderPlus"></span></button>
+          <button class="ib refresh" title="Refresh (⌘R)" aria-label="Refresh"><span data-icon="refresh"></span></button>
+          <button class="ib more-btn" title="More" aria-label="More actions"><span data-icon="more"></span></button>
         </header>
+        <nav class="pathbar" aria-label="Path">
+          <button class="ib up" title="Up one folder (⌫)" aria-label="Up one folder"><span data-icon="arrowUp"></span></button>
+          <div class="crumbs" title="Click empty space to type a path (⌘L)"></div>
+          <input class="path-input" spellcheck="false" autocomplete="off" aria-label="Go to path" hidden />
+          <button class="ib copy-path" title="Copy path" aria-label="Copy path"><span data-icon="copy"></span></button>
+          <button class="sum calc-size" title="Total size of this folder (or the selected folders)"><span data-icon="sigma"></span><span class="dirsize">Size</span></button>
+        </nav>
         <div class="cols">
-          <span data-sort="name">Name</span><span data-sort="size">Size</span><span data-sort="modified">Modified</span>
+          <span data-sort="name">Name <em class="count"></em></span><span data-sort="size">Size</span><span data-sort="modified">Modified</span>
         </div>
         <div class="list" tabindex="0"></div>
-        <div class="pathbar">
-          <span class="path" title="Click to copy"></span>
-          <span class="dirsize"></span>
-          <button class="link calc-size" title="Total size of this folder, including subfolders">Σ Size</button>
+        <div class="selbar" hidden>
+          <span class="sel-text"></span>
+          <button class="act primary" data-act="transfer" title="Upload to S3 (F5 / ⌘↵)">Upload <span data-icon="arrowRight"></span></button>
+          <button class="act" data-act="preview" title="Quick look (Space)" aria-label="Quick look"><span data-icon="eye"></span></button>
+          <button class="act" data-act="open" title="Open with default app (Enter)" aria-label="Open with default app"><span data-icon="external"></span></button>
+          <button class="act" data-act="menu" title="More actions" aria-label="More actions"><span data-icon="more"></span></button>
         </div>
-        <footer class="status">
-          <span class="status-text"></span>
-          <span class="actions">
-            <button data-act="preview" title="Quick look (Space)">👁</button>
-            <button data-act="open" title="Open with default app (Enter)">↗</button>
-            <button data-act="transfer" class="primary" title="Upload to S3 (F5 / ⌘↵)">Upload →</button>
-          </span>
-        </footer>
       </section>
 
       <div class="splitter" title="Drag to resize · double-click to reset"></div>
 
       <!-- REMOTE -->
-      <section class="pane" id="pane-remote" data-pane="remote">
-        <header class="bar">
-          <select id="profile" title="Account"></select>
-          <select class="roots" id="bucket" title="Bucket"></select>
-          <button class="icon up" title="Up one folder (⌫)">↑</button>
-          <nav class="crumbs"></nav>
-          <input class="filter" type="search" placeholder="Filter…" spellcheck="false" />
-          <button class="icon refresh" title="Refresh (⌘R)">⟳</button>
-          <button class="icon" id="btn-settings" title="Settings (⌘,)">⚙</button>
+      <section class="pane" id="pane-remote" data-pane="remote" aria-label="S3 bucket">
+        <div class="mark mark-remote" aria-hidden="true"><span data-icon="markCloud"></span></div>
+        <header class="src">
+          <button class="chip" id="profile-chip" aria-haspopup="menu"><span class="chip-ico acct-ico" data-icon="cloud"></span><span class="chip-label" id="profile-label">Add account</span><span class="chip-sub" id="profile-sub"></span><span class="chev" data-icon="chevDown"></span></button>
+          <span class="sep-chev" data-icon="chevRight"></span>
+          <button class="chip" id="bucket-chip" aria-haspopup="menu"><span class="chip-ico bucket-ico" data-icon="bucket"></span><span class="chip-label" id="bucket-label">—</span><span class="chev" data-icon="chevDown"></span></button>
+          <span class="grow"></span>
+          <input class="filter" type="search" placeholder="Filter…" spellcheck="false" aria-label="Filter this folder" hidden />
+          <button class="ib filter-btn" title="Filter (⌘F)" aria-label="Filter"><span data-icon="search"></span></button>
+          <button class="ib mkdir-btn" title="New folder" aria-label="New folder"><span data-icon="folderPlus"></span></button>
+          <button class="ib refresh" title="Refresh (⌘R)" aria-label="Refresh"><span data-icon="refresh"></span></button>
+          <button class="ib more-btn" title="More" aria-label="More actions"><span data-icon="more"></span></button>
         </header>
+        <nav class="pathbar" aria-label="Path">
+          <button class="ib up" title="Up one folder (⌫)" aria-label="Up one folder"><span data-icon="arrowUp"></span></button>
+          <span class="scheme">s3://</span><div class="crumbs" title="Click empty space to type a path (⌘L)"></div>
+          <input class="path-input" spellcheck="false" autocomplete="off" aria-label="Go to path" hidden />
+          <button class="ib copy-path" title="Copy path" aria-label="Copy path"><span data-icon="copy"></span></button>
+          <button class="sum calc-size" title="Total size of this folder (or the selected folders)"><span data-icon="sigma"></span><span class="dirsize">Size</span></button>
+        </nav>
         <div class="cols">
-          <span data-sort="name">Name</span><span data-sort="size">Size</span><span data-sort="modified">Modified</span>
+          <span data-sort="name">Name <em class="count"></em></span><span data-sort="size">Size</span><span data-sort="modified">Modified</span>
         </div>
         <div class="list" tabindex="0"></div>
-        <div class="pathbar">
-          <span class="path" title="Click to copy"></span>
-          <span class="dirsize"></span>
-          <button class="link calc-size" title="Total size of this folder, including subfolders">Σ Size</button>
+        <div class="selbar" hidden>
+          <span class="sel-text"></span>
+          <button class="act primary" data-act="transfer" title="Download to the left pane (F5 / ⌘↵)"><span data-icon="arrowLeft"></span> Download</button>
+          <button class="act" data-act="preview" title="Quick look (Space)" aria-label="Quick look"><span data-icon="eye"></span></button>
+          <button class="act" data-act="open" title="Open with default app (⌘O)" aria-label="Open with default app"><span data-icon="external"></span></button>
+          <button class="act" data-act="link" title="Copy 7-day link" aria-label="Copy 7-day link"><span data-icon="link"></span></button>
+          <button class="act danger" data-act="delete" title="Delete from S3 (⌘⌫)" aria-label="Delete from S3"><span data-icon="trash"></span></button>
+          <button class="act" data-act="menu" title="More actions" aria-label="More actions"><span data-icon="more"></span></button>
         </div>
-        <footer class="status">
-          <span class="status-text"></span>
-          <span class="actions">
-            <button data-act="transfer" class="primary" title="Download to left pane (F5 / ⌘↵)">← Download</button>
-            <button data-act="preview" title="Quick look (Space)">👁</button>
-            <button data-act="open" title="Open with default app (⌘O)">↗</button>
-            <button data-act="link" title="Copy 7-day link">🔗</button>
-            <button data-act="delete" class="danger" title="Delete (⌘⌫)">🗑</button>
-          </span>
-        </footer>
       </section>
+
+      <svg id="beam" aria-hidden="true"><path class="beam-base" /><path class="beam-glow" /><path class="beam-core" /><path class="beam-spark" /></svg>
     </div>
 
-    <section id="jobs" hidden>
-      <div class="jobs-head">
-        <span>Transfers</span>
-        <button id="jobs-clear" class="link">Clear finished</button>
+    <section id="activity" hidden>
+      <div id="act-top"></div>
+      <div id="act-list" hidden>
+        <div class="jobs-head">
+          <span>Transfers</span>
+          <button id="jobs-clear" class="link">Clear finished</button>
+        </div>
+        <div id="jobs-list"></div>
       </div>
-      <div id="jobs-list"></div>
     </section>
+
+    <div id="popover" class="menu" role="menu" hidden></div>
+
+    <dialog id="palette" aria-label="Command palette">
+      <div class="pal-input"><span data-icon="search"></span><input id="pal-q" placeholder="Search files, buckets, commands…" spellcheck="false" autocomplete="off" /><kbd>esc</kbd></div>
+      <div id="pal-list" role="listbox"></div>
+    </dialog>
 
     <div id="drop" hidden><div id="drop-text"></div></div>
     <div id="ghost" hidden></div>

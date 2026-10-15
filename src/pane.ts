@@ -2,10 +2,22 @@
 // A Pane knows nothing about transfers/preview; it calls `paneHooks` for those (wired in main.ts).
 
 import { invoke } from "@tauri-apps/api/core";
-import { ICON, kindOf } from "./files";
+import { kindOf } from "./files";
+import { icon } from "./icons";
 import { activeProfile, app, profileKey } from "./state";
 import type { Crumb, Item, LocalListing, SortBy } from "./types";
 import { $, esc, fail, fmtDate, fmtSize, plural, store } from "./util";
+
+/** Row icon per file kind (files.ts `kindOf`). */
+const FILE_ICON: Record<string, string> = {
+  image: "image",
+  video: "film",
+  audio: "music",
+  pdf: "doc",
+  text: "doc",
+  archive: "archive",
+  other: "doc",
+};
 
 export const paneHooks = {
   /** Enter / double-click on a file. */
@@ -22,6 +34,8 @@ export class Pane {
   /** Local only: parent folder, null at a filesystem root. */
   parent: string | null = null;
   crumbs: Crumb[] = [];
+  /** Local only: Home, common folders, disks and volumes (the "This computer" menu). */
+  roots: Crumb[] = [];
   /** Everything in `cwd`. */
   entries: Item[] = [];
   /** `entries` after filter + sort — what's on screen; row `data-i` indexes into this. */
@@ -90,7 +104,7 @@ export class Pane {
       this.entries = [];
       return;
     }
-    this.q(".status-text").textContent = "Loading…";
+    this.q(".count").textContent = "· loading…";
     const list = await invoke<Item[]>("list", { bucket: app.bucket, prefix: this.cwd });
     if (seq === this.seq) this.entries = list;
   }
@@ -103,9 +117,15 @@ export class Pane {
     this.crumbs = l.crumbs;
     this.entries = l.entries;
     store.set("localPath", this.cwd);
-    this.q(".roots").innerHTML =
-      `<option value="" disabled selected>📍 Places</option>` +
-      l.roots.map((r) => `<option value="${esc(r.path)}">${esc(r.name)}</option>`).join("");
+    this.roots = l.roots;
+    // Chip subtitle: the place we're in (longest matching root), e.g. "Home", "Downloads", "T7 Shield".
+    const norm = (p: string) => p.replace(/\\/g, "/").replace(/\/+$/, "");
+    const here = norm(this.cwd);
+    const place = l.roots
+      .filter((r) => here === norm(r.path) || here.startsWith(norm(r.path) + "/"))
+      .sort((a, b) => b.path.length - a.path.length)[0];
+    // Root names come with an emoji prefix from the backend ("🏠 Home"); the chip has its own icon.
+    $("places-sub").textContent = place ? place.name.replace(/^\p{Extended_Pictographic}\s*/u, "") : "";
     this.renderCrumbs();
   }
 
@@ -119,6 +139,18 @@ export class Pane {
     this.q<HTMLInputElement>(".filter").value = "";
     this.list.scrollTop = 0;
     return this.load(keepSelection);
+  }
+
+  /** Shows/hides the filter box in the header (⌘F, the magnifier button); hiding clears it. */
+  toggleFilter(on: boolean) {
+    const f = this.q<HTMLInputElement>(".filter");
+    f.hidden = !on;
+    this.q(".filter-btn").classList.toggle("on", on);
+    if (on) f.focus();
+    else if (f.value) {
+      f.value = "";
+      this.render();
+    }
   }
 
   /** Goes to the parent folder and re-selects the folder we came out of. */
@@ -135,17 +167,23 @@ export class Pane {
     }
   }
 
+  /** Path bar row: one button per folder level (click = go there, drop target while dragging). */
   renderCrumbs() {
     const el = this.q(".crumbs");
+    const sep = `<span class="crumb-sep">${icon("chevRight")}</span>`;
     el.innerHTML = this.crumbs
-      .map((c, i) => `${i ? '<span class="sep">›</span>' : ""}<a data-p="${esc(c.path)}">${esc(c.name)}</a>`)
+      .map((c, i) => {
+        const last = i === this.crumbs.length - 1 ? " last" : "";
+        // The filesystem root ("/" or "C:\\") reads better as a disk icon.
+        const label =
+          !this.isRemote && i === 0 && /^([/\\]|[A-Za-z]:[\\/]?)$/.test(c.name) ? icon("drive") : esc(c.name);
+        return `${i ? sep : ""}<button class="crumb${last}" data-p="${esc(c.path)}" title="${esc(c.path || c.name)}">${label}</button>`;
+      })
       .join("");
     el.scrollLeft = el.scrollWidth; // keep the deepest folder visible
     this.q<HTMLButtonElement>(".up").disabled = this.isRemote ? !this.cwd : !this.parent;
-    // Path bar: the full location, always visible (crumbs can be clipped). Size resets per folder.
-    // LRM marks keep "/" and ":" in place inside the rtl-ellipsis container (styles.css .pathbar .path).
-    this.q(".path").textContent = `\u200e${this.fullPath()}\u200e`;
-    this.q(".dirsize").textContent = "";
+    this.q(".dirsize").textContent = "Size"; // folder size resets per folder
+    this.q(".calc-size").classList.remove("has");
   }
 
   render() {
@@ -165,21 +203,19 @@ export class Pane {
     });
 
     if (this.isRemote && !activeProfile()) {
-      this.list.innerHTML = `<div class="empty"><div class="big">⚙</div>No S3 account yet.<br/>Click ⚙ to add one.</div>`;
+      this.list.innerHTML = `<div class="empty"><b>No S3 account yet</b>Click the account button above to add one.</div>`;
     } else if (!this.view.length) {
       const hint = this.isRemote
-        ? "Drag files here from the left pane<br/>or from Finder / Explorer to upload."
-        : "Drag files here from S3 (right pane) to download.";
-      this.list.innerHTML = `<div class="empty"><div class="big">${this.isRemote ? "⇪" : "📂"}</div>${
-        q ? "No matches." : `Empty folder.<br/>${hint}`
-      }</div>`;
+        ? "Drag files here from the left pane or from Finder / Explorer to upload."
+        : "Drag files here from the bucket to download.";
+      this.list.innerHTML = `<div class="empty">${q ? "<b>No matches</b>" : `<b>Empty folder</b>${hint}`}</div>`;
     } else {
       this.list.innerHTML = this.view
         .map(
           (e, i) => `<div class="row${this.selected.has(e.key) ? " sel" : ""}" data-i="${i}"${
             e.dir ? ` data-dir="${esc(e.key)}"` : ""
           }>
-          <span class="name"><span class="ico">${e.dir ? "📁" : ICON[kindOf(e.name)]}</span><span>${esc(e.name)}</span></span>
+          <span class="name"><span class="ico${e.dir ? " dir" : ""}">${icon(e.dir ? "folder" : FILE_ICON[kindOf(e.name)])}</span><span>${esc(e.name)}</span></span>
           <span class="size${e.calc ? " calc" : ""}">${e.dir && !e.calc ? "" : fmtSize(e.size)}</span>
           <span class="date">${fmtDate(e.modified)}</span>
         </div>`,
@@ -187,22 +223,35 @@ export class Pane {
         .join("");
     }
     this.updateStatus();
+    this.fitMark();
+  }
+
+  /** Watermark only where there's room for it below the rows. */
+  fitMark() {
+    // scrollHeight never drops below clientHeight, so measure the last row instead.
+    const last = this.list.lastElementChild as HTMLElement | null;
+    const used = last?.classList.contains("row") ? last.offsetTop + last.offsetHeight : 0;
+    this.el.classList.toggle("full", used > this.list.clientHeight - 220);
   }
 
   selectedItems() {
     return this.view.filter((e) => this.selected.has(e.key));
   }
 
-  /** Footer text + enabled state of the footer buttons (`[data-act]`). */
+  /** Item count in the column header + the floating selection bar (shown while something is selected). */
   updateStatus() {
     const sel = this.selectedItems();
     const total = this.view.reduce((s, e) => s + e.size, 0);
-    let txt = `${plural(this.view.length, "item")} · ${fmtSize(total)}`;
+    this.q(".count").textContent = `· ${plural(this.view.length, "item")}${total ? ` · ${fmtSize(total)}` : ""}`;
+    const bar = this.q(".selbar");
+    bar.hidden = sel.length === 0;
     if (sel.length) {
       const sz = sel.reduce((s, e) => s + e.size, 0);
-      txt = `${sel.length} of ${this.view.length} selected${sz ? ` · ${fmtSize(sz)}` : ""}`;
+      this.q(".sel-text").textContent =
+        sel.length === 1
+          ? `${sel[0].name}${sz ? ` · ${fmtSize(sz)}` : ""}`
+          : `${sel.length} selected${sz ? ` · ${fmtSize(sz)}` : ""}`;
     }
-    this.q(".status-text").textContent = txt;
     const oneFile = sel.length === 1 && !sel[0].dir;
     const enable: Record<string, boolean> = {
       preview: oneFile,

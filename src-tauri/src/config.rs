@@ -319,9 +319,17 @@ pub fn save_general(app: AppHandle, state: State<'_, AppState>, general: General
     commit(&app, &state, s)
 }
 
+/// A bucket for the bucket picker. Mirrors `BucketInfo` in `src/types.ts`.
+#[derive(Serialize)]
+pub struct BucketInfo {
+    pub name: String,
+    /// Known on AWS (from ListBuckets); None for most self-hosted servers.
+    pub region: Option<String>,
+}
+
 /// Buckets of the active account.
 #[tauri::command]
-pub async fn list_buckets(state: State<'_, AppState>) -> Result<Vec<String>, String> {
+pub async fn list_buckets(state: State<'_, AppState>) -> Result<Vec<BucketInfo>, String> {
     let p = state.settings().active_profile().cloned().ok_or("No account configured")?;
     let buckets = list_buckets_with_regions(&p).await?;
     for (name, region) in &buckets {
@@ -329,7 +337,7 @@ pub async fn list_buckets(state: State<'_, AppState>) -> Result<Vec<String>, Str
             state.remember_region(name, r); // saves a HEAD per bucket on AWS
         }
     }
-    Ok(buckets.into_iter().map(|(n, _)| n).collect())
+    Ok(buckets.into_iter().map(|(name, region)| BucketInfo { name, region }).collect())
 }
 
 #[cfg(test)]
