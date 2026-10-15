@@ -142,6 +142,7 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **The `minio/minio` Docker image is no longer published.** `scripts/dev-s3.sh` uses SeaweedFS, which speaks the same S3 API.
 - **Right-click is captured by the app's context menu.** To open devtools in dev builds use **⌥⌘I** (macOS) or **Ctrl+Shift+I**.
 - **`npm run tauri dev` restarts the app when any Rust file changes.** Frontend edits hot-reload.
+- **CI lints on Linux, but you probably develop on macOS.** Anything used only inside `#[cfg(target_os = "macos")]` (or another OS) becomes an unused import elsewhere and fails `-D warnings`. Use full paths (`tauri::RunEvent::Reopen`) inside cfg blocks instead of top-level `use`.
 - **Tauri drop positions are physical pixels.** Divide by `devicePixelRatio` before calling `elementFromPoint`.
 - **The website deploys from Cloudflare, not GitHub Actions.** Workers Builds watches the repo. Build logs live in the Cloudflare dashboard (Workers & Pages → `noexplorer-site` → Deployments), not under Actions.
 - **The workflow token can't create releases in the vnappmob org** (403 "Resource not accessible by integration"). Create the draft with `gh release create vX.Y.Z --draft --verify-tag` right after pushing the tag; `tauri-action` uploads into it.

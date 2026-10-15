@@ -26,7 +26,7 @@ mod transfer;
 mod tray;
 mod util;
 
-use tauri::{Manager, RunEvent, WindowEvent};
+use tauri::{Manager, WindowEvent};
 
 /// Passed by the autostart launcher: start in the tray without showing the window.
 const HIDDEN_ARG: &str = "--hidden";
@@ -99,7 +99,7 @@ pub fn run() {
     app.run(|app, event| {
         // macOS: clicking the Dock icon while the window is hidden brings it back.
         #[cfg(target_os = "macos")]
-        if let RunEvent::Reopen { .. } = event {
+        if let tauri::RunEvent::Reopen { .. } = event {
             tray::show_main(app);
         }
         #[cfg(not(target_os = "macos"))]
