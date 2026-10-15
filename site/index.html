@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NoExplorer: drag & drop for your S3 bucket</title>
+    <meta
+      name="description"
+      content="A tiny dual-pane file manager for MinIO, SeaweedFS and any S3-compatible storage. Drag to upload, drag back to download. Free and open source for macOS, Windows and Linux."
+    />
+    <meta property="og:title" content="NoExplorer" />
+    <meta property="og:description" content="No explorer needed: just drag it to your bucket." />
+    <meta property="og:image" content="https://noexplorer.vnappmob.com/icon.png" />
+    <link rel="icon" href="favicon.png" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="nav">
+      <a class="brand" href="#"><img src="icon.svg" alt="" width="28" height="28" />NoExplorer</a>
+      <nav>
+        <a href="#features">Features</a>
+        <a href="#setup">Setup</a>
+        <a href="#faq">FAQ</a>
+        <a href="https://github.com/vnappmob/noexplorer" class="gh">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <img class="hero-icon" src="icon.svg" alt="NoExplorer app icon" width="112" height="112" />
+        <h1>No explorer needed.<br /><span>Just drag it to your bucket.</span></h1>
+        <p class="lead">
+          A tiny dual-pane file manager for <b>MinIO</b>, <b>SeaweedFS</b> and any <b>S3-compatible</b> storage. Your
+          computer on the left, your bucket on the right. Drag to back up, drag back to restore.
+        </p>
+
+        <div class="cta">
+          <a id="dl-main" class="btn primary" href="https://github.com/vnappmob/noexplorer/releases/latest">
+            <span id="dl-label">Download</span>
+            <small id="dl-meta">for macOS, Windows & Linux</small>
+          </a>
+          <a class="btn" href="https://github.com/vnappmob/noexplorer">★ Star on GitHub</a>
+        </div>
+        <p class="other" id="dl-other"></p>
+
+        <!-- Illustration of the app (HTML mock, so it stays crisp and themes with the page). -->
+        <div class="window" aria-hidden="true">
+          <div class="titlebar"><i></i><i></i><i></i><span>NoExplorer</span></div>
+          <div class="panes">
+            <div class="pane">
+              <div class="bar"><b>📍 Places</b><span>~ › Projects › <b>website</b></span></div>
+              <div class="row"><span>📁 src</span><em>Today 09:12</em></div>
+              <div class="row"><span>📁 public</span><em>Today 09:10</em></div>
+              <div class="row sel"><span>📄 dump.sql</span><em>48 MB</em></div>
+              <div class="row"><span>📄 package.json</span><em>1.2 KB</em></div>
+              <div class="row"><span>🖼 cover.png</span><em>820 KB</em></div>
+            </div>
+            <div class="pane drop">
+              <div class="bar"><b>my-bucket</b><span>my-bucket › <b>backups</b></span></div>
+              <div class="row"><span>📁 2026-09</span><em></em></div>
+              <div class="row target"><span>📁 2026-10</span><em></em></div>
+              <div class="row"><span>🗜 site.tar.gz</span><em>312 MB</em></div>
+              <div class="row"><span>📄 notes.md</span><em>4 KB</em></div>
+              <div class="ghost">📄 dump.sql</div>
+            </div>
+          </div>
+          <div class="jobs">
+            <span>⬆ dump.sql <small>→ my-bucket/backups/2026-10/</small></span>
+            <div class="bar2"><i></i></div>
+            <small>1/1 files · 31 MB / 48 MB · 94 MB/s</small>
+          </div>
+        </div>
+      </section>
+
+      <section id="features" class="features">
+        <div class="card">
+          <h3>⇄ Two panes, one gesture</h3>
+          <p>
+            Drag left → right to upload, right → left to download. Drop on a folder or a breadcrumb to target it. You
+            can also drop straight from Finder or Explorer.
+          </p>
+        </div>
+        <div class="card">
+          <h3>⚡ Built for speed</h3>
+          <p>
+            Six files in parallel. Big files go up as multipart uploads with four parts in flight. Live progress, speed
+            and cancel for every transfer.
+          </p>
+        </div>
+        <div class="card">
+          <h3>👁 Quick look</h3>
+          <p>Press Space to preview images, video, audio, PDF and text on either side, without downloading first.</p>
+        </div>
+        <div class="card">
+          <h3>🏠 Self-hosted friendly</h3>
+          <p>
+            Path-style requests are on by default. Point it at <code>http://nas:9000</code> and it just works. No
+            "advanced settings" hunt.
+          </p>
+        </div>
+        <div class="card">
+          <h3>🛟 Safe by design</h3>
+          <p>
+            Never deletes or overwrites your local files. Collisions become <code>name (1).ext</code>, and partial
+            downloads never look complete.
+          </p>
+        </div>
+        <div class="card">
+          <h3>🪶 Tiny & open source</h3>
+          <p>About 10 MB, native on macOS, Windows and Linux. MIT licensed: read the code that handles your keys.</p>
+        </div>
+      </section>
+
+      <section id="setup" class="setup">
+        <h2>Up and running in a minute</h2>
+        <ol>
+          <li><b>Download</b> and open NoExplorer. Settings opens on first launch.</li>
+          <li>
+            Enter your <b>endpoint</b> (e.g. <code>https://minio.example.com</code>), <b>access key</b> and
+            <b>secret key</b>. Leave <i>Path-style requests</i> on.
+          </li>
+          <li>Click <b>Test</b>, then <b>Save</b>. Pick a bucket and start dragging.</li>
+        </ol>
+
+        <h3>Keyboard</h3>
+        <div class="keys">
+          <div><kbd>Tab</kbd> <kbd>←</kbd> <kbd>→</kbd><span>Switch pane</span></div>
+          <div><kbd>Enter</kbd><span>Open folder / file</span></div>
+          <div><kbd>Space</kbd><span>Quick look</span></div>
+          <div><kbd>F5</kbd> <kbd>⌘ ↵</kbd><span>Copy to the other pane</span></div>
+          <div><kbd>⌫</kbd><span>Up one folder</span></div>
+          <div><kbd>⌘ ⌫</kbd><span>Delete from S3</span></div>
+          <div><kbd>⌘ F</kbd><span>Filter</span></div>
+          <div><kbd>⌘ ,</kbd><span>Settings</span></div>
+        </div>
+      </section>
+
+      <section id="faq" class="faq">
+        <h2>FAQ</h2>
+        <details>
+          <summary>Which servers does it work with?</summary>
+          <p>
+            Anything that speaks the S3 API: MinIO, SeaweedFS, Garage, Ceph RGW, Cloudflare R2, Backblaze B2, Wasabi and
+            AWS S3. For AWS you can turn path-style off.
+          </p>
+        </details>
+        <details>
+          <summary>Where are my credentials stored?</summary>
+          <p>
+            Only on your computer, in the app's config folder, readable only by your user. Nothing is sent anywhere
+            except to the endpoint you configure. The code is open:
+            <a href="https://github.com/vnappmob/noexplorer/blob/main/src-tauri/src/config.rs">config.rs</a>.
+          </p>
+        </details>
+        <details>
+          <summary>Windows says "Windows protected your PC"</summary>
+          <p>
+            Windows builds aren't code-signed yet. Click <b>More info → Run anyway</b>. The macOS build is signed and
+            notarized by Apple.
+          </p>
+        </details>
+        <details>
+          <summary>Can I drag files from the app to my desktop?</summary>
+          <p>Not yet. Drag them into the left pane (any folder on your computer), or select them and press F5.</p>
+        </details>
+        <details>
+          <summary>My server uses a self-signed HTTPS certificate</summary>
+          <p>
+            That isn't supported yet. Use plain HTTP inside your LAN, or a trusted certificate (e.g. Let's Encrypt).
+            It's on the <a href="https://github.com/vnappmob/noexplorer/blob/main/docs/ROADMAP.md">roadmap</a>.
+          </p>
+        </details>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        <a href="https://github.com/vnappmob/noexplorer">GitHub</a> ·
+        <a href="https://github.com/vnappmob/noexplorer/releases">Releases</a> ·
+        <a href="https://github.com/vnappmob/noexplorer/blob/main/CHANGELOG.md">Changelog</a> ·
+        <a href="https://github.com/vnappmob/noexplorer/issues">Report an issue</a>
+      </p>
+      <p class="muted">MIT License · Made by Kris Luu at <a href="https://vnappmob.com">VNAppMob</a></p>
+    </footer>
+  </body>
+</html>

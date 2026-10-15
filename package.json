@@ -1,0 +1,30 @@
+{
+  "name": "noexplorer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "check": "tsc --noEmit && prettier --check src",
+    "fmt": "prettier --write src && cd src-tauri && cargo fmt",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2.8.3",
+    "@tauri-apps/plugin-opener": "^2"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "vite": "^8.0.16"
+  },
+  "description": "Dual-pane drag & drop file manager for S3-compatible storage (MinIO, SeaweedFS, AWS S3…)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vnappmob/noexplorer.git"
+  }
+}

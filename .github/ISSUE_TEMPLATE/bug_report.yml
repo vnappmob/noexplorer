@@ -1,0 +1,22 @@
+name: Bug report
+description: Something doesn't work
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes: { label: What happened?, description: Steps to reproduce, what you expected, what you saw. }
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes: { label: NoExplorer version, placeholder: v0.1.0 }
+    validations: { required: true }
+  - type: dropdown
+    id: os
+    attributes: { label: OS, options: [macOS, Windows, Linux] }
+    validations: { required: true }
+  - type: input
+    id: server
+    attributes: { label: S3 server, placeholder: "MinIO RELEASE.2025-…, SeaweedFS 3.x, AWS S3, …" }
+  - type: textarea
+    id: error
+    attributes: { label: Error message, description: Copy it from the Transfers panel or the Settings dialog. Remove secrets!, render: text }

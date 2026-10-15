@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <title>NoExplorer</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+  <body>
+    <div class="panes">
+      <!-- LOCAL -->
+      <section class="pane" id="pane-local" data-pane="local">
+        <header class="bar">
+          <select class="roots" title="Places"></select>
+          <button class="icon up" title="Up one folder (⌫)">↑</button>
+          <nav class="crumbs"></nav>
+          <input class="filter" type="search" placeholder="Filter…" spellcheck="false" />
+          <button class="icon refresh" title="Refresh (⌘R)">⟳</button>
+        </header>
+        <div class="cols">
+          <span data-sort="name">Name</span><span data-sort="size">Size</span><span data-sort="modified">Modified</span>
+        </div>
+        <div class="list" tabindex="0"></div>
+        <footer class="status">
+          <span class="status-text"></span>
+          <span class="actions">
+            <button data-act="preview" title="Quick look (Space)">👁</button>
+            <button data-act="open" title="Open with default app (Enter)">↗</button>
+            <button data-act="transfer" class="primary" title="Upload to S3 (F5 / ⌘↵)">Upload →</button>
+          </span>
+        </footer>
+      </section>
+
+      <!-- REMOTE -->
+      <section class="pane" id="pane-remote" data-pane="remote">
+        <header class="bar">
+          <select class="roots" id="bucket" title="Bucket"></select>
+          <button class="icon up" title="Up one folder (⌫)">↑</button>
+          <nav class="crumbs"></nav>
+          <input class="filter" type="search" placeholder="Filter…" spellcheck="false" />
+          <button class="icon refresh" title="Refresh (⌘R)">⟳</button>
+          <button class="icon" id="btn-settings" title="Settings (⌘,)">⚙</button>
+        </header>
+        <div class="cols">
+          <span data-sort="name">Name</span><span data-sort="size">Size</span><span data-sort="modified">Modified</span>
+        </div>
+        <div class="list" tabindex="0"></div>
+        <footer class="status">
+          <span class="status-text"></span>
+          <span class="actions">
+            <button data-act="transfer" class="primary" title="Download to left pane (F5 / ⌘↵)">← Download</button>
+            <button data-act="preview" title="Quick look (Space)">👁</button>
+            <button data-act="open" title="Open with default app (⌘O)">↗</button>
+            <button data-act="link" title="Copy 7-day link">🔗</button>
+            <button data-act="delete" class="danger" title="Delete (⌘⌫)">🗑</button>
+          </span>
+        </footer>
+      </section>
+    </div>
+
+    <section id="jobs" hidden>
+      <div class="jobs-head">
+        <span>Transfers</span>
+        <button id="jobs-clear" class="link">Clear finished</button>
+      </div>
+      <div id="jobs-list"></div>
+    </section>
+
+    <div id="drop" hidden><div id="drop-text"></div></div>
+    <div id="ghost" hidden></div>
+    <div id="ctx" class="menu" hidden></div>
+
+    <div id="preview" class="modal" hidden>
+      <div class="preview-box">
+        <div class="preview-head">
+          <span id="pv-title"></span>
+          <span class="actions">
+            <button id="pv-transfer"></button>
+            <button id="pv-open" title="Open with default app">↗ Open</button>
+            <button id="pv-close" class="icon" title="Close (Esc)">✕</button>
+          </span>
+        </div>
+        <div id="pv-body"></div>
+      </div>
+    </div>
+
+    <dialog id="settings">
+      <form method="dialog" id="settings-form">
+        <h2>S3 connection</h2>
+        <label>Endpoint
+          <input name="endpoint" placeholder="https://s3.example.com or http://192.168.1.10:9000" required spellcheck="false" />
+        </label>
+        <div class="row2">
+          <label>Region <input name="region" placeholder="us-east-1" spellcheck="false" /></label>
+          <label>Default bucket <input name="bucket" placeholder="(optional)" spellcheck="false" /></label>
+        </div>
+        <label>Access key <input name="access_key" required spellcheck="false" autocomplete="off" /></label>
+        <label>Secret key <input name="secret_key" type="password" required autocomplete="off" /></label>
+        <label class="check"><input type="checkbox" name="path_style" checked /> Path-style requests (recommended for MinIO / self-hosted)</label>
+        <p id="settings-msg"></p>
+        <div class="buttons">
+          <button type="button" id="settings-test">Test</button>
+          <span class="spacer"></span>
+          <button type="button" id="settings-cancel">Cancel</button>
+          <button type="submit" class="primary">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="ask">
+      <form method="dialog" class="ask-form">
+        <b id="ask-title"></b>
+        <input id="ask-input" spellcheck="false" autocomplete="off" />
+        <div class="buttons">
+          <span class="spacer"></span>
+          <button value="cancel" formnovalidate>Cancel</button>
+          <button value="ok" class="primary">OK</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" hidden></div>
+  </body>
+</html>
