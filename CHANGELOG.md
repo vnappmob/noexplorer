@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-15
+
 ### Added
 - Multiple S3 accounts: account picker in the S3 pane header, and an account manager in Settings (add, edit, remove, test).
 - Σ Size: total size of the current folder (shown in the new path bar) or of the selected folders (shown in the Size column), local and remote.
@@ -15,6 +17,7 @@ versions: [SemVer](https://semver.org/).
 ### Changed
 - Default text size is slightly larger (13 → 14 px).
 - Existing single-connection settings are migrated automatically to the first account.
+- The macOS `.dmg` itself is now notarized and stapled (v0.1.0 notarized only the app inside).
 
 ## [0.1.0] - 2026-10-15
 

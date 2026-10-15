@@ -1,7 +1,7 @@
 {
   "name": "noexplorer",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -24,7 +24,7 @@
     "vite": "^8.0.16",
     "wrangler": "^4.151.0"
   },
-  "description": "Dual-pane drag & drop file manager for S3-compatible storage (MinIO, SeaweedFS, AWS S3\u2026)",
+  "description": "Dual-pane drag & drop file manager for S3-compatible storage (MinIO, SeaweedFS, AWS S3…)",
   "license": "MIT",
   "repository": {
     "type": "git",
