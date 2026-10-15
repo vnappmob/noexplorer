@@ -75,7 +75,7 @@ jobs:
       # tauri-action notarizes the .app but only signs the .dmg. Notarize + staple the .dmg too
       # (Apple's guidance: notarize the outermost container), then replace the release asset.
       - name: Notarize and staple the .dmg (macOS)
-        if: runner.os == 'macOS' && env.APPLE_ID != ''
+        if: runner.os == 'macOS'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -83,6 +83,8 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
+          # Secrets can't be tested in `if:`; skip quietly when signing isn't configured.
+          [ -n "$APPLE_ID" ] || { echo "No Apple secrets: skipping .dmg notarization"; exit 0; }
           dmg=$(ls src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg)
           xcrun notarytool submit "$dmg" --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
           xcrun stapler staple "$dmg"
