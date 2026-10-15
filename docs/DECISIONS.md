@@ -212,6 +212,7 @@ on the maintainer's machine and as repo secrets. The public key is embedded in `
 **Consequences.** Shipping an update means publishing a release. Drafts are never served. **The
 private key must be backed up.** Losing it means existing installs can't verify new updates, and
 users must reinstall manually once. v0.1.0 has no updater, so its users need one manual upgrade.
+Verified end-to-end on macOS: an installed v0.2.0 updated itself to v0.2.1 through the banner (2026-10-15).
 
 <a id="adr-016"></a>
 

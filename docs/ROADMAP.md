@@ -6,7 +6,7 @@ can start right away. When you finish an item, move it to `CHANGELOG.md` and upd
 
 ## Next (v0.1.x → v0.2)
 
-1. **Verify OTA end-to-end**: ship a small v0.2.1 and confirm v0.2.0 installs pick it up through the banner (macOS, Windows, Linux AppImage).
+1. **Verify OTA on Windows and Linux**: macOS is confirmed (v0.2.0 → v0.2.1 through the banner, 2026-10-15). Check the NSIS/MSI passive install on Windows and the AppImage self-replace on Linux on the next release.
 2. **Real screenshots and a GIF on the website.** `site/index.html` currently draws an HTML
    mock-up of the app in the hero.
 3. **Smoke-test on Windows and Linux.** CI compiles both but nobody has used them yet. Pay
