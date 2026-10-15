@@ -49,6 +49,24 @@ impl Default for Profile {
     }
 }
 
+/// App behavior (Settings → General). Mirrors `General` in `src/types.ts`.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
+pub struct General {
+    /// Closing the window hides it to the tray/menu bar; transfers keep running.
+    pub run_in_background: bool,
+    /// Check GitHub Releases for a new version at startup and every few hours.
+    pub check_updates: bool,
+    /// System notification when a transfer finishes while the window is hidden.
+    pub notify: bool,
+}
+
+impl Default for General {
+    fn default() -> Self {
+        Self { run_in_background: true, check_updates: true, notify: true }
+    }
+}
+
 /// Everything in `config.json`. Mirrors `Settings` in `src/types.ts`.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(default)]
@@ -58,6 +76,7 @@ pub struct Settings {
     pub active: String,
     /// Fallback download folder when the UI doesn't pass one (empty = OS Downloads).
     pub download_dir: String,
+    pub general: General,
 }
 
 impl Settings {
@@ -218,6 +237,13 @@ pub fn set_active_profile(app: AppHandle, state: State<'_, AppState>, id: String
     commit(&app, &state, s)
 }
 
+#[tauri::command]
+pub fn save_general(app: AppHandle, state: State<'_, AppState>, general: General) -> Result<Settings, String> {
+    let mut s = state.settings();
+    s.general = general;
+    commit(&app, &state, s)
+}
+
 /// Buckets of the active account.
 #[tauri::command]
 pub async fn list_buckets(state: State<'_, AppState>) -> Result<Vec<String>, String> {
@@ -251,6 +277,7 @@ mod tests {
     fn v2_roundtrip_and_partial_profiles_default_to_path_style() {
         let s = parse_settings(br#"{"profiles":[{"id":"a","endpoint":"http://x"}],"active":"a"}"#).unwrap();
         assert!(s.profiles[0].path_style, "path-style must default to on");
+        assert!(s.general.run_in_background && s.general.check_updates, "general defaults to on");
         assert_eq!(s.profiles[0].region, "us-east-1");
         let again = parse_settings(&serde_json::to_vec(&s).unwrap()).unwrap();
         assert_eq!(again, s);

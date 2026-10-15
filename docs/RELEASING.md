@@ -59,6 +59,24 @@ spctl -a -vvv -t open --context context:primary-signature NoExplorer_X.Y.Z_unive
 xcrun stapler validate NoExplorer_X.Y.Z_universal.dmg
 ```
 
+## Auto-update signing key
+
+Installed apps verify each update with the public key in `tauri.conf.json`
+(`plugins.updater.pubkey`). The workflow signs with:
+
+| Secret | Value |
+|---|---|
+| `TAURI_SIGNING_PRIVATE_KEY` | Contents of `~/.tauri/noexplorer-updater.key` (generated 2026-10-15) |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Contents of `~/.tauri/noexplorer-updater.password` |
+
+**Back up both files** (for example in a password manager). Without the private key no new
+version can be delivered to existing installs, and every user would have to reinstall by hand.
+Never commit them.
+
+An update reaches users when the release is **published**: apps poll
+`releases/latest/download/latest.json`, which ignores drafts. Check that `latest.json` is among
+the assets before publishing.
+
 ## Windows signing (not set up yet)
 
 Unsigned installers trigger a SmartScreen warning ("More info → Run anyway"). Options are

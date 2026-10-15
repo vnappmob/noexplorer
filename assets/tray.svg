@@ -1,0 +1,7 @@
+<!-- macOS menu-bar template icon: black on transparent; macOS recolors it for light/dark. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44">
+  <rect x="5" y="9" width="15" height="26" rx="3" fill="none" stroke="#000" stroke-width="3"/>
+  <rect x="24" y="9" width="15" height="26" rx="3" fill="none" stroke="#000" stroke-width="3"/>
+  <path d="M11 24 H31" stroke="#000" stroke-width="3.4" stroke-linecap="round"/>
+  <path d="M26 18.5 L32 24 L26 29.5" fill="none" stroke="#000" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

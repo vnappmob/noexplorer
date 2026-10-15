@@ -1,12 +1,20 @@
-// Settings dialog (Accounts + Appearance tabs), the account picker and the bucket picker
-// in the remote pane header.
+// Settings dialog (Accounts / General / Appearance / About tabs), the account picker and the
+// bucket picker in the remote pane header.
 
+import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  disable as disableAutostart,
+  enable as enableAutostart,
+  isEnabled as autostartOn,
+} from "@tauri-apps/plugin-autostart";
 import { ask } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { appearance, setTextSize, setTheme, type Theme } from "./appearance";
 import { remote } from "./panes";
 import { activeProfile, app, profileKey } from "./state";
-import type { Profile, Settings } from "./types";
+import type { General, Profile, Settings } from "./types";
+import { checkForUpdates } from "./updater";
 import { $, esc, fail, plural, store } from "./util";
 
 const dialog = () => $<HTMLDialogElement>("settings");
@@ -19,7 +27,9 @@ let editing = "";
 
 // ---------- dialog ----------
 
-export function openSettings(tab: "accounts" | "appearance" = "accounts", profileId?: string) {
+export type Tab = "accounts" | "general" | "appearance" | "about";
+
+export function openSettings(tab: Tab = "accounts", profileId?: string) {
   showTab(tab);
   const id = profileId ?? activeProfile()?.id ?? "";
   editAccount(app.settings.profiles.find((p) => p.id === id) ?? null);
@@ -34,6 +44,8 @@ function showTab(tab: string) {
     .querySelectorAll<HTMLElement>("section.tab")
     .forEach((s) => (s.hidden = s.dataset.tab !== tab));
   if (tab === "appearance") syncAppearanceControls();
+  if (tab === "general") syncGeneralControls();
+  if (tab === "about") getVersion().then((v) => ($("about-version").textContent = v));
 }
 
 // ---------- accounts tab ----------
@@ -130,6 +142,39 @@ async function deleteAccount() {
   }
 }
 
+// ---------- general tab ----------
+
+const generalForm = () => $<HTMLFormElement>("general-form");
+const box = (name: string) => generalForm().elements.namedItem(name) as HTMLInputElement;
+
+async function syncGeneralControls() {
+  const g = app.settings.general;
+  box("run_in_background").checked = g.run_in_background;
+  box("check_updates").checked = g.check_updates;
+  box("notify").checked = g.notify;
+  box("launch_at_login").checked = await autostartOn().catch(() => false);
+}
+
+async function onGeneralChange(ev: Event) {
+  const name = (ev.target as HTMLInputElement).name;
+  try {
+    if (name === "launch_at_login") {
+      if (box(name).checked) await enableAutostart();
+      else await disableAutostart();
+      return;
+    }
+    const general: General = {
+      run_in_background: box("run_in_background").checked,
+      check_updates: box("check_updates").checked,
+      notify: box("notify").checked,
+    };
+    app.settings = await invoke<Settings>("save_general", { general });
+  } catch (e) {
+    fail(e);
+    syncGeneralControls();
+  }
+}
+
 // ---------- appearance tab ----------
 
 function syncAppearanceControls() {
@@ -204,6 +249,15 @@ export function setupSettings() {
     if (id) editAccount(app.settings.profiles.find((p) => p.id === id) ?? null);
   });
   $("settings-close").onclick = () => dialog().close();
+  generalForm().addEventListener("change", onGeneralChange);
+  dialog()
+    .querySelectorAll<HTMLElement>(".check-updates")
+    .forEach((b) => (b.onclick = () => checkForUpdates(true)));
+  // About tab links open in the default browser.
+  dialog().addEventListener("click", (ev) => {
+    const url = (ev.target as HTMLElement).closest<HTMLElement>("[data-url]")?.dataset.url;
+    if (url) openUrl(url).catch(fail);
+  });
   dialog()
     .querySelectorAll<HTMLElement>(".tabs [data-tab]")
     .forEach((b) => (b.onclick = () => showTab(b.dataset.tab!)));

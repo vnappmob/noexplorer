@@ -64,6 +64,10 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Signs the auto-update bundles (*.sig) and lets tauri-action publish latest.json,
+          # which installed apps poll (tauri.conf.json → plugins.updater.endpoints).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: NoExplorer ${{ github.ref_name }}
@@ -71,6 +75,7 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+          includeUpdaterJson: true
 
       # tauri-action notarizes the .app but only signs the .dmg. Notarize + staple the .dmg too
       # (Apple's guidance: notarize the outermost container), then replace the release asset.

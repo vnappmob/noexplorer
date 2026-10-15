@@ -39,6 +39,22 @@ pub fn job_label(names: Vec<String>) -> String {
     }
 }
 
+/// "1.5 GB", "320 KB" — for tray/notification text (the UI has its own `fmtSize`).
+pub fn fmt_bytes(n: u64) -> String {
+    const UNITS: [&str; 4] = ["KB", "MB", "GB", "TB"];
+    if n < 1024 {
+        return format!("{n} B");
+    }
+    let mut v = n as f64;
+    let mut i = 0;
+    v /= 1024.0;
+    while v >= 1024.0 && i < UNITS.len() - 1 {
+        v /= 1024.0;
+        i += 1;
+    }
+    if v < 10.0 { format!("{v:.1} {}", UNITS[i]) } else { format!("{v:.0} {}", UNITS[i]) }
+}
+
 /// Last segment of a key or `/`-separated path ("a/b/c.txt" → "c.txt", "a/b/" → "b").
 pub fn file_name(key: &str) -> String {
     key.trim_end_matches('/').rsplit('/').next().unwrap_or(key).to_string()
@@ -125,6 +141,10 @@ mod tests {
         assert_eq!(job_label(vec!["a".into()]), "a");
         assert_eq!(job_label(vec!["a".into(), "b".into(), "c".into(), "d".into()]), "a, b +2 more");
         assert_eq!(file_name("x/y/z.bin"), "z.bin");
+        assert_eq!(
+            (fmt_bytes(512), fmt_bytes(1536), fmt_bytes(5 << 30)),
+            ("512 B".into(), "1.5 KB".into(), "5.0 GB".into())
+        );
         assert_eq!(file_name("x/y/"), "y");
         assert!(is_text_like("README.MD"));
         assert!(!is_text_like("photo.jpg"));

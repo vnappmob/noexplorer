@@ -46,6 +46,9 @@ and you're done.
 - **Self-hosted friendly**: path-style requests are on by default, and the connection test
   works even when the key can't list buckets.
 - **Multiple accounts**: switch between servers from the S3 pane header.
+- **Runs in the background**: close the window and NoExplorer stays in the menu bar / tray,
+  showing transfer progress there and notifying you when transfers finish.
+- **Auto-updates**: new versions install in place with one click.
 - **Σ Size** for any folder, local or remote. A path bar always shows where you are.
 - Copy a 7-day share link, create folders, delete from S3, follow progress (with cancel)
   for every transfer. Theme and text size settings, resizable panes. About 10 MB on macOS.

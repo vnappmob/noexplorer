@@ -8,7 +8,14 @@
   "permissions": [
     "core:default",
     "core:window:allow-set-theme",
+    "core:window:allow-show",
+    "core:window:allow-set-focus",
+    "core:window:allow-unminimize",
     "opener:default",
-    "dialog:default"
+    "dialog:default",
+    "updater:default",
+    "process:allow-restart",
+    "autostart:default",
+    "notification:default"
   ]
 }

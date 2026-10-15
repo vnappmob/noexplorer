@@ -12,9 +12,6 @@ can start right away. When you finish an item, move it to `CHANGELOG.md` and upd
 3. **Smoke-test on Windows and Linux.** CI compiles both but nobody has used them yet. Pay
    attention to drag positions on HiDPI Windows (`dnd.ts`, `devicePixelRatio`) and to Places
    on Linux (`local.rs::local_roots`).
-4. **Auto-update.** Add `tauri-plugin-updater` and a signing keypair (`tauri signer generate`).
-   Put the public key in `tauri.conf.json` and the private key in the
-   `TAURI_SIGNING_PRIVATE_KEY` secret. `tauri-action` then publishes `latest.json`.
 
 ## Later
 

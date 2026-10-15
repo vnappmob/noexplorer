@@ -11,6 +11,7 @@ import { paneHooks, type Pane } from "./pane";
 import { local, remote, setActive } from "./panes";
 import { closePreview, openPreview, pv, pvItem } from "./preview";
 import { initSettings, setupSettings } from "./settings";
+import { setupUpdater } from "./updater";
 import type { SortBy } from "./types";
 import { $, fail, store, toast } from "./util";
 
@@ -121,6 +122,7 @@ async function main() {
   const localLoad = local.load();
   await initSettings();
   await localLoad;
+  setupUpdater();
   local.list.focus();
 }
 

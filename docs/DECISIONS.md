@@ -195,3 +195,36 @@ next save. Last bucket and prefix are remembered per profile in localStorage. Ap
 **Consequences.** The remote pane always shows a single account. Two remote panes, or copying
 between accounts, would need a client per pane (roadmap). Secrets for all accounts sit in the
 same 0600 file. The keychain move (roadmap) should cover all profiles.
+
+<a id="adr-015"></a>
+
+## ADR-015: Auto-update through Tauri's updater with GitHub Releases as the feed
+Accepted · 2026-10-15
+
+**Context.** Users shouldn't have to download and reinstall for every version.
+**Decision.** `tauri-plugin-updater` with one endpoint:
+`releases/latest/download/latest.json`. `tauri-action` generates that file and the `.sig` files
+when `bundle.createUpdaterArtifacts` is on and `TAURI_SIGNING_PRIVATE_KEY(_PASSWORD)` are set.
+The app checks at startup and every 6 h (if `general.check_updates`), shows a banner, and
+installs only after the user clicks (it asks first when transfers are running). The keypair was
+generated on 2026-10-15. The private key and its password live in `~/.tauri/noexplorer-updater.*`
+on the maintainer's machine and as repo secrets. The public key is embedded in `tauri.conf.json`.
+**Consequences.** Shipping an update means publishing a release. Drafts are never served. **The
+private key must be backed up.** Losing it means existing installs can't verify new updates, and
+users must reinstall manually once. v0.1.0 has no updater, so its users need one manual upgrade.
+
+<a id="adr-016"></a>
+
+## ADR-016: Tray / menu-bar app with hide-on-close
+Accepted · 2026-10-15
+
+**Context.** Long backups should keep running when the user closes the window, and they should
+be able to glance at progress.
+**Decision.** A tray icon (template icon on macOS) with live transfer rows and a % title on
+macOS. Closing the window hides it when `general.run_in_background` is on (the default). On
+macOS the Dock icon is hidden too (`ActivationPolicy::Accessory`). Notifications fire when a
+job finishes while the window isn't focused. `single-instance` and launch-at-login
+(`--hidden`) complete the background-app behavior.
+**Consequences.** "Quit" is now an explicit action (tray menu or ⌘Q). The tray menu is rebuilt
+only when its rows change and texts update in place, so an open menu doesn't flicker. Linux
+tray support depends on the desktop environment (AppIndicator).

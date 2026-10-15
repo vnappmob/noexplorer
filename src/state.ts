@@ -5,7 +5,12 @@ import { store } from "./util";
 
 export const app = {
   /** Saved accounts (from the backend's config.json). */
-  settings: { profiles: [], active: "", download_dir: "" } as Settings,
+  settings: {
+    profiles: [],
+    active: "",
+    download_dir: "",
+    general: { run_in_background: true, check_updates: true, notify: true },
+  } as Settings,
   /** Bucket shown in the remote pane. */
   bucket: "",
   /** Show dotfiles in the local pane. */

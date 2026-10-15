@@ -2,16 +2,20 @@
 //!
 //! The webview UI (`/src`) calls the `#[tauri::command]` functions registered in [`run`]
 //! via `invoke(...)`. Long transfers run as background jobs that stream progress to the UI
-//! through the `"job"` event (see [`jobs`]).
+//! through the `"job"` event (see [`jobs`]) and to the tray menu (see [`tray`]).
 //!
 //! Module map (see `docs/ARCHITECTURE.md` for the full picture):
-//! - [`config`]   — S3 accounts (profiles): persisted JSON + S3 client construction
-//! - [`state`]    — shared app state (config, client, cancel flags)
-//! - [`jobs`]     — background job bookkeeping + progress events
-//! - [`remote`]   — S3 browsing: list, presign, read, mkdir, delete
+//! - [`config`]   — S3 accounts (profiles) + General settings: persisted JSON + S3 client
+//! - [`state`]    — shared app state (settings, client, cancel flags)
+//! - [`jobs`]     — background job bookkeeping + progress events + notifications
+//! - [`remote`]   — S3 browsing: list, size, presign, read, mkdir, delete
 //! - [`transfer`] — upload / download / open engine (multipart, concurrency)
 //! - [`local`]    — local filesystem browsing for the left pane
+//! - [`tray`]     — tray/menu-bar icon, live transfer status, background running
 //! - [`util`]     — small pure helpers (path safety, labels, error text)
+//!
+//! Plugins: opener, dialog, updater + process (auto-update & relaunch), autostart
+//! (launch at login, started with `--hidden`), notification, single-instance.
 
 mod config;
 mod jobs;
@@ -19,22 +23,49 @@ mod local;
 mod remote;
 mod state;
 mod transfer;
+mod tray;
 mod util;
 
-use tauri::Manager;
+use tauri::{Manager, RunEvent, WindowEvent};
+
+/// Passed by the autostart launcher: start in the tray without showing the window.
+const HIDDEN_ARG: &str = "--hidden";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
+        // Must be first: a second launch just focuses the running instance (which may be in the tray).
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| tray::show_main(app)))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![HIDDEN_ARG]),
+        ))
         .manage(state::AppState::default())
         .setup(|app| {
             let settings = config::load_settings(app.handle());
             app.state::<state::AppState>().set_settings(settings);
             // Clean previews left over from earlier sessions.
             let _ = std::fs::remove_dir_all(transfer::temp_root());
+            tray::setup(app.handle())?;
+            if std::env::args().any(|a| a == HIDDEN_ARG) {
+                tray::hide_main(app.handle());
+            }
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            // Close button → hide to the tray (transfers keep running), unless disabled in Settings.
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                let app = window.app_handle();
+                if app.state::<state::AppState>().settings().general.run_in_background {
+                    api.prevent_close();
+                    tray::hide_main(app);
+                }
+            }
         })
         // Keep this list in sync with the command table in docs/ARCHITECTURE.md.
         .invoke_handler(tauri::generate_handler![
@@ -43,6 +74,7 @@ pub fn run() {
             config::save_profile,
             config::delete_profile,
             config::set_active_profile,
+            config::save_general,
             config::list_buckets,
             remote::list,
             remote::remote_size,
@@ -61,6 +93,16 @@ pub fn run() {
             local::open_local,
             local::reveal,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|app, event| {
+        // macOS: clicking the Dock icon while the window is hidden brings it back.
+        #[cfg(target_os = "macos")]
+        if let RunEvent::Reopen { .. } = event {
+            tray::show_main(app);
+        }
+        #[cfg(not(target_os = "macos"))]
+        let _ = (app, event);
+    });
 }

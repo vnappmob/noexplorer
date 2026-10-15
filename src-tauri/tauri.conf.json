@@ -51,6 +51,18 @@
     "publisher": "VNAppMob",
     "macOS": {
       "minimumSystemVersion": "11.0"
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJDOEI4RTZBMTgwMThFQ0EKUldUS2pnRVlhbzZMdk1paUFXWHE0c3FrOC9BQzNneU42UzB3dTBIV1pCc0NLSkJWODUvRFlqOGkK",
+      "endpoints": [
+        "https://github.com/vnappmob/noexplorer/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

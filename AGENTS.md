@@ -19,7 +19,7 @@ TypeScript UI. The UI is in English. License: MIT.
 |---|---|
 | Version | `0.1.0` released 2026-10-15 ([release](https://github.com/vnappmob/noexplorer/releases/tag/v0.1.0)). `main` has unreleased features (see CHANGELOG → Unreleased) |
 | Last updated | 2026-10-15 |
-| Works and is verified | Dual-pane browse; drag both ways; drop files from the OS; multipart upload (tested with 2 GB); folder up/download; quick look (image/video/audio/pdf/text, local and remote); presigned links; delete; mkdir; transfer progress/cancel; **multiple S3 accounts** (picker + manager, v1 config migration); **Σ folder size** (remote and local) and full-path bar; **theme + text size**; **resizable split** |
+| Works and is verified | Dual-pane browse; drag both ways; drop files from the OS; multipart upload (tested with 2 GB); folder up/download; quick look (image/video/audio/pdf/text, local and remote); presigned links; delete; mkdir; transfer progress/cancel; **multiple S3 accounts** (picker + manager, v1 config migration); **Σ folder size** (remote and local) and full-path bar; **theme + text size**; **resizable split**; **auto-update** (signed, GitHub `latest.json`); **tray + background running** (hide on close, live transfer rows, notifications, launch at login, single instance); **Settings → General / About** |
 | Tested on | macOS (Apple Silicon) against SeaweedFS. Windows and Linux are only checked for compilation in CI |
 | Next up | Ship the Unreleased features as v0.2.0: from v0.2.0 the .dmg is notarized and stapled too (v0.1.0 notarized only the .app). See [docs/ROADMAP.md](docs/ROADMAP.md) |
 
@@ -36,6 +36,7 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   jobs.ts            Transfers panel, listens to the "job" event
   settings.ts        Settings dialog (Accounts | Appearance), account + bucket pickers
   appearance.ts      Theme, text size, pane splitter (localStorage)
+  updater.ts         Auto-update: check, banner, install + relaunch
   menu.ts            Right-click menu      keyboard.ts  All shortcuts
   types.ts           Types mirrored from Rust     util.ts / files.ts / state.ts  helpers and global state
 index.html           All markup (panes, dialogs, preview)      src/styles.css  All styles (light and dark)
@@ -45,6 +46,7 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   transfer.rs        upload / download / open_object engine (multipart, concurrency)
   jobs.rs            Background Job + "job" progress events + cancel
   local.rs           Local filesystem commands for the left pane
+  tray.rs            Tray/menu-bar icon: live transfer status, Show/Updates/Quit, hide-to-tray
   state.rs           AppState (config, client, cancel flags)    util.rs  pure helpers (tested)
 src-tauri/tauri.conf.json   Window, bundle and security settings (version comes from package.json)
 site/                Static website → Cloudflare Workers static assets (config: wrangler.jsonc)
@@ -97,6 +99,8 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **Drag between panes uses mouse events, not HTML5 drag-and-drop.** HTML5 DnD is broken on Windows while Tauri's file drop is enabled ([ADR-003](docs/DECISIONS.md#adr-003)).
 - **Escape every untrusted string before it goes into `innerHTML`** (file names, keys, errors), using `esc()`. Text previews use `textContent`.
 - **Keep the user's secrets out of logs and errors.** The secret key only lives in `config.json` (mode 600).
+- **Never lose or rotate the updater signing key** (`~/.tauri/noexplorer-updater.key` on the maintainer's Mac, plus the repo secret `TAURI_SIGNING_PRIVATE_KEY`). Installed apps only accept updates signed by it; a new key means every user has to reinstall by hand ([ADR-015](docs/DECISIONS.md#adr-015)).
+- **Closing the window hides to the tray; it doesn't quit** (when `general.run_in_background` is on). Code that must run "on exit" has to handle `app.exit()` from the tray, not window close.
 - **The UI is in English.** User-facing strings live in the TS files and `index.html`.
 
 ## Recipes

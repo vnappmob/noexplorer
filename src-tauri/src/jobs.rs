@@ -11,8 +11,10 @@ use std::time::Duration;
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_notification::NotificationExt;
 
 use crate::state::AppState;
+use crate::util::fmt_bytes;
 
 const TICK: Duration = Duration::from_millis(250);
 
@@ -88,6 +90,38 @@ impl Job {
         self.errors.lock().unwrap().push(format!("{what}: {e}"));
     }
 
+    /// Pushes a snapshot to the UI (`"job"` event) and to the tray menu.
+    fn publish(&self, app: &AppHandle, status: &'static str) {
+        let ev = self.event(status);
+        crate::tray::on_job(app, &ev.id, ev.kind, &ev.label, ev.bytes_done, ev.bytes_total, status);
+        let _ = app.emit("job", ev);
+    }
+
+    /// Desktop notification for a finished job, unless the user is looking at the app.
+    fn notify_done(&self, app: &AppHandle, status: &'static str) {
+        let s = app.state::<AppState>().settings();
+        let focused = app.get_webview_window("main").and_then(|w| w.is_focused().ok()).unwrap_or(false);
+        if !s.general.notify || focused || status == "cancelled" {
+            return;
+        }
+        let (verb, files) =
+            (if self.kind == "up" { "Uploaded" } else { "Downloaded" }, self.files_done.load(Ordering::Relaxed));
+        let (title, body) = match status {
+            "done" => (
+                format!("{verb} {}", self.label),
+                format!(
+                    "{files} file{} · {}",
+                    if files == 1 { "" } else { "s" },
+                    fmt_bytes(self.bytes_total.load(Ordering::Relaxed))
+                ),
+            ),
+            _ => {
+                (format!("Transfer finished with errors: {}", self.label), self.event(status).error.unwrap_or_default())
+            }
+        };
+        let _ = app.notification().builder().title(title).body(body).show();
+    }
+
     fn event(&self, status: &'static str) -> JobEvent {
         let errors = self.errors.lock().unwrap();
         JobEvent {
@@ -123,7 +157,7 @@ impl Job {
                 let (job, app, finished) = (job.clone(), app.clone(), finished.clone());
                 tauri::async_runtime::spawn(async move {
                     while !finished.load(Ordering::Relaxed) {
-                        let _ = app.emit("job", job.event("running"));
+                        job.publish(&app, "running");
                         tokio::time::sleep(TICK).await;
                     }
                 })
@@ -138,7 +172,8 @@ impl Job {
             } else {
                 "error"
             };
-            let _ = app.emit("job", job.event(status));
+            job.publish(&app, status);
+            job.notify_done(&app, status);
             app.state::<AppState>().cancels.lock().unwrap().remove(&job.id);
         });
     }

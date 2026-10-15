@@ -13,8 +13,11 @@ export type Profile = {
   path_style: boolean;
 };
 
+/** `config::General` — Settings → General. */
+export type General = { run_in_background: boolean; check_updates: boolean; notify: boolean };
+
 /** `config::Settings` — everything in config.json. */
-export type Settings = { profiles: Profile[]; active: string; download_dir: string };
+export type Settings = { profiles: Profile[]; active: string; download_dir: string; general: General };
 
 /** `remote::SizeInfo` — result of `remote_size` / `local_size`. */
 export type SizeInfo = { bytes: number; files: number };

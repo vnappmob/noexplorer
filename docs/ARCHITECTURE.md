@@ -40,6 +40,7 @@ This is the deep reference. For orientation, read [AGENTS.md](../AGENTS.md) firs
 | `remote.rs` | S3 browsing | `Entry` row type, `list` (one level, delimiter `/`), `list_all` (recursive), `remote_size`, `presign`, `read_text`, `mkdir`, `delete` |
 | `transfer.rs` | Moving bytes | `upload`/`upload_file` (PUT or multipart), `download`/`download_file` (stream to `.part`), `open_object`, tuning constants |
 | `local.rs` | Local disk (left pane) | `list_local` (+ crumbs and Places roots), `local_size`, `read_local_text`, `mkdir_local`, `open_local`, `reveal` |
+| `tray.rs` | Tray / menu-bar icon | Menu (status line, up to 5 transfer rows, Show / Check for Updates / Quit), macOS % title, `show_main`/`hide_main` (Dock icon toggles via activation policy), `on_job` fed by `jobs.rs` |
 | `util.rs` | Pure helpers | `err` (full SDK error chain), `safe_rel` (traversal guard), `unique_path`, `job_label`, `file_name`, `is_text_like` |
 
 ## IPC commands
@@ -54,6 +55,7 @@ Every command returns `Result<T, String>`, and the error string is shown to the 
 | `save_profile` | `profile` | `Settings` | config | Upsert (an empty `id` means new), make it active, write `config.json` (0600), rebuild the client |
 | `delete_profile` | `id` | `Settings` | config | If it was active, the first remaining account becomes active |
 | `set_active_profile` | `id` | `Settings` | config | Switches the remote pane's account. Running jobs keep their own client |
+| `save_general` | `general` | `Settings` | config | Settings → General (`run_in_background`, `check_updates`, `notify`) |
 | `list_buckets` | – | `string[]` | config | `test_profile` with the active account |
 | `remote_size` | `bucket, prefix` | `SizeInfo {bytes, files}` | remote | Recursive. `""` = whole bucket. Lists every object, so it's slow on huge folders |
 | `local_size` | `path` | `SizeInfo` | local | Recursive walk; symlinks are not followed |
@@ -88,6 +90,9 @@ The TS mirror is `JobEvent` in `src/types.ts`.
   "local_dir": "/Users/me/Downloads"               // download: refresh the left pane if it shows this folder
 }
 ```
+
+**`"tray-check-updates"`** is emitted by `tray.rs` when the tray's "Check for Updates…" is
+clicked. `updater.ts` runs a manual check.
 
 The UI also uses Tauri's built-in **drag-drop** events (`getCurrentWebview().onDragDropEvent`)
 for files dragged in from the OS.
@@ -127,6 +132,26 @@ back in v2 format on the next save.
 into the row (`Item.calc = true`, shown in the Size column). With no folder selected, the
 current folder's total goes in the path bar.
 
+**Background running and the tray**
+`lib.rs` intercepts `CloseRequested`: when `general.run_in_background` is on (the default) it
+calls `prevent_close()` + `tray::hide_main()`. On macOS that also switches to the `Accessory`
+activation policy, so there's no Dock icon. Jobs keep running, and every tick goes to the UI
+(`"job"`) **and** to `tray::on_job`, which updates the menu rows in place and rebuilds the menu
+only when the set of rows changes. A finished job raises a system notification when the window
+isn't focused (`general.notify`). Quit happens only from the tray, ⌘Q, or with
+run_in_background off. `single-instance` focuses the running app on a second launch, and
+`RunEvent::Reopen` (Dock click) shows the window. Launch at login (`autostart` plugin) passes
+`--hidden`, so the app starts in the tray.
+
+**Auto-update (OTA)**
+The release workflow signs the update bundles (`*.app.tar.gz`, `*-setup.exe`, `*.AppImage`
+→ `*.sig`) with the updater private key (secret `TAURI_SIGNING_PRIVATE_KEY`) and uploads
+`latest.json`. Installed apps fetch
+`https://github.com/vnappmob/noexplorer/releases/latest/download/latest.json`
+(`tauri.conf.json → plugins.updater`), verify the signature against the embedded `pubkey`,
+then `downloadAndInstall()` + `relaunch()` (`updater.ts`). Drafts are invisible to
+`releases/latest`, so an update ships only when a release is **published**.
+
 **Appearance**
 `appearance.ts` stores theme (`system`/`light`/`dark`), text size (13/14/16/18 px) and the pane
 split (%) in localStorage. It applies them as `<html data-theme>`, the `--fs` CSS variable and
@@ -144,8 +169,9 @@ split (%) in localStorage. It applies them as `<html data-theme>`, the `--fs` CS
 | `dnd.ts` | Mouse-event drag between panes (`armDrag` on mousedown, threshold 5 px, ghost label, drop-target highlight) and OS drops |
 | `preview.ts` | Modal state `pv`, `openPreview`, `previewStep`, `closePreview` |
 | `jobs.ts` | `"job"` listener, speed smoothing, Transfers panel, cancel and "Show" buttons |
-| `settings.ts` | Settings dialog (Accounts / Appearance tabs), account picker and bucket picker, `applySettings()` |
+| `settings.ts` | Settings dialog (Accounts / General / Appearance / About tabs), account picker and bucket picker, `applySettings()`, autostart toggle |
 | `appearance.ts` | Theme, text size, pane splitter (per-device prefs) |
+| `updater.ts` | Update check (startup + every 6 h, tray, Settings), banner, download progress, relaunch |
 | `menu.ts` / `keyboard.ts` | Context menu / every shortcut |
 | `types.ts`, `files.ts`, `util.ts`, `state.ts` | Shared types, file kinds and icons, DOM and format helpers, global `app` state (`cfg`, `bucket`, `showHidden`) |
 
@@ -156,7 +182,7 @@ Imports go one way to avoid cycles: `main → (actions, dnd, keyboard, menu, set
 
 | What | Where |
 |---|---|
-| Accounts (`Settings`, including **secret keys**, plain JSON, mode 0600) | `<app config dir>/config.json`: macOS `~/Library/Application Support/com.vnappmob.noexplorer/`, Windows `%APPDATA%\com.vnappmob.noexplorer\`, Linux `~/.config/com.vnappmob.noexplorer/` |
+| Accounts + General (`Settings`, including **secret keys**, plain JSON, mode 0600) | `<app config dir>/config.json`: macOS `~/Library/Application Support/com.vnappmob.noexplorer/`, Windows `%APPDATA%\com.vnappmob.noexplorer\`, Linux `~/.config/com.vnappmob.noexplorer/` |
 | UI preferences (`localStorage`) | `bucket@<profileId>`, `prefix@<profileId>`, `localPath`, `hidden`, `local.sortBy`, `local.sortDir`, `remote.sortBy`, `remote.sortDir`, `theme`, `textSize`, `split` |
 | "Open" temp files | `$TMP/noexplorer/` (wiped at startup) |
 

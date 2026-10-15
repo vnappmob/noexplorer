@@ -13,6 +13,12 @@ versions: [SemVer](https://semver.org/).
 - Path bar under each pane with the full current location (`/abs/path` or `s3://bucket/prefix`); click to copy.
 - Settings → Appearance: theme (System / Light / Dark) and text size (Small / Default / Large / Extra large).
 - Drag the divider between the panes to resize them; double-click to reset.
+- **Auto-update**: NoExplorer checks for new versions (at startup and every few hours) and installs them in place with one click, so there's no reinstalling. Updates are signed and verified.
+- **Runs in the background**: closing the window keeps NoExplorer in the menu bar / system tray, and transfers continue. The tray menu shows live transfer progress (and on macOS the overall % appears in the menu bar).
+- Notifications when transfers finish while the app isn't in front.
+- Settings → General: keep running in the background, launch at login, notifications, automatic update checks.
+- Settings → About: version, credits, license and project links, plus "Check for updates".
+- Opening NoExplorer again while it's running in the tray brings the existing window back.
 
 ### Changed
 - Default text size is slightly larger (13 → 14 px).

@@ -778,3 +778,77 @@ dialog::backdrop {
   background: var(--danger);
   color: #fff;
 }
+
+/* update banner */
+#update-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  font-size: var(--fs-sm);
+}
+
+/* settings → general */
+#general-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 330px;
+}
+#general-form label.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+#general-form label.check input {
+  margin-top: 3px;
+}
+#general-form small,
+.muted {
+  color: var(--muted);
+}
+
+/* settings → about */
+.about {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 330px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.about-head {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+.about-head h2 {
+  margin: 0;
+  font-size: calc(var(--fs) + 8px);
+}
+.about-head p {
+  margin: 4px 0 0;
+}
+.about .buttons {
+  flex-wrap: wrap;
+}
+.credits {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 16px;
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+.credits dt {
+  color: var(--muted);
+}
+.credits dd {
+  margin: 0;
+}
+.credits a,
+.about a {
+  color: var(--accent);
+  cursor: pointer;
+}

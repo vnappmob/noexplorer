@@ -8,6 +8,15 @@
     <script type="module" src="/src/main.ts" defer></script>
   </head>
   <body>
+    <div id="update-bar" hidden>
+      <span>⬆</span>
+      <span id="upd-text"></span>
+      <button class="link" id="upd-notes">What's new</button>
+      <span class="spacer"></span>
+      <button id="upd-later">Later</button>
+      <button id="upd-install" class="primary">Install &amp; restart</button>
+    </div>
+
     <div class="panes" id="panes">
       <!-- LOCAL -->
       <section class="pane" id="pane-local" data-pane="local">
@@ -101,7 +110,9 @@
     <dialog id="settings">
       <nav class="tabs">
         <button type="button" data-tab="accounts" class="on">Accounts</button>
+        <button type="button" data-tab="general">General</button>
         <button type="button" data-tab="appearance">Appearance</button>
+        <button type="button" data-tab="about">About</button>
         <span class="spacer"></span>
         <button type="button" id="settings-close" title="Close (Esc)">✕</button>
       </nav>
@@ -135,6 +146,24 @@
         </div>
       </section>
 
+      <section class="tab general" data-tab="general" hidden>
+        <form id="general-form">
+          <label class="check"><input type="checkbox" name="run_in_background" />
+            <span><b>Keep running in the background</b><br /><small>Closing the window hides NoExplorer to the menu bar / system tray. Transfers keep going and their progress shows in the tray menu.</small></span>
+          </label>
+          <label class="check"><input type="checkbox" name="launch_at_login" />
+            <span><b>Launch at login</b><br /><small>Starts quietly in the menu bar / system tray.</small></span>
+          </label>
+          <label class="check"><input type="checkbox" name="notify" />
+            <span><b>Notify when transfers finish</b><br /><small>Only when NoExplorer isn't the active window.</small></span>
+          </label>
+          <label class="check"><input type="checkbox" name="check_updates" />
+            <span><b>Check for updates automatically</b><br /><small>At startup and every few hours. Updates install in place, with no reinstall needed.</small></span>
+          </label>
+          <div class="buttons"><button type="button" class="check-updates">Check for updates now</button></div>
+        </form>
+      </section>
+
       <section class="tab appearance" data-tab="appearance" hidden>
         <label class="field">Theme
           <span class="seg" id="ap-theme">
@@ -152,6 +181,38 @@
           </span>
         </label>
         <p class="hint">Changes apply instantly and are saved on this computer. Tip: drag the line between the panes to resize them; double-click it to reset.</p>
+      </section>
+
+      <section class="tab about" data-tab="about" hidden>
+        <div class="about-head">
+          <img src="/app-icon.png" width="88" height="88" alt="" />
+          <div>
+            <h2>NoExplorer</h2>
+            <p>Version <span id="about-version">–</span></p>
+            <p class="muted">No explorer needed: just drag it to your bucket.<br />A tiny dual-pane file manager for S3-compatible storage.</p>
+          </div>
+        </div>
+        <div class="buttons">
+          <button type="button" class="check-updates">Check for updates</button>
+          <button type="button" data-url="https://noexplorer.vnappmob.com">Website</button>
+          <button type="button" data-url="https://github.com/vnappmob/noexplorer">GitHub</button>
+          <button type="button" data-url="https://github.com/vnappmob/noexplorer/blob/main/CHANGELOG.md">Changelog</button>
+          <button type="button" data-url="https://github.com/vnappmob/noexplorer/issues/new/choose">Report an issue</button>
+        </div>
+        <dl class="credits">
+          <dt>Created by</dt>
+          <dd>Kris Luu · <a data-url="https://vnappmob.com">VNAppMob</a></dd>
+          <dt>License</dt>
+          <dd>MIT · © 2026 Kris Luu (VNAppMob) · <a data-url="https://github.com/vnappmob/noexplorer/blob/main/LICENSE">Read the license</a></dd>
+          <dt>Built with</dt>
+          <dd>
+            <a data-url="https://tauri.app">Tauri</a>, <a data-url="https://www.rust-lang.org">Rust</a>,
+            <a data-url="https://github.com/awslabs/aws-sdk-rust">AWS SDK for Rust</a>, <a data-url="https://tokio.rs">Tokio</a>,
+            <a data-url="https://vite.dev">Vite</a> and <a data-url="https://www.typescriptlang.org">TypeScript</a>.
+          </dd>
+          <dt>Thanks</dt>
+          <dd>Everyone running MinIO, SeaweedFS and other self-hosted storage, and the open-source projects above. Third-party licenses are listed in the <a data-url="https://github.com/vnappmob/noexplorer">repository</a>.</dd>
+        </dl>
       </section>
     </dialog>
 

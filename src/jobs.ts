@@ -11,6 +11,9 @@ type JobView = JobEvent & { speed: number; lastBytes: number; lastAt: number };
 
 const jobs = new Map<string, JobView>();
 
+/** Transfers still running (the updater asks before restarting over them). */
+export const activeJobCount = () => [...jobs.values()].filter((j) => j.status === "running").length;
+
 function renderJobs() {
   const list = [...jobs.values()].reverse();
   $("jobs").hidden = !list.length;
