@@ -228,3 +228,28 @@ job finishes while the window isn't focused. `single-instance` and launch-at-log
 **Consequences.** "Quit" is now an explicit action (tray menu or ⌘Q). The tray menu is rebuilt
 only when its rows change and texts update in place, so an open menu doesn't flicker. Linux
 tray support depends on the desktop environment (AppIndicator).
+
+<a id="adr-017"></a>
+
+## ADR-017: AWS S3 is special-cased: SDK endpoint resolution and a region per bucket
+Accepted · 2026-10-15
+
+**Context.** A user pointed an account at `s3.amazonaws.com` with Region `ap-southeast-1` and
+got `AuthorizationHeaderMalformed … expecting 'us-east-1'`. AWS signs per region, the global
+endpoint only accepts us-east-1, and one AWS account's buckets can live in different regions.
+Generic "endpoint + region" settings can't express that.
+**Decision.**
+- `config::is_aws()`: an empty endpoint or `*.amazonaws.com(.cn)` means AWS. For AWS the
+  endpoint field is ignored and the SDK resolves `s3.<region>.amazonaws.com` itself. Bucket
+  names with dots automatically fall back to path-style there.
+- `region_from_endpoint()` reads the region out of regional hosts (AWS, Wasabi, B2,
+  DigitalOcean, Linode), and `effective_region()` lets it win over the Region field, because a
+  mismatch can never work.
+- `AppState::client_for(bucket)`: on AWS, each bucket's region comes from `ListBuckets`
+  (`BucketRegion`) or a `HEAD Bucket` (`x-amz-bucket-region`, also present on the 301).
+  It's cached and served by a client for that region. Other providers always use the single client.
+- The account form has provider presets (AWS, R2, B2, Wasabi, DO Spaces, self-hosted) with hints.
+  Errors go through `util::humanize` (S3 code + message + hint) instead of the SDK's debug chain.
+**Consequences.** AWS works with an empty endpoint and any default region, across regions,
+with no settings to get wrong. Every command that talks to a bucket must use
+`state.client_for(&bucket)` (not `state.client()`). The region cache resets whenever settings change.

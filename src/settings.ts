@@ -12,6 +12,7 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { appearance, setTextSize, setTheme, type Theme } from "./appearance";
 import { remote } from "./panes";
+import { describeAccount, guessProvider, PRESETS, type ProviderId } from "./providers";
 import { activeProfile, app, profileKey } from "./state";
 import type { General, Profile, Settings } from "./types";
 import { checkForUpdates } from "./updater";
@@ -54,9 +55,11 @@ function renderAccountList() {
   const active = activeProfile()?.id;
   $("acct-items").innerHTML = app.settings.profiles
     .map(
-      (p) => `<button type="button" class="acct${p.id === editing ? " on" : ""}" data-id="${esc(p.id)}">
+      (
+        p,
+      ) => `<button type="button" class="acct${p.id === editing ? " on" : ""}" data-id="${esc(p.id)}" title="${esc(p.name)}">
         ${p.id === active ? '<span class="dot" title="In use">●</span> ' : ""}${esc(p.name)}
-        <small>${esc(p.endpoint)}</small></button>`,
+        <small title="${esc(p.endpoint)}">${esc(describeAccount(p))}</small></button>`,
     )
     .join("");
   if (!editing)
@@ -70,10 +73,31 @@ function editAccount(p: Profile | null) {
   const v: Partial<Profile> = p ?? { region: "us-east-1", path_style: true };
   for (const k of FIELDS) (f.elements.namedItem(k) as HTMLInputElement).value = String(v[k] ?? "");
   (f.elements.namedItem("path_style") as HTMLInputElement).checked = v.path_style ?? true;
+  const provider = p ? guessProvider(p) : "custom";
+  $<HTMLSelectElement>("acct-provider").value = provider;
+  applyPreset(provider, false);
   $<HTMLButtonElement>("acct-delete").hidden = !p;
   setMsg("");
   renderAccountList();
   (f.elements.namedItem(p ? "name" : "endpoint") as HTMLInputElement).focus();
+}
+
+const input = (name: string) => form().elements.namedItem(name) as HTMLInputElement;
+
+/** Updates hints/placeholders for a provider. `fill` = the user just picked it: also reset
+ * fields that belong to another provider and set the provider's defaults. */
+function applyPreset(id: ProviderId, fill: boolean) {
+  const pr = PRESETS[id];
+  $("acct-hint").textContent = pr.hint;
+  const endpoint = input("endpoint");
+  endpoint.placeholder = pr.endpointPlaceholder;
+  endpoint.required = pr.endpointRequired;
+  input("region").placeholder = pr.regionPlaceholder;
+  if (!fill) return;
+  if (guessProvider({ endpoint: endpoint.value }) !== id) endpoint.value = "";
+  input("region").value = pr.region;
+  input("path_style").checked = pr.pathStyle;
+  (pr.endpointRequired ? endpoint : input("access_key")).focus();
 }
 
 function readForm(): Profile {
@@ -244,6 +268,9 @@ export function setupSettings() {
   $("acct-test").onclick = testAccount;
   $("acct-delete").onclick = deleteAccount;
   $("acct-add").onclick = () => editAccount(null);
+  $<HTMLSelectElement>("acct-provider").addEventListener("change", (ev) =>
+    applyPreset((ev.target as HTMLSelectElement).value as ProviderId, true),
+  );
   $("acct-items").addEventListener("click", (ev) => {
     const id = (ev.target as HTMLElement).closest<HTMLElement>("[data-id]")?.dataset.id;
     if (id) editAccount(app.settings.profiles.find((p) => p.id === id) ?? null);

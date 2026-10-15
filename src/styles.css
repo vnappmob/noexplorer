@@ -642,7 +642,7 @@ dialog::backdrop {
 }
 .accounts {
   display: grid;
-  grid-template-columns: 190px 1fr;
+  grid-template-columns: 220px minmax(0, 1fr);
   gap: 16px;
   min-height: 330px;
 }
@@ -650,15 +650,20 @@ dialog::backdrop {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0; /* let long names/endpoints ellipsize instead of widening the column */
   border-right: 1px solid var(--line);
   padding-right: 12px;
 }
 .acct-list .acct {
+  display: block;
+  width: 100%;
+  min-width: 0;
   text-align: left;
   border: none;
   background: none;
   padding: 7px 10px;
   border-radius: 6px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -666,8 +671,17 @@ dialog::backdrop {
   display: block;
   color: var(--muted);
   font-size: var(--fs-xs);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+#acct-hint {
+  margin: -4px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+#acct-form select {
+  width: 100%;
 }
 .acct-list .acct.on {
   background: var(--sel);

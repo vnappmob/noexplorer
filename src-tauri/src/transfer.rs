@@ -77,7 +77,7 @@ pub async fn upload(
     prefix: String,
     paths: Vec<String>,
 ) -> Result<String, String> {
-    let c = state.client()?;
+    let c = state.client_for(&bucket).await?;
     let label = job_label(paths.iter().map(|p| file_name(&p.replace('\\', "/"))).collect());
     let job = Job::new(&app, "up", label, &bucket, &prefix);
     let id = job.id.clone();
@@ -198,7 +198,7 @@ pub async fn download(
     items: Vec<DlItem>,
     dest: Option<String>,
 ) -> Result<String, String> {
-    let c = state.client()?;
+    let c = state.client_for(&bucket).await?;
     let dest = match dest.filter(|d| !d.trim().is_empty()) {
         Some(d) => PathBuf::from(d),
         None => default_download_dir(&state),
@@ -297,7 +297,7 @@ pub async fn open_object(
     bucket: String,
     key: String,
 ) -> Result<(), String> {
-    let c = state.client()?;
+    let c = state.client_for(&bucket).await?;
     let path = temp_root().join(uuid::Uuid::new_v4().to_string()).join(safe_rel(&file_name(&key)));
     let job = Job::untracked("open", file_name(&key), &bucket, "");
     download_file(&c, &bucket, &key, &path, &job).await?;

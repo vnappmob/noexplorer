@@ -34,14 +34,14 @@ This is the deep reference. For orientation, read [AGENTS.md](../AGENTS.md) firs
 | Module | Owns | Key items |
 |---|---|---|
 | `lib.rs` | App bootstrap | `run()`: plugins (opener, dialog), loads the config, wipes the temp dir, registers commands |
-| `config.rs` | Accounts | `Profile`, `Settings` (upsert/remove/active), `parse_settings` (v1→v2 migration), `make_client` (path-style, checksums, endpoint normalization) |
-| `state.rs` | Shared state | `AppState { settings, client, cancels }` behind `Mutex`es. `set_settings()` rebuilds the client for the active profile |
+| `config.rs` | Accounts | `Profile`, `Settings` (upsert/remove/active), `parse_settings` (v1→v2 migration), `make_client(_in)` (path-style, checksums), `is_aws` / `region_from_endpoint` / `effective_region` / `detect_bucket_region` (ADR-017) |
+| `state.rs` | Shared state | `AppState { settings, client, regions, regional, cancels }`. `set_settings()` rebuilds the client and clears region caches. **`client_for(bucket)`** returns the right client (per-bucket region on AWS, see ADR-017) |
 | `jobs.rs` | Background jobs | `Job` (atomic counters, errors, cancel flag), `Job::spawn` (250 ms ticker + final event), `cancel` |
 | `remote.rs` | S3 browsing | `Entry` row type, `list` (one level, delimiter `/`), `list_all` (recursive), `remote_size`, `presign`, `read_text`, `mkdir`, `delete` |
 | `transfer.rs` | Moving bytes | `upload`/`upload_file` (PUT or multipart), `download`/`download_file` (stream to `.part`), `open_object`, tuning constants |
 | `local.rs` | Local disk (left pane) | `list_local` (+ crumbs and Places roots), `local_size`, `read_local_text`, `mkdir_local`, `open_local`, `reveal` |
 | `tray.rs` | Tray / menu-bar icon | Menu (status line, up to 5 transfer rows, Show / Check for Updates / Quit), macOS % title, `show_main`/`hide_main` (Dock icon toggles via activation policy), `on_job` fed by `jobs.rs` |
-| `util.rs` | Pure helpers | `err` (full SDK error chain), `safe_rel` (traversal guard), `unique_path`, `job_label`, `file_name`, `is_text_like` |
+| `util.rs` | Pure helpers | `err`/`humanize` (S3 code + message + hint for common mistakes), `safe_rel` (traversal guard), `unique_path`, `job_label`, `file_name`, `is_text_like` |
 
 ## IPC commands
 
@@ -171,6 +171,7 @@ split (%) in localStorage. It applies them as `<html data-theme>`, the `--fs` CS
 | `jobs.ts` | `"job"` listener, speed smoothing, Transfers panel, cancel and "Show" buttons |
 | `settings.ts` | Settings dialog (Accounts / General / Appearance / About tabs), account picker and bucket picker, `applySettings()`, autostart toggle |
 | `appearance.ts` | Theme, text size, pane splitter (per-device prefs) |
+| `providers.ts` | Provider presets (AWS, R2, B2, Wasabi, DO, self-hosted) for the account form; `describeAccount()` |
 | `updater.ts` | Update check (startup + every 6 h, tray, Settings), banner, download progress, relaunch |
 | `menu.ts` / `keyboard.ts` | Context menu / every shortcut |
 | `types.ts`, `files.ts`, `util.ts`, `state.ts` | Shared types, file kinds and icons, DOM and format helpers, global `app` state (`cfg`, `bucket`, `showHidden`) |

@@ -36,6 +36,7 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   jobs.ts            Transfers panel, listens to the "job" event
   settings.ts        Settings dialog (Accounts | Appearance), account + bucket pickers
   appearance.ts      Theme, text size, pane splitter (localStorage)
+  providers.ts       Provider presets (AWS, R2, B2, Wasabi, DO…) for the account form
   updater.ts         Auto-update: check, banner, install + relaunch
   menu.ts            Right-click menu      keyboard.ts  All shortcuts
   types.ts           Types mirrored from Rust     util.ts / files.ts / state.ts  helpers and global state
@@ -95,6 +96,7 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **Path-style addressing defaults to ON.** Self-hosted S3 needs it ([ADR-007](docs/DECISIONS.md#adr-007)).
 - **Checksums are `WhenRequired`.** Don't remove this from `make_client`; it breaks MinIO and older servers ([ADR-004](docs/DECISIONS.md#adr-004)).
 - **The app never deletes or overwrites local files.** Downloads go to `name (n).ext` and stream through `.part` files ([ADR-006](docs/DECISIONS.md#adr-006)).
+- **Talk to a bucket through `state.client_for(&bucket)`, never `state.client()`.** On AWS each bucket may live in another region, and signing with the wrong region fails ([ADR-017](docs/DECISIONS.md#adr-017)).
 - **`safe_rel()` must wrap every object key that becomes a local path.** It is the path-traversal guard.
 - **Drag between panes uses mouse events, not HTML5 drag-and-drop.** HTML5 DnD is broken on Windows while Tauri's file drop is enabled ([ADR-003](docs/DECISIONS.md#adr-003)).
 - **Escape every untrusted string before it goes into `innerHTML`** (file names, keys, errors), using `esc()`. Text previews use `textContent`.

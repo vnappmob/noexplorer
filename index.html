@@ -124,7 +124,20 @@
             <button type="button" class="add" id="acct-add">＋ Add account</button>
           </div>
           <form id="acct-form">
-            <label>Name <input name="name" placeholder="e.g. Home NAS, Company MinIO" spellcheck="false" /></label>
+            <div class="row2">
+              <label>Provider
+                <select id="acct-provider">
+                  <option value="custom">MinIO / SeaweedFS / self-hosted</option>
+                  <option value="aws">Amazon S3</option>
+                  <option value="r2">Cloudflare R2</option>
+                  <option value="b2">Backblaze B2</option>
+                  <option value="wasabi">Wasabi</option>
+                  <option value="do">DigitalOcean Spaces</option>
+                </select>
+              </label>
+              <label>Name <input name="name" placeholder="e.g. Home NAS, Company MinIO" spellcheck="false" /></label>
+            </div>
+            <p id="acct-hint"></p>
             <label>Endpoint
               <input name="endpoint" placeholder="https://s3.example.com or http://192.168.1.10:9000" required spellcheck="false" />
             </label>

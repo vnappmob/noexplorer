@@ -74,7 +74,8 @@ you like, then switch between them from the picker in the S3 pane header:
 
 | Field | Example |
 |---|---|
-| Endpoint | `https://minio.example.com` or `http://192.168.1.10:9000` |
+| Provider | Pick yours (AWS, Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, or self-hosted). The form then shows what to enter |
+| Endpoint | `https://minio.example.com` or `http://192.168.1.10:9000`. **Leave it empty for Amazon S3**: each bucket's region is detected automatically |
 | Access key / Secret key | Your MinIO / S3 credentials |
 | Region | `us-east-1` (fine for MinIO) |
 | Path-style requests | ✓ Leave it on for MinIO and other self-hosted servers |

@@ -4,12 +4,61 @@ use std::path::{Path, PathBuf};
 
 use aws_sdk_s3::error::DisplayErrorContext;
 
-/// Formats an SDK error with its full cause chain (the plain `Display` is just "service error").
+/// Turns an SDK error into a short, human message: "<S3 message> (<Code>). <hint>".
+/// The SDK's plain `Display` is just "service error", and the full cause chain is noisy, so we
+/// pull `code`/`message` out of it, add a hint for common mistakes, and fall back to a
+/// truncated chain for anything else.
 pub fn err<E: std::error::Error>(e: E) -> String {
-    let s = format!("{}", DisplayErrorContext(e));
-    match s.char_indices().nth(600) {
-        Some((i, _)) => format!("{}…", &s[..i]),
-        None => s,
+    humanize(&format!("{}", DisplayErrorContext(e)))
+}
+
+fn field<'a>(s: &'a str, name: &str) -> Option<&'a str> {
+    let start = s.find(&format!("{name}: Some(\""))? + name.len() + 8;
+    let end = s[start..].find("\")")? + start;
+    Some(&s[start..end])
+}
+
+fn hint(code: &str, message: &str) -> Option<String> {
+    Some(match code {
+        "AuthorizationHeaderMalformed" | "IllegalLocationConstraintException" => {
+            let want = message.split("expecting '").nth(1).and_then(|r| r.split('\'').next());
+            match want {
+                Some(r) => format!(
+                    "This server expects region \"{r}\". Put it in the Region field (for AWS you can leave the endpoint empty)."
+                ),
+                None => "The Region doesn't match this server.".into(),
+            }
+        }
+        "PermanentRedirect" => "The bucket lives in another region/endpoint. For AWS, leave the endpoint empty.".into(),
+        "SignatureDoesNotMatch" => "Check the secret key (and that the endpoint/region are right).".into(),
+        "InvalidAccessKeyId" => "Check the access key.".into(),
+        "AccessDenied" => "These credentials aren't allowed to do this.".into(),
+        "NoSuchBucket" => "The bucket doesn't exist, or belongs to another account.".into(),
+        "RequestTimeTooSkewed" => "Your computer's clock is wrong; sync it and try again.".into(),
+        _ => return None,
+    })
+}
+
+pub fn humanize(full: &str) -> String {
+    if let Some(code) = field(full, "code") {
+        let message = field(full, "message").unwrap_or("");
+        let mut out = if message.is_empty() { code.to_string() } else { format!("{message} ({code})") };
+        if let Some(h) = hint(code, message) {
+            out = format!("{out}. {h}");
+        }
+        return out;
+    }
+    if full.contains("dispatch failure") || full.contains("io error") {
+        // Network problem: the innermost cause is the useful part ("Connection refused (os error 61)").
+        let cause = full.rsplit(": ").next().unwrap_or(full).trim();
+        return format!("Can't reach the server: {cause}. Check the endpoint and your network.");
+    }
+    if full.contains("timeout") || full.contains("timed out") {
+        return "The server didn't respond in time.".into();
+    }
+    match full.char_indices().nth(400) {
+        Some((i, _)) => format!("{}…", &full[..i]),
+        None => full.to_string(),
     }
 }
 
@@ -151,6 +200,28 @@ mod tests {
     }
 
     #[test]
+    fn humanizes_s3_errors() {
+        let raw = r#"service error: unhandled error (AuthorizationHeaderMalformed): Error { code: "AuthorizationHeaderMalformed", message: "The authorization header is malformed; the region 'ap-southeast-1' is wrong; expecting 'us-east-1'", aws_request_id: "X" } (ServiceError(ServiceError { source: Unhandled(Unhandled { source: ErrorMetadata { code: Some("AuthorizationHeaderMalformed"), message: Some("The authorization header is malformed; the region 'ap-southeast-1' is wrong; expecting 'us-east-1'"), extras: None } }) }))"#;
+        let h = humanize(raw);
+        assert!(h.starts_with("The authorization header is malformed"), "{h}");
+        assert!(h.contains("expects region \"us-east-1\""), "{h}");
+        assert!(!h.contains("ServiceError"), "{h}");
+
+        let sig = r#"service error: unhandled error (SignatureDoesNotMatch): Error { code: Some("SignatureDoesNotMatch"), message: Some("The request signature we calculated does not match") }"#;
+        assert_eq!(
+            humanize(sig),
+            "The request signature we calculated does not match (SignatureDoesNotMatch). Check the secret key (and that the endpoint/region are right)."
+        );
+
+        let net =
+            "dispatch failure: io error: error trying to connect: tcp connect error: Connection refused (os error 61)";
+        assert_eq!(
+            humanize(net),
+            "Can't reach the server: Connection refused (os error 61). Check the endpoint and your network."
+        );
+    }
+
+    #[test]
     fn err_truncates_on_char_boundary() {
         #[derive(Debug)]
         struct E(String);
@@ -161,6 +232,6 @@ mod tests {
         }
         impl std::error::Error for E {}
         let s = err(E("ồ".repeat(1000)));
-        assert!(s.ends_with('…') && s.chars().count() == 601);
+        assert!(s.ends_with('…') && s.chars().count() == 401);
     }
 }

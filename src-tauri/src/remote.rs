@@ -53,7 +53,7 @@ pub struct SizeInfo {
 /// Recursive size of everything under `prefix` ("" = whole bucket).
 #[tauri::command]
 pub async fn remote_size(state: State<'_, AppState>, bucket: String, prefix: String) -> Result<SizeInfo, String> {
-    let c = state.client()?;
+    let c = state.client_for(&bucket).await?;
     let all = list_all(&c, &bucket, &prefix).await?;
     let files = all.iter().filter(|(k, _)| !k.ends_with('/'));
     Ok(SizeInfo { bytes: files.clone().map(|(_, s)| s).sum(), files: files.count() as u64 })
@@ -62,7 +62,7 @@ pub async fn remote_size(state: State<'_, AppState>, bucket: String, prefix: Str
 /// One folder level: sub-folders (common prefixes) and files directly under `prefix`.
 #[tauri::command]
 pub async fn list(state: State<'_, AppState>, bucket: String, prefix: String) -> Result<Vec<Entry>, String> {
-    let c = state.client()?;
+    let c = state.client_for(&bucket).await?;
     let mut out = vec![];
     let mut pages = c.list_objects_v2().bucket(&bucket).prefix(&prefix).delimiter("/").into_paginator().send();
     while let Some(page) = pages.next().await {
@@ -99,7 +99,7 @@ pub async fn presign(
     secs: u64,
     inline: bool,
 ) -> Result<String, String> {
-    let c = state.client()?;
+    let c = state.client_for(&bucket).await?;
     let mut req = c.get_object().bucket(&bucket).key(&key);
     if inline {
         let mime = mime_guess::from_path(&key).first_or_octet_stream().to_string();
@@ -119,7 +119,7 @@ pub async fn presign(
 /// First `max` bytes of an object as (lossy) UTF-8, for the text preview.
 #[tauri::command]
 pub async fn read_text(state: State<'_, AppState>, bucket: String, key: String, max: u64) -> Result<String, String> {
-    let c = state.client()?;
+    let c = state.client_for(&bucket).await?;
     let r = c
         .get_object()
         .bucket(&bucket)
@@ -135,7 +135,7 @@ pub async fn read_text(state: State<'_, AppState>, bucket: String, key: String, 
 /// Creates an empty `prefix/name/` marker object so the folder shows up while empty.
 #[tauri::command]
 pub async fn mkdir(state: State<'_, AppState>, bucket: String, prefix: String, name: String) -> Result<(), String> {
-    let c = state.client()?;
+    let c = state.client_for(&bucket).await?;
     let name = name.trim().trim_matches('/');
     if name.is_empty() {
         return Err("Folder name is empty".into());
@@ -153,7 +153,7 @@ pub async fn mkdir(state: State<'_, AppState>, bucket: String, prefix: String, n
 /// Deletes objects; keys ending in `/` delete the whole folder recursively. Returns the count.
 #[tauri::command]
 pub async fn delete(state: State<'_, AppState>, bucket: String, keys: Vec<String>) -> Result<usize, String> {
-    let c = state.client()?;
+    let c = state.client_for(&bucket).await?;
     let mut all = vec![];
     for k in keys {
         if k.ends_with('/') {

@@ -143,7 +143,8 @@ export class Pane {
     el.scrollLeft = el.scrollWidth; // keep the deepest folder visible
     this.q<HTMLButtonElement>(".up").disabled = this.isRemote ? !this.cwd : !this.parent;
     // Path bar: the full location, always visible (crumbs can be clipped). Size resets per folder.
-    this.q(".path").textContent = this.fullPath();
+    // LRM marks keep "/" and ":" in place inside the rtl-ellipsis container (styles.css .pathbar .path).
+    this.q(".path").textContent = `\u200e${this.fullPath()}\u200e`;
     this.q(".dirsize").textContent = "";
   }
 

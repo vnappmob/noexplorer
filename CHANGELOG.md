@@ -5,6 +5,15 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Provider presets in Settings → Accounts (Amazon S3, Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, self-hosted) with setup hints.
+
+### Fixed
+- **Amazon S3**: `s3.amazonaws.com` with a non-us-east-1 region failed with "AuthorizationHeaderMalformed". The endpoint can now be left empty, the region is read from regional endpoints, and each bucket is used in its own region automatically (buckets in different regions work side by side).
+- S3 errors are now short and readable, with a hint (wrong region, wrong secret key, access denied, unreachable server…).
+- Long account names/endpoints no longer overflow the account list.
+- The path bar showed `/` in the wrong place (e.g. `Users/krisluu/`).
+
 ## [0.2.0] - 2026-10-15
 
 ### Added

@@ -114,9 +114,11 @@ impl Settings {
 
 /// "minio.example.com" from "https://minio.example.com:9000/" — used when the user leaves Name empty.
 fn default_name(p: &Profile) -> String {
-    let e = normalize_endpoint(&p.endpoint);
-    let host = e.split("://").nth(1).unwrap_or(&e).split(['/', ':']).next().unwrap_or("");
-    if host.is_empty() { "S3".into() } else { host.into() }
+    if is_aws(p) {
+        return "AWS S3".into();
+    }
+    let host = endpoint_host(&p.endpoint);
+    if host.is_empty() { "S3".into() } else { host }
 }
 
 /// Reads either format. v1 = one flat `{endpoint, access_key, …, download_dir}` object.
@@ -163,14 +165,65 @@ pub fn normalize_endpoint(raw: &str) -> String {
     if e.is_empty() || e.contains("://") { e.to_string() } else { format!("https://{e}") }
 }
 
-pub fn make_client(p: &Profile) -> Client {
-    let region = match p.region.trim() {
+/// Host part of a normalized endpoint ("https://s3.eu-west-1.amazonaws.com:443/" → "s3.eu-west-1.amazonaws.com").
+pub fn endpoint_host(endpoint: &str) -> String {
+    let e = normalize_endpoint(endpoint);
+    let rest = e.split("://").nth(1).unwrap_or(&e);
+    rest.split(['/', ':']).next().unwrap_or("").to_ascii_lowercase()
+}
+
+/// AWS S3 itself: no endpoint, or an `*.amazonaws.com(.cn)` endpoint. For AWS the endpoint is
+/// resolved from the region by the SDK, and each bucket is used in its own region (ADR-017).
+pub fn is_aws(p: &Profile) -> bool {
+    let h = endpoint_host(&p.endpoint);
+    h.is_empty() || h.ends_with(".amazonaws.com") || h.ends_with(".amazonaws.com.cn")
+}
+
+/// Region encoded in a provider's regional endpoint, if any:
+/// `s3.ap-southeast-1.amazonaws.com`, `s3-ap-southeast-1.amazonaws.com`, `s3.dualstack.X.amazonaws.com`,
+/// `s3.X.wasabisys.com`, `s3.X.backblazeb2.com`, `X.digitaloceanspaces.com`, `X.linodeobjects.com`.
+pub fn region_from_endpoint(endpoint: &str) -> Option<String> {
+    let h = endpoint_host(endpoint);
+    let labels: Vec<&str> = h.split('.').collect();
+    let looks_like_region = |r: &str| r.contains('-') && r.chars().any(|c| c.is_ascii_digit());
+    let pick = |r: &str| looks_like_region(r).then(|| r.to_string());
+    if h.ends_with(".amazonaws.com") || h.ends_with(".amazonaws.com.cn") {
+        return match labels.as_slice() {
+            ["s3", "dualstack", r, ..] => pick(r),
+            ["s3", r, "amazonaws", ..] => pick(r),
+            [first, "amazonaws", ..] => first.strip_prefix("s3-").and_then(pick),
+            _ => None,
+        };
+    }
+    match labels.as_slice() {
+        ["s3", r, "wasabisys", "com"] | ["s3", r, "backblazeb2", "com"] => pick(r),
+        // DO/Linode regions have no dash ("sgp1", "us-east-1" for Linode is fine too).
+        [r, "digitaloceanspaces", "com"] | [r, "linodeobjects", "com"] if r.chars().any(|c| c.is_ascii_digit()) => {
+            Some(r.to_string())
+        }
+        _ => None,
+    }
+}
+
+/// Region used to sign requests: the endpoint's region wins (a mismatch can never work),
+/// then the Region field, then us-east-1.
+pub fn effective_region(p: &Profile) -> String {
+    region_from_endpoint(&p.endpoint).unwrap_or_else(|| match p.region.trim() {
         "" => "us-east-1".to_string(),
         r => r.to_string(),
-    };
+    })
+}
+
+pub fn make_client(p: &Profile) -> Client {
+    make_client_in(p, &effective_region(p))
+}
+
+/// Client signing for `region`. AWS profiles ignore the endpoint field (the SDK picks
+/// `s3.<region>.amazonaws.com`); other providers always use their endpoint.
+pub fn make_client_in(p: &Profile, region: &str) -> Client {
     let mut b = Builder::new()
         .behavior_version(BehaviorVersion::latest())
-        .region(Region::new(region))
+        .region(Region::new(region.to_string()))
         .credentials_provider(Credentials::new(p.access_key.trim(), p.secret_key.trim(), None, None, "noexplorer"))
         .force_path_style(p.path_style)
         // Only send/verify checksums when an API requires them: newer SDK defaults (CRC32 on
@@ -178,10 +231,41 @@ pub fn make_client(p: &Profile) -> Client {
         .request_checksum_calculation(RequestChecksumCalculation::WhenRequired)
         .response_checksum_validation(ResponseChecksumValidation::WhenRequired);
     let endpoint = normalize_endpoint(&p.endpoint);
-    if !endpoint.is_empty() {
+    if !endpoint.is_empty() && !is_aws(p) {
         b = b.endpoint_url(endpoint);
     }
     Client::from_conf(b.build())
+}
+
+/// AWS: the region a bucket lives in. HEAD Bucket answers with `x-amz-bucket-region`, even
+/// on the 301 you get when asking the wrong region, so one request is enough.
+pub async fn detect_bucket_region(p: &Profile, bucket: &str) -> Option<String> {
+    let c = make_client_in(p, "us-east-1");
+    match c.head_bucket().bucket(bucket).send().await {
+        Ok(o) => o.bucket_region().map(String::from),
+        Err(e) => e.raw_response().and_then(|r| r.headers().get("x-amz-bucket-region")).map(String::from),
+    }
+}
+
+/// Bucket names (+ region when the server reports it, as AWS does) visible to these credentials.
+pub async fn list_buckets_with_regions(p: &Profile) -> Result<Vec<(String, Option<String>)>, String> {
+    let c = make_client(p);
+    match c.list_buckets().send().await {
+        Ok(r) => Ok(r
+            .buckets()
+            .iter()
+            .filter_map(|b| b.name().map(|n| (n.to_string(), b.bucket_region().map(String::from))))
+            .collect()),
+        Err(e) if !p.bucket.trim().is_empty() => {
+            // The key may lack s3:ListAllMyBuckets; fall back to the configured bucket.
+            let bucket = p.bucket.trim();
+            let region = if is_aws(p) { detect_bucket_region(p, bucket).await } else { None };
+            let check = region.as_deref().map(|r| make_client_in(p, r)).unwrap_or(c);
+            check.head_bucket().bucket(bucket).send().await.map_err(|_| err(e))?;
+            Ok(vec![(bucket.to_string(), region)])
+        }
+        Err(e) => Err(err(e)),
+    }
 }
 
 // ---------- commands ----------
@@ -194,16 +278,7 @@ pub fn get_settings(state: State<'_, AppState>) -> Settings {
 /// Checks a connection and returns the buckets visible with these credentials.
 #[tauri::command]
 pub async fn test_profile(profile: Profile) -> Result<Vec<String>, String> {
-    let c = make_client(&profile);
-    match c.list_buckets().send().await {
-        Ok(r) => Ok(r.buckets().iter().filter_map(|b| b.name().map(String::from)).collect()),
-        Err(e) if !profile.bucket.trim().is_empty() => {
-            // The key may lack s3:ListAllMyBuckets; fall back to the configured bucket.
-            c.head_bucket().bucket(profile.bucket.trim()).send().await.map_err(|_| err(e))?;
-            Ok(vec![profile.bucket.trim().to_string()])
-        }
-        Err(e) => Err(err(e)),
-    }
+    Ok(list_buckets_with_regions(&profile).await?.into_iter().map(|(n, _)| n).collect())
 }
 
 fn commit(app: &AppHandle, state: &AppState, s: Settings) -> Result<Settings, String> {
@@ -248,7 +323,13 @@ pub fn save_general(app: AppHandle, state: State<'_, AppState>, general: General
 #[tauri::command]
 pub async fn list_buckets(state: State<'_, AppState>) -> Result<Vec<String>, String> {
     let p = state.settings().active_profile().cloned().ok_or("No account configured")?;
-    test_profile(p).await
+    let buckets = list_buckets_with_regions(&p).await?;
+    for (name, region) in &buckets {
+        if let Some(r) = region {
+            state.remember_region(name, r); // saves a HEAD per bucket on AWS
+        }
+    }
+    Ok(buckets.into_iter().map(|(n, _)| n).collect())
 }
 
 #[cfg(test)]
@@ -260,6 +341,37 @@ mod tests {
         assert_eq!(normalize_endpoint(" minio.local:9000/ "), "https://minio.local:9000");
         assert_eq!(normalize_endpoint("http://10.0.0.2:9000"), "http://10.0.0.2:9000");
         assert_eq!(normalize_endpoint(""), "");
+    }
+
+    #[test]
+    fn aws_detection_and_region_inference() {
+        let p = |endpoint: &str, region: &str| Profile {
+            endpoint: endpoint.into(),
+            region: region.into(),
+            ..Default::default()
+        };
+        assert!(is_aws(&p("", "")));
+        assert!(is_aws(&p("s3.amazonaws.com", "")));
+        assert!(is_aws(&p("https://s3.ap-southeast-1.amazonaws.com/", "")));
+        assert!(!is_aws(&p("http://nas:9000", "")));
+        assert!(!is_aws(&p("https://abc.r2.cloudflarestorage.com", "auto")));
+        for (e, r) in [
+            ("s3.ap-southeast-1.amazonaws.com", "ap-southeast-1"),
+            ("https://s3-eu-west-1.amazonaws.com", "eu-west-1"),
+            ("s3.dualstack.us-west-2.amazonaws.com", "us-west-2"),
+            ("s3.cn-north-1.amazonaws.com.cn", "cn-north-1"),
+            ("https://s3.eu-central-2.wasabisys.com", "eu-central-2"),
+            ("s3.us-west-004.backblazeb2.com", "us-west-004"),
+            ("https://sgp1.digitaloceanspaces.com", "sgp1"),
+        ] {
+            assert_eq!(region_from_endpoint(e).as_deref(), Some(r), "{e}");
+        }
+        assert_eq!(region_from_endpoint("s3.amazonaws.com"), None);
+        assert_eq!(region_from_endpoint("http://nas:9000"), None);
+        // The endpoint's region overrides a mismatching Region field (the bug users hit).
+        assert_eq!(effective_region(&p("s3.ap-southeast-1.amazonaws.com", "us-east-1")), "ap-southeast-1");
+        assert_eq!(effective_region(&p("s3.amazonaws.com", "ap-southeast-1")), "ap-southeast-1");
+        assert_eq!(effective_region(&p("http://nas:9000", "")), "us-east-1");
     }
 
     #[test]
