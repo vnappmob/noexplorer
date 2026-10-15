@@ -272,3 +272,11 @@ label and app name are unchanged, so enabling overwrites the old entry. `refresh
 an enabled entry at every launch, which repairs entries made by ≤ 0.2.1 and follows a moved app.
 **Consequences.** Two Tauri commands replace the plugin's JS API. One less plugin and
 capability. macOS may show a "Background Items Added" notice once when the entry is rewritten.
+
+**Correction (v0.2.3).** Rewriting the plist was not enough. `sfltool dumpbtm` showed the
+item with `Assoc. Bundle IDs: [com.vnappmob.noexplorer]` but still `Parent Identifier: Khoa
+Luu`, because Background Task Management picks the parent only when the item is first
+*added*. Removing the plist, waiting until BTM dropped the record (about 10 s), and adding
+it back re-parented it to `2.com.vnappmob.noexplorer` (type app). `refresh()` now does that
+once per install (marker file `autostart-entry-version` = `ENTRY_VERSION`, on a background
+thread with a 12 s delay). Bump `ENTRY_VERSION` whenever entries must be re-created from scratch.
