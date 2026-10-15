@@ -17,11 +17,11 @@ TypeScript UI. The UI is in English. License: MIT.
 
 | | |
 |---|---|
-| Version | `0.2.0` released 2026-10-15 ([release](https://github.com/vnappmob/noexplorer/releases/tag/v0.2.0)), the first version with auto-update. v0.1.0 users must upgrade by hand once |
+| Version | `0.2.1` released 2026-10-15 ([release](https://github.com/vnappmob/noexplorer/releases/tag/v0.2.1)). Auto-update since 0.2.0; v0.1.0 users upgrade by hand once |
 | Last updated | 2026-10-15 |
 | Works and is verified | Dual-pane browse; drag both ways; drop files from the OS; multipart upload (tested with 2 GB); folder up/download; quick look (image/video/audio/pdf/text, local and remote); presigned links; delete; mkdir; transfer progress/cancel; **multiple S3 accounts** (picker + manager, v1 config migration); **Σ folder size** (remote and local) and full-path bar; **theme + text size**; **resizable split**; **auto-update** (signed, GitHub `latest.json`); **tray + background running** (hide on close, live transfer rows, notifications, launch at login, single instance); **Settings → General / About** |
-| Tested on | macOS (Apple Silicon) against SeaweedFS. Windows and Linux are only checked for compilation in CI |
-| Next up | Confirm a real in-app update (v0.2.0 → next patch) works on macOS/Windows; smoke-test the tray on Windows/Linux. See [docs/ROADMAP.md](docs/ROADMAP.md) |
+| Tested on | macOS (Apple Silicon) against SeaweedFS, the maintainer's MinIO, and real AWS S3 (read-only: ap-southeast-1, dotted bucket names, cross-region detection). Windows and Linux are only checked for compilation in CI |
+| Next up | Confirm the first real OTA update (installed 0.2.0 → 0.2.1) on macOS; smoke-test tray + updater on Windows/Linux. See [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 ## Map
 
