@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-10-15
+
 ### Fixed
 - macOS: the login item could still be listed under the developer's name after 0.2.2, because macOS only decides that when the item is first registered. NoExplorer now re-registers an old entry once on launch (about 12 s after start), so it shows up as **NoExplorer**.
 
