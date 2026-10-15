@@ -5,7 +5,7 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.1.0] - unreleased
+## [0.1.0] - 2026-10-15
 
 ### Added
 - Dual-pane browser: local files (left) and an S3-compatible bucket (right).
