@@ -162,3 +162,18 @@ publishes it. `site/` calls `api.github.com/repos/vnappmob/noexplorer/releases/l
 which ignores drafts, and picks the asset for the visitor's OS.
 **Consequences.** The site never needs a redeploy for a new version. If the API rate limit
 is hit, the buttons fall back to the Releases page.
+
+<a id="adr-013"></a>
+
+## ADR-013: Host the website on Cloudflare Workers static assets, not GitHub Pages
+Accepted · 2026-10-15
+
+**Context.** `vnappmob.com` already uses Cloudflare DNS. GitHub Pages needs manual DNS plus
+a repo setting, has a slower CDN, and doesn't support custom response headers. Cloudflare
+now recommends Workers static assets over Pages for new sites.
+**Decision.** Serve `/site` with Workers static assets (`wrangler.jsonc`, no Worker script).
+`website.yml` deploys with `cloudflare/wrangler-action`, using the wrangler version pinned
+in `package-lock.json`. The custom domain is declared in config, so DNS and TLS are automatic.
+**Consequences.** Faster global delivery, `_headers` for security and caching, a custom 404
+page, and an instant rollback (`wrangler rollback`). Deploys need two repo secrets
+(`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`).

@@ -62,12 +62,22 @@ docs: <https://v2.tauri.app/distribute/sign/windows/>. Tracked in the [roadmap](
 
 ## Website
 
-- The source is `/site`, a static page with no build step. `pages.yml` deploys it on every
-  push to `main` that touches `site/**`.
-- One-time setup:
-  1. Repo **Settings → Pages → Source: GitHub Actions**.
-  2. In DNS for `vnappmob.com`, add `CNAME noexplorer → vnappmob.github.io`.
-  3. Back in Settings → Pages, set the custom domain to `noexplorer.vnappmob.com`
-     (`site/CNAME` already contains it) and tick **Enforce HTTPS** once the certificate is issued.
+- The source is `/site`: static HTML/CSS/JS, `_headers` (security and cache headers) and
+  `404.html`. It is served by **Cloudflare Workers static assets** (no Worker code). The
+  config is `wrangler.jsonc`.
+- `website.yml` deploys on every push to `main` that touches `site/**` or `wrangler.jsonc`.
+  You can also run it by hand from **Actions → Website → Run workflow**, or locally with
+  `npm run site:deploy` after `npx wrangler login`.
+- The custom domain `noexplorer.vnappmob.com` is declared in `wrangler.jsonc`
+  (`custom_domain: true`). Because `vnappmob.com` is a Cloudflare zone, the first deploy
+  creates the DNS record and the TLS certificate automatically. There's nothing to set up
+  in DNS by hand.
+- One-time setup: add two repository secrets.
+
+  | Secret | How to get it |
+  |---|---|
+  | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → the account that owns `vnappmob.com` → *Account ID* (right sidebar of any zone overview) |
+  | `CLOUDFLARE_API_TOKEN` | My Profile → API Tokens → Create Token → template **Edit Cloudflare Workers** → Account resources: that account; Zone resources: `vnappmob.com` → Create |
+
 - The download buttons call `https://api.github.com/repos/vnappmob/noexplorer/releases/latest`
   and pick the asset by file extension. If the repo is renamed, update `REPO` in `site/app.js`.

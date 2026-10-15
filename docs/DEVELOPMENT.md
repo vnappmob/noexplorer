@@ -35,9 +35,9 @@ To reset the app to first-run state, delete the config file (paths in
 [ARCHITECTURE.md → Persistence](ARCHITECTURE.md#persistence)) and clear localStorage (in
 devtools: `localStorage.clear()`).
 
-Website: open `site/index.html` directly or serve it with
-`python3 -m http.server 8765 --directory site` (`.claude/launch.json` has the same thing as a
-preview config). It's plain HTML/CSS/JS with no build step.
+Website: `npm run site` serves `/site` exactly as Cloudflare will (headers, 404 page) on
+http://localhost:8787. `python3 -m http.server 8765 --directory site` also works
+(`.claude/launch.json`). It's plain HTML/CSS/JS with no build step.
 
 ## Checks (the same as CI)
 

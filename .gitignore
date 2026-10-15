@@ -28,3 +28,4 @@ src-tauri/target
 src-tauri/gen/schemas
 scripts/.dev-s3.json
 .DS_Store
+.wrangler

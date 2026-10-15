@@ -8,7 +8,9 @@
     "build": "tsc && vite build",
     "check": "tsc --noEmit && prettier --check src",
     "fmt": "prettier --write src && cd src-tauri && cargo fmt",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "site": "wrangler dev",
+    "site:deploy": "wrangler deploy"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -19,9 +21,10 @@
     "@tauri-apps/cli": "^2",
     "prettier": "^3.9.10",
     "typescript": "~6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "wrangler": "^4.151.0"
   },
-  "description": "Dual-pane drag & drop file manager for S3-compatible storage (MinIO, SeaweedFS, AWS S3…)",
+  "description": "Dual-pane drag & drop file manager for S3-compatible storage (MinIO, SeaweedFS, AWS S3\u2026)",
   "license": "MIT",
   "repository": {
     "type": "git",

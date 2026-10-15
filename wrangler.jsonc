@@ -1,0 +1,14 @@
+// Website hosting: Cloudflare Workers with static assets (no Worker script, just files).
+// Deployed by .github/workflows/website.yml; see docs/RELEASING.md → "Website".
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "noexplorer-site",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./site",
+    "not_found_handling": "404-page"
+  },
+  // vnappmob.com is a Cloudflare zone, so this creates the DNS record + certificate automatically.
+  "routes": [{ "pattern": "noexplorer.vnappmob.com", "custom_domain": true }],
+  "workers_dev": true
+}
