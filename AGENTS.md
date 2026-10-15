@@ -50,7 +50,7 @@ site/                Static website → Cloudflare Workers static assets (config
 assets/icon.svg      Icon source → icon.png (render 1024px), then `npx tauri icon assets/icon.png`
 scripts/dev-s3.sh    Local S3 server in Docker for dev and tests
 scripts/bump-version.sh   Sets the version in every place it lives
-.github/workflows/   ci.yml · release.yml (signed builds → draft release) · website.yml (Cloudflare deploy)
+.github/workflows/   ci.yml · release.yml (signed builds → draft release) (website deploys via Cloudflare Workers Builds, not Actions)
 docs/                ARCHITECTURE · DECISIONS (ADRs) · DEVELOPMENT · RELEASING · ROADMAP
 ```
 
@@ -67,7 +67,7 @@ docs/                ARCHITECTURE · DECISIONS (ADRs) · DEVELOPMENT · RELEASIN
 | Rust tests (unit) | `cd src-tauri && cargo test` |
 | Rust tests (including the S3 round-trip) | `NOEXPLORER_TEST_ENDPOINT=http://localhost:8333 NOEXPLORER_TEST_KEY=devkey NOEXPLORER_TEST_SECRET=devsecret123 cargo test` |
 | Release build | `npm run tauri build` |
-| Preview / deploy the website | `npm run site` (local, wrangler dev) · deploys run automatically on push to `main` |
+| Preview / deploy the website | `npm run site` (local, wrangler dev) · Cloudflare deploys automatically on push to `main` |
 | Cut a release | `./scripts/bump-version.sh X.Y.Z`, then follow [docs/RELEASING.md](docs/RELEASING.md) |
 
 Before you say a change is done, CI must pass locally: `npm run check`, `cargo fmt --check`,
@@ -137,7 +137,7 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **Right-click is captured by the app's context menu.** To open devtools in dev builds use **⌥⌘I** (macOS) or **Ctrl+Shift+I**.
 - **`npm run tauri dev` restarts the app when any Rust file changes.** Frontend edits hot-reload.
 - **Tauri drop positions are physical pixels.** Divide by `devicePixelRatio` before calling `elementFromPoint`.
-- **Website deploys need `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` repo secrets.** Without them `website.yml` fails, and the app is unaffected.
+- **The website deploys from Cloudflare, not GitHub Actions.** Workers Builds watches the repo. Build logs live in the Cloudflare dashboard (Workers & Pages → `noexplorer-site` → Deployments), not under Actions.
 - **macOS signing secrets live in GitHub Actions.** Without them `release.yml` still builds, but unsigned ([docs/RELEASING.md](docs/RELEASING.md)).
 
 ## Conventions

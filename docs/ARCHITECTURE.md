@@ -158,6 +158,6 @@ SeaweedFS · compile check on macOS and Windows.
 `release.yml` runs on tag `vX.Y.Z`: verifies the version → `tauri-action` builds a universal
 macOS build (signed + notarized when secrets exist), plus Windows (msi/nsis) and Linux
 (deb/AppImage/rpm) → a **draft** GitHub Release.
-`website.yml`: deploys `/site` to Cloudflare Workers static assets (`wrangler.jsonc`, custom
+Website: Cloudflare Workers Builds deploys `/site` as Workers static assets (`wrangler.jsonc`, custom
 domain `noexplorer.vnappmob.com`). The site reads the latest *published* release
 from the GitHub API to build its download buttons. Details: [RELEASING.md](RELEASING.md).

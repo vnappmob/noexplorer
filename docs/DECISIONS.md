@@ -172,8 +172,10 @@ Accepted · 2026-10-15
 a repo setting, has a slower CDN, and doesn't support custom response headers. Cloudflare
 now recommends Workers static assets over Pages for new sites.
 **Decision.** Serve `/site` with Workers static assets (`wrangler.jsonc`, no Worker script).
-`website.yml` deploys with `cloudflare/wrangler-action`, using the wrangler version pinned
-in `package-lock.json`. The custom domain is declared in config, so DNS and TLS are automatic.
+Deploys use Cloudflare **Workers Builds** (the Git integration): it watches the repo and runs
+`npx wrangler deploy`. The custom domain is declared in config, so DNS and TLS are automatic.
 **Consequences.** Faster global delivery, `_headers` for security and caching, a custom 404
-page, and an instant rollback (`wrangler rollback`). Deploys need two repo secrets
-(`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`).
+page, preview URLs on pull requests, and an instant rollback (`wrangler rollback`). No API
+tokens or secrets in GitHub. The trade-off: deploy logs and the repo connection live in the
+Cloudflare dashboard, not in `.github/workflows`. (An earlier draft deployed through a GitHub
+Action with `wrangler-action`. It was dropped because Workers Builds needs no secrets.)

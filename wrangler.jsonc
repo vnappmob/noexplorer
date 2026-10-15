@@ -1,5 +1,6 @@
 // Website hosting: Cloudflare Workers with static assets (no Worker script, just files).
-// Deployed by .github/workflows/website.yml; see docs/RELEASING.md → "Website".
+// Deployed by Cloudflare Workers Builds (Git integration) on push to main; see docs/RELEASING.md → "Website".
+// "name" must match the Worker name in the Cloudflare dashboard.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "noexplorer-site",

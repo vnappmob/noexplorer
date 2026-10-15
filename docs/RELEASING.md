@@ -65,19 +65,22 @@ docs: <https://v2.tauri.app/distribute/sign/windows/>. Tracked in the [roadmap](
 - The source is `/site`: static HTML/CSS/JS, `_headers` (security and cache headers) and
   `404.html`. It is served by **Cloudflare Workers static assets** (no Worker code). The
   config is `wrangler.jsonc`.
-- `website.yml` deploys on every push to `main` that touches `site/**` or `wrangler.jsonc`.
-  You can also run it by hand from **Actions → Website → Run workflow**, or locally with
-  `npm run site:deploy` after `npx wrangler login`.
+- **Cloudflare Workers Builds** (Cloudflare's GitHub integration) deploys on every push to
+  `main`. It runs `npx wrangler deploy`, which reads `wrangler.jsonc`. Pull requests get a
+  preview URL. Nothing lives in GitHub Actions and no secrets are needed. Build logs are in
+  the Cloudflare dashboard → Workers & Pages → `noexplorer-site` → Deployments.
 - The custom domain `noexplorer.vnappmob.com` is declared in `wrangler.jsonc`
   (`custom_domain: true`). Because `vnappmob.com` is a Cloudflare zone, the first deploy
-  creates the DNS record and the TLS certificate automatically. There's nothing to set up
-  in DNS by hand.
-- One-time setup: add two repository secrets.
-
-  | Secret | How to get it |
-  |---|---|
-  | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → the account that owns `vnappmob.com` → *Account ID* (right sidebar of any zone overview) |
-  | `CLOUDFLARE_API_TOKEN` | My Profile → API Tokens → Create Token → template **Edit Cloudflare Workers** → Account resources: that account; Zone resources: `vnappmob.com` → Create |
-
+  creates the DNS record and the TLS certificate automatically.
+- One-time setup in the Cloudflare dashboard (the account that owns `vnappmob.com`):
+  1. **Workers & Pages → Create → Import a repository** → connect GitHub and grant the
+     Cloudflare app access to `vnappmob/noexplorer`.
+  2. Worker name: **`noexplorer-site`** (it must match `name` in `wrangler.jsonc`).
+  3. Build command: *(leave empty)*. Deploy command: `npx wrangler deploy` (the default).
+     Root directory: `/`.
+  4. Optional, under Settings → Build → Build watch paths: include `site/*` and
+     `wrangler.jsonc`, so app-only commits don't trigger a deploy.
+  5. Save and deploy, then open <https://noexplorer.vnappmob.com>.
+- Manual deploy from a laptop, if ever needed: `npx wrangler login && npm run site:deploy`.
 - The download buttons call `https://api.github.com/repos/vnappmob/noexplorer/releases/latest`
   and pick the asset by file extension. If the repo is renamed, update `REPO` in `site/app.js`.
