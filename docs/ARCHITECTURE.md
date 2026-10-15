@@ -40,6 +40,7 @@ This is the deep reference. For orientation, read [AGENTS.md](../AGENTS.md) firs
 | `remote.rs` | S3 browsing | `Entry` row type, `list` (one level, delimiter `/`), `list_all` (recursive), `remote_size`, `presign`, `read_text`, `mkdir`, `delete` |
 | `transfer.rs` | Moving bytes | `upload`/`upload_file` (PUT or multipart), `download`/`download_file` (stream to `.part`), `open_object`, tuning constants |
 | `local.rs` | Local disk (left pane) | `list_local` (+ crumbs and Places roots), `local_size`, `read_local_text`, `mkdir_local`, `open_local`, `reveal` |
+| `autostart.rs` | Launch at login | `launcher()` via `auto-launch` (bundle id on macOS, AppImage path on Linux), `refresh()` rewrites an enabled entry at startup (ADR-018) |
 | `tray.rs` | Tray / menu-bar icon | Menu (status line, up to 5 transfer rows, Show / Check for Updates / Quit), macOS % title, `show_main`/`hide_main` (Dock icon toggles via activation policy), `on_job` fed by `jobs.rs` |
 | `util.rs` | Pure helpers | `err`/`humanize` (S3 code + message + hint for common mistakes), `safe_rel` (traversal guard), `unique_path`, `job_label`, `file_name`, `is_text_like` |
 
@@ -56,6 +57,8 @@ Every command returns `Result<T, String>`, and the error string is shown to the 
 | `delete_profile` | `id` | `Settings` | config | If it was active, the first remaining account becomes active |
 | `set_active_profile` | `id` | `Settings` | config | Switches the remote pane's account. Running jobs keep their own client |
 | `save_general` | `general` | `Settings` | config | Settings → General (`run_in_background`, `check_updates`, `notify`) |
+| `autostart_enabled` | – | `bool` | autostart | Is "Launch at login" registered with the OS |
+| `set_autostart` | `enabled` | – | autostart | macOS: LaunchAgent **with `AssociatedBundleIdentifiers`**; Windows: Run key; Linux: `.desktop` autostart. Starts with `--hidden` |
 | `list_buckets` | – | `string[]` | config | `test_profile` with the active account |
 | `remote_size` | `bucket, prefix` | `SizeInfo {bytes, files}` | remote | Recursive. `""` = whole bucket. Lists every object, so it's slow on huge folders |
 | `local_size` | `path` | `SizeInfo` | local | Recursive walk; symlinks are not followed |
@@ -140,7 +143,7 @@ activation policy, so there's no Dock icon. Jobs keep running, and every tick go
 only when the set of rows changes. A finished job raises a system notification when the window
 isn't focused (`general.notify`). Quit happens only from the tray, ⌘Q, or with
 run_in_background off. `single-instance` focuses the running app on a second launch, and
-`RunEvent::Reopen` (Dock click) shows the window. Launch at login (`autostart` plugin) passes
+`RunEvent::Reopen` (Dock click) shows the window. Launch at login (`autostart.rs`) passes
 `--hidden`, so the app starts in the tray.
 
 **Auto-update (OTA)**

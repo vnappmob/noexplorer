@@ -12,11 +12,13 @@
 //! - [`transfer`] — upload / download / open engine (multipart, concurrency)
 //! - [`local`]    — local filesystem browsing for the left pane
 //! - [`tray`]     — tray/menu-bar icon, live transfer status, background running
+//! - [`autostart`] — launch at login (LaunchAgent with bundle id / Run key / .desktop)
 //! - [`util`]     — small pure helpers (path safety, labels, error text)
 //!
-//! Plugins: opener, dialog, updater + process (auto-update & relaunch), autostart
-//! (launch at login, started with `--hidden`), notification, single-instance.
+//! Plugins: opener, dialog, updater + process (auto-update & relaunch), notification,
+//! single-instance. Launch at login is our own [`autostart`] module (started with `--hidden`).
 
+mod autostart;
 mod config;
 mod jobs;
 mod local;
@@ -29,7 +31,7 @@ mod util;
 use tauri::{Manager, WindowEvent};
 
 /// Passed by the autostart launcher: start in the tray without showing the window.
-const HIDDEN_ARG: &str = "--hidden";
+pub(crate) const HIDDEN_ARG: &str = "--hidden";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -41,10 +43,6 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_autostart::init(
-            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            Some(vec![HIDDEN_ARG]),
-        ))
         .manage(state::AppState::default())
         .setup(|app| {
             let settings = config::load_settings(app.handle());
@@ -52,6 +50,7 @@ pub fn run() {
             // Clean previews left over from earlier sessions.
             let _ = std::fs::remove_dir_all(transfer::temp_root());
             tray::setup(app.handle())?;
+            autostart::refresh(app.handle());
             if std::env::args().any(|a| a == HIDDEN_ARG) {
                 tray::hide_main(app.handle());
             }
@@ -75,6 +74,8 @@ pub fn run() {
             config::delete_profile,
             config::set_active_profile,
             config::save_general,
+            autostart::autostart_enabled,
+            autostart::set_autostart,
             config::list_buckets,
             remote::list,
             remote::remote_size,

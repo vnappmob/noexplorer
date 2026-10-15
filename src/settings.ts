@@ -3,11 +3,6 @@
 
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  disable as disableAutostart,
-  enable as enableAutostart,
-  isEnabled as autostartOn,
-} from "@tauri-apps/plugin-autostart";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { appearance, setTextSize, setTheme, type Theme } from "./appearance";
@@ -176,15 +171,14 @@ async function syncGeneralControls() {
   box("run_in_background").checked = g.run_in_background;
   box("check_updates").checked = g.check_updates;
   box("notify").checked = g.notify;
-  box("launch_at_login").checked = await autostartOn().catch(() => false);
+  box("launch_at_login").checked = await invoke<boolean>("autostart_enabled").catch(() => false);
 }
 
 async function onGeneralChange(ev: Event) {
   const name = (ev.target as HTMLInputElement).name;
   try {
     if (name === "launch_at_login") {
-      if (box(name).checked) await enableAutostart();
-      else await disableAutostart();
+      await invoke("set_autostart", { enabled: box(name).checked });
       return;
     }
     const general: General = {

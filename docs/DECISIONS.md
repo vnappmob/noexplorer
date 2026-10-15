@@ -254,3 +254,21 @@ Generic "endpoint + region" settings can't express that.
 **Consequences.** AWS works with an empty endpoint and any default region, across regions,
 with no settings to get wrong. Every command that talks to a bucket must use
 `state.client_for(&bucket)` (not `state.client()`). The region cache resets whenever settings change.
+
+<a id="adr-018"></a>
+
+## ADR-018: Own launch-at-login module instead of tauri-plugin-autostart
+Accepted · 2026-10-15
+
+**Context.** With the plugin's LaunchAgent, macOS System Settings → Login Items → *Allow in
+the Background* listed the item under the **code-signing developer's name** ("Khoa Luu")
+instead of "NoExplorer". The plist had an empty `AssociatedBundleIdentifiers`, and the plugin
+gives no way to set it. `SMAppService.mainApp` would show the app properly but can't pass
+`--hidden` (start in the tray).
+**Decision.** `autostart.rs` uses the `auto-launch` crate directly (the same crate the plugin
+wraps). It keeps the LaunchAgent and sets `AssociatedBundleIdentifiers =
+[com.vnappmob.noexplorer]`, so macOS 13+ attributes the background item to the app. The
+label and app name are unchanged, so enabling overwrites the old entry. `refresh()` rewrites
+an enabled entry at every launch, which repairs entries made by ≤ 0.2.1 and follows a moved app.
+**Consequences.** Two Tauri commands replace the plugin's JS API. One less plugin and
+capability. macOS may show a "Background Items Added" notice once when the entry is rewritten.

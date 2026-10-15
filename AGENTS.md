@@ -48,6 +48,7 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   jobs.rs            Background Job + "job" progress events + cancel
   local.rs           Local filesystem commands for the left pane
   tray.rs            Tray/menu-bar icon: live transfer status, Show/Updates/Quit, hide-to-tray
+  autostart.rs       Launch at login (LaunchAgent with bundle id, so macOS shows "NoExplorer")
   state.rs           AppState (config, client, cancel flags)    util.rs  pure helpers (tested)
 src-tauri/tauri.conf.json   Window, bundle and security settings (version comes from package.json)
 site/                Static website → Cloudflare Workers static assets (config: wrangler.jsonc)
@@ -145,6 +146,7 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **Right-click is captured by the app's context menu.** To open devtools in dev builds use **⌥⌘I** (macOS) or **Ctrl+Shift+I**.
 - **`npm run tauri dev` restarts the app when any Rust file changes.** Frontend edits hot-reload.
 - **CI lints on Linux, but you probably develop on macOS.** Anything used only inside `#[cfg(target_os = "macos")]` (or another OS) becomes an unused import elsewhere and fails `-D warnings`. Use full paths (`tauri::RunEvent::Reopen`) inside cfg blocks instead of top-level `use`.
+- **Don't test "Launch at login" from a dev build on a machine that has NoExplorer installed.** The entry is keyed by app name, so a dev build overwrites (or deletes) the real app's entry with a path to `target/debug`.
 - **Tauri drop positions are physical pixels.** Divide by `devicePixelRatio` before calling `elementFromPoint`.
 - **The website deploys from Cloudflare, not GitHub Actions.** Workers Builds watches the repo. Build logs live in the Cloudflare dashboard (Workers & Pages → `noexplorer-site` → Deployments), not under Actions.
 - **The workflow token can't create releases in the vnappmob org** (403 "Resource not accessible by integration"). Create the draft with `gh release create vX.Y.Z --draft --verify-tag` right after pushing the tag; `tauri-action` uploads into it.
