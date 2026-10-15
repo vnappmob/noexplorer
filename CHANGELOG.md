@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-15
+
 ### Fixed
 - macOS: with "Launch at login" on, System Settings → Login Items showed the background item under the developer's name instead of **NoExplorer**. Existing entries are repaired automatically on the next launch.
 
