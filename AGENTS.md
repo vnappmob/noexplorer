@@ -17,7 +17,7 @@ TypeScript UI. The UI is in English. License: MIT.
 
 | | |
 |---|---|
-| Version | `0.2.2` released 2026-10-15 ([release](https://github.com/vnappmob/noexplorer/releases/tag/v0.2.2)). Auto-update since 0.2.0; v0.1.0 users upgrade by hand once |
+| Version | `0.2.3` released 2026-10-15 ([release](https://github.com/vnappmob/noexplorer/releases/tag/v0.2.3)). Auto-update since 0.2.0; v0.1.0 users upgrade by hand once |
 | Last updated | 2026-10-15 |
 | Works and is verified | Dual-pane browse; drag both ways; drop files from the OS; multipart upload (tested with 2 GB); folder up/download; quick look (image/video/audio/pdf/text, local and remote); presigned links; delete; mkdir; transfer progress/cancel; **multiple S3 accounts** (picker + manager, v1 config migration); **Σ folder size** (remote and local) and full-path bar; **theme + text size**; **resizable split**; **auto-update** (signed, GitHub `latest.json`; real OTA 0.2.0 → 0.2.1 confirmed on macOS 2026-10-15); **tray + background running** (hide on close, live transfer rows, notifications, launch at login: macOS Login Items shows "NoExplorer", confirmed 2026-10-15 after re-registration; single instance); **Settings → General / About** |
 | Tested on | macOS (Apple Silicon) against SeaweedFS, the maintainer's MinIO, and real AWS S3 (read-only: ap-southeast-1, dotted bucket names, cross-region detection). Windows and Linux are only checked for compilation in CI |
