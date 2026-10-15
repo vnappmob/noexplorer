@@ -280,3 +280,6 @@ Luu`, because Background Task Management picks the parent only when the item is 
 it back re-parented it to `2.com.vnappmob.noexplorer` (type app). `refresh()` now does that
 once per install (marker file `autostart-entry-version` = `ENTRY_VERSION`, on a background
 thread with a 12 s delay). Bump `ENTRY_VERSION` whenever entries must be re-created from scratch.
+Verified on the maintainer's Mac (2026-10-15): after the remove → re-add, System Settings →
+Login Items shows "NoExplorer". The automatic one-time path in `refresh()` uses the same
+steps but hadn't run on a real stale install yet when v0.2.3 shipped.
