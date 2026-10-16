@@ -400,7 +400,7 @@ impl Dav {
 }
 
 /// `len` bytes of a file from `offset`, in 1 MB pieces, counting progress on `job`.
-fn file_stream(
+pub(crate) fn file_stream(
     path: PathBuf,
     offset: u64,
     len: u64,
@@ -446,7 +446,8 @@ fn file_stream(
 
 // ---------- Nextcloud sign-in (Login Flow v2) ----------
 
-static LOGIN_CANCEL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// Set by `cancel_login`; checked by every browser sign-in that is waiting (Nextcloud, Box).
+pub(crate) static LOGIN_CANCEL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Signs in to a Nextcloud server through the browser and saves the account.
 ///
@@ -515,7 +516,7 @@ pub async fn nextcloud_login(
     crate::config::store_account(&app, &state, p)
 }
 
-/// Stops a `nextcloud_login` that is waiting for the browser.
+/// Stops a browser sign-in (`nextcloud_login`, `box_login`) that is waiting.
 #[tauri::command]
 pub fn cancel_login() {
     LOGIN_CANCEL.store(true, Ordering::Relaxed);
@@ -601,7 +602,7 @@ fn date_in_days(days: u64) -> String {
     format!("{y:04}-{m:02}-{d:02}")
 }
 
-fn civil_from_days(z: i64) -> (i64, u32, u32) {
+pub(crate) fn civil_from_days(z: i64) -> (i64, u32, u32) {
     // Howard Hinnant's algorithm.
     let z = z + 719_468;
     let era = z.div_euclid(146_097);
@@ -614,7 +615,7 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
     (yoe + era * 400 + i64::from(m <= 2), m, d)
 }
 
-fn days_from_civil(y: i64, m: u32, d: u32) -> i64 {
+pub(crate) fn days_from_civil(y: i64, m: u32, d: u32) -> i64 {
     let y = if m <= 2 { y - 1 } else { y };
     let era = y.div_euclid(400);
     let yoe = y.rem_euclid(400);

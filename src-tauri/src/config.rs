@@ -25,6 +25,9 @@ pub enum ProviderKind {
     Nextcloud,
     /// Any WebDAV server; `endpoint` is the full collection URL.
     Webdav,
+    /// Box with the user's own OAuth app: `access_key` = client ID, `secret_key` = client secret,
+    /// refresh token in the keychain (`box_api.rs`).
+    Box,
 }
 
 /// One remote account. Mirrors `Profile` in `src/types.ts`.
@@ -333,7 +336,9 @@ pub fn store_account(app: &AppHandle, state: &AppState, mut p: Profile) -> Resul
 pub fn delete_profile(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<Settings, String> {
     let mut s = state.settings();
     s.remove(&id);
-    OsStore::new(&app).delete(&id);
+    let store = OsStore::new(&app);
+    store.delete(&id);
+    store.delete(&crate::box_api::refresh_key(&id)); // Box sign-in, if any
     commit(&app, &state, s)
 }
 

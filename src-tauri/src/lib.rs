@@ -19,6 +19,7 @@
 //! single-instance. Launch at login is our own [`autostart`] module (started with `--hidden`).
 
 mod autostart;
+mod box_api;
 mod config;
 mod jobs;
 mod local;
@@ -58,6 +59,7 @@ pub fn run() {
         })
         .manage(state::AppState::default())
         .setup(|app| {
+            secrets::init(app.handle());
             let settings = config::load_settings(app.handle());
             app.state::<state::AppState>().set_settings(settings.clone());
             // Clean previews left over from earlier sessions.
@@ -107,6 +109,7 @@ pub fn run() {
             sizes::folder_sizes,
             webdav::nextcloud_login,
             webdav::cancel_login,
+            box_api::box_login,
             sizes::stop_sizes,
             trash::trash_local,
             local::read_local_text,

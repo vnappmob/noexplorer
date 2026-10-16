@@ -29,6 +29,11 @@ impl AppState {
         self.settings.lock().unwrap().clone()
     }
 
+    /// Drops the cached client of `account` (after a new sign-in, so the next use reads the new tokens).
+    pub fn forget(&self, account: &str) {
+        self.remotes.lock().unwrap().remove(account);
+    }
+
     /// The client for `account` (a profile id), or for the active account when `None`/empty.
     /// Always use this to reach remote storage (ADR-025): it applies per-account caches such as
     /// AWS per-bucket regions (ADR-017).

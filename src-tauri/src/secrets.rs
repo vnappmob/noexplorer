@@ -4,7 +4,17 @@
 //! config.json only keeps a `keychain: true` flag per profile. When the store is unavailable
 //! (e.g. a minimal Linux box without Secret Service), the secret stays in the 0600 file as before.
 
+use std::sync::OnceLock;
+
 use tauri::AppHandle;
+
+/// The app identifier, set once at startup (`init`), so providers can reach the store without an
+/// `AppHandle` (Box rotates its refresh token on every refresh and must save the new one).
+static SERVICE: OnceLock<String> = OnceLock::new();
+
+pub fn init(app: &AppHandle) {
+    let _ = SERVICE.set(app.config().identifier.clone());
+}
 
 /// Where secrets go. A trait so the config logic can be unit-tested with an in-memory store.
 pub trait SecretStore {
@@ -23,6 +33,11 @@ pub struct OsStore {
 impl OsStore {
     pub fn new(app: &AppHandle) -> Self {
         Self { service: app.config().identifier.clone() }
+    }
+
+    /// The store for this app, once `init` ran (None in unit tests).
+    pub fn global() -> Option<Self> {
+        SERVICE.get().map(|s| Self { service: s.clone() })
     }
 
     fn entry(&self, id: &str) -> Option<keyring::Entry> {

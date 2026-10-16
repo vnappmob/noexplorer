@@ -12,6 +12,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
+use crate::box_api::BoxCom;
 use crate::config::{Profile, ProviderKind};
 use crate::jobs::Job;
 use crate::s3::S3;
@@ -41,6 +42,8 @@ pub enum Remote {
     S3(S3),
     /// Nextcloud and plain WebDAV (`webdav.rs`).
     Dav(Dav),
+    /// Box (`box_api.rs`).
+    Box(BoxCom),
 }
 
 impl Remote {
@@ -48,6 +51,7 @@ impl Remote {
         match p.kind {
             ProviderKind::S3 => Remote::S3(S3::new(p)),
             ProviderKind::Nextcloud | ProviderKind::Webdav => Remote::Dav(Dav::new(p)),
+            ProviderKind::Box => Remote::Box(BoxCom::new(p)),
         }
     }
 
@@ -56,6 +60,7 @@ impl Remote {
         match self {
             Remote::S3(s) => s.account(),
             Remote::Dav(d) => d.account(),
+            Remote::Box(b) => b.account(),
         }
     }
 
@@ -63,6 +68,7 @@ impl Remote {
         match self {
             Remote::S3(s) => s.containers().await,
             Remote::Dav(d) => d.containers().await,
+            Remote::Box(b) => b.containers().await,
         }
     }
 
@@ -71,6 +77,7 @@ impl Remote {
         match self {
             Remote::S3(s) => s.list(container, prefix).await,
             Remote::Dav(d) => d.list(container, prefix).await,
+            Remote::Box(b) => b.list(container, prefix).await,
         }
     }
 
@@ -80,6 +87,7 @@ impl Remote {
         match self {
             Remote::S3(s) => s.list_all(container, prefix).await,
             Remote::Dav(d) => d.list_all(container, prefix).await,
+            Remote::Box(b) => b.list_all(container, prefix).await,
         }
     }
 
@@ -88,6 +96,7 @@ impl Remote {
         match self {
             Remote::S3(s) => s.link(container, key, secs, inline).await,
             Remote::Dav(d) => d.link(container, key, secs, inline).await,
+            Remote::Box(b) => b.link(container, key, secs, inline).await,
         }
     }
 
@@ -96,6 +105,7 @@ impl Remote {
         match self {
             Remote::S3(s) => s.read_head(container, key, max).await,
             Remote::Dav(d) => d.read_head(container, key, max).await,
+            Remote::Box(b) => b.read_head(container, key, max).await,
         }
     }
 
@@ -112,6 +122,7 @@ impl Remote {
         match self {
             Remote::S3(s) => s.read_range(container, key, start, end, cap).await,
             Remote::Dav(d) => d.read_range(key, start, end, cap).await,
+            Remote::Box(b) => b.read_range(key, start, end, cap).await,
         }
     }
 
@@ -119,6 +130,7 @@ impl Remote {
         match self {
             Remote::S3(s) => s.mkdir(container, prefix, name).await,
             Remote::Dav(d) => d.mkdir(container, prefix, name).await,
+            Remote::Box(b) => b.mkdir(container, prefix, name).await,
         }
     }
 
@@ -127,6 +139,7 @@ impl Remote {
         match self {
             Remote::S3(s) => s.delete(container, keys).await,
             Remote::Dav(d) => d.delete(container, keys).await,
+            Remote::Box(b) => b.delete(container, keys).await,
         }
     }
 
@@ -141,6 +154,7 @@ impl Remote {
         match self {
             Remote::S3(s) => s.upload_file(container, key, path, size, job).await,
             Remote::Dav(d) => d.upload_file(container, key, path, size, job).await,
+            Remote::Box(b) => b.upload_file(container, key, path, size, job).await,
         }
     }
 
@@ -149,6 +163,7 @@ impl Remote {
         match self {
             Remote::S3(s) => s.download_file(container, key, path, job).await,
             Remote::Dav(d) => d.download_file(container, key, path, job).await,
+            Remote::Box(b) => b.download_file(container, key, path, job).await,
         }
     }
 }

@@ -47,6 +47,10 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "str
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 quick-xml = "0.42"
 percent-encoding = "2"
+# Box (box_api.rs): SHA-1 digests for upload sessions, base64 for the Digest header; both already
+# built for aws-smithy-checksums / the updater.
+sha1 = "0.11"
+base64 = "0.22"
 keyring = "4.2.0"
 notify = "8.2.0"
 
