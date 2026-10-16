@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-16
+
 ### Security
 - Secret keys are now kept in your system's credential store (macOS Keychain, Windows Credential Manager, Secret Service on Linux) instead of plain text in `config.json`. Existing accounts move over automatically on first launch. If no credential store is available, the old 0600 file is used as before.
 - The secret key is never sent to the app's UI. In Settings the field stays empty; leave it empty to keep the saved key, or type a new one.
