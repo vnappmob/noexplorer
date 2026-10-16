@@ -68,6 +68,10 @@ function editAccount(p: Profile | null) {
   const v: Partial<Profile> = p ?? { region: "us-east-1", path_style: true };
   for (const k of FIELDS) (f.elements.namedItem(k) as HTMLInputElement).value = String(v[k] ?? "");
   (f.elements.namedItem("path_style") as HTMLInputElement).checked = v.path_style ?? true;
+  // The backend never sends a saved secret back: leave the field empty to keep it.
+  const secret = f.elements.namedItem("secret_key") as HTMLInputElement;
+  secret.required = !p;
+  secret.placeholder = p ? (p.keychain ? "Saved in your system keychain" : "Saved") + " · type to replace" : "";
   const provider = p ? guessProvider(p) : "custom";
   $<HTMLSelectElement>("acct-provider").value = provider;
   applyPreset(provider, false);

@@ -3,6 +3,8 @@
 //!
 //! File format (v2): `{ "profiles": [Profile…], "active": "<profile id>", "download_dir": "" }`.
 //! v1 files (a single flat connection object) are migrated on load, see [`parse_settings`].
+//! Secret keys live in the OS credential store (`secrets.rs`, ADR-020) and never go to the UI:
+//! every command returns [`redacted`] settings.
 
 use std::path::PathBuf;
 
@@ -13,6 +15,7 @@ use aws_sdk_s3::config::{
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 
+use crate::secrets::{OsStore, SecretStore};
 use crate::state::AppState;
 use crate::util::err;
 
@@ -32,6 +35,8 @@ pub struct Profile {
     pub bucket: String,
     /// Path-style addressing (`https://host/bucket/key`). Required by MinIO & most self-hosted S3.
     pub path_style: bool,
+    /// The secret key is in the OS credential store; config.json keeps `secret_key` empty.
+    pub keychain: bool,
 }
 
 impl Default for Profile {
@@ -45,6 +50,7 @@ impl Default for Profile {
             secret_key: String::new(),
             bucket: String::new(),
             path_style: true,
+            keychain: false,
         }
     }
 }
@@ -142,15 +148,68 @@ fn config_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join("config.json"))
 }
 
+/// Loads config.json and fills in the secrets kept in the OS store. Secrets still in the file
+/// (written before 0.4, or when the store was unavailable) are moved to the store right away.
 pub fn load_settings(app: &AppHandle) -> Settings {
-    config_path(app).ok().and_then(|p| std::fs::read(p).ok()).and_then(|b| parse_settings(&b)).unwrap_or_default()
+    let store = OsStore::new(app);
+    let mut s =
+        config_path(app).ok().and_then(|p| std::fs::read(p).ok()).and_then(|b| parse_settings(&b)).unwrap_or_default();
+    load_secrets(&mut s, &store);
+    if s.profiles.iter().any(|p| !p.keychain && !p.secret_key.is_empty()) {
+        let _ = write_settings(app, &mut s);
+    }
+    s
 }
 
-fn write_settings(app: &AppHandle, s: &Settings) -> Result<(), String> {
+/// Copy of `s` for the UI: secret keys never leave the backend.
+pub fn redacted(s: &Settings) -> Settings {
+    let mut s = s.clone();
+    for p in &mut s.profiles {
+        p.secret_key.clear();
+    }
+    s
+}
+
+fn load_secrets(s: &mut Settings, store: &dyn SecretStore) {
+    for p in s.profiles.iter_mut().filter(|p| p.keychain) {
+        // Unreadable (access denied, store gone): leave it empty; the user re-enters it in Settings.
+        p.secret_key = store.get(&p.id).unwrap_or_default();
+    }
+}
+
+/// Moves secrets that aren't in the store yet into it, and returns the copy to write to disk
+/// (secrets that made it into the store are blanked; the others stay, in the 0600 file).
+fn stash_secrets(s: &mut Settings, store: &dyn SecretStore) -> Settings {
+    for p in s.profiles.iter_mut().filter(|p| !p.keychain && !p.secret_key.is_empty()) {
+        p.keychain = store.set(&p.id, &p.secret_key);
+    }
+    let mut disk = s.clone();
+    for p in disk.profiles.iter_mut().filter(|p| p.keychain) {
+        p.secret_key.clear();
+    }
+    disk
+}
+
+/// A profile from the UI comes without its secret (see [`redacted`]): an empty secret means
+/// "keep the saved one". A new secret is marked for the store.
+fn keep_secret(s: &Settings, p: &mut Profile) {
+    let old = s.profiles.iter().find(|x| !p.id.is_empty() && x.id == p.id);
+    if p.secret_key.is_empty() {
+        if let Some(old) = old {
+            p.secret_key = old.secret_key.clone();
+            p.keychain = old.keychain;
+        }
+    } else {
+        p.keychain = old.is_some_and(|o| o.keychain && o.secret_key == p.secret_key);
+    }
+}
+
+fn write_settings(app: &AppHandle, s: &mut Settings) -> Result<(), String> {
+    let disk = stash_secrets(s, &OsStore::new(app));
     let p = config_path(app)?;
     std::fs::create_dir_all(p.parent().unwrap()).map_err(|e| e.to_string())?;
-    std::fs::write(&p, serde_json::to_vec_pretty(s).unwrap()).map_err(|e| e.to_string())?;
-    // The file holds secret keys: keep it private to the user.
+    std::fs::write(&p, serde_json::to_vec_pretty(&disk).unwrap()).map_err(|e| e.to_string())?;
+    // The file may still hold secrets (no OS store available): keep it private to the user.
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -272,25 +331,32 @@ pub async fn list_buckets_with_regions(p: &Profile) -> Result<Vec<(String, Optio
 
 #[tauri::command]
 pub fn get_settings(state: State<'_, AppState>) -> Settings {
-    state.settings()
+    redacted(&state.settings())
 }
 
-/// Checks a connection and returns the buckets visible with these credentials.
+/// Buckets visible with these credentials.
+pub async fn check_profile(profile: &Profile) -> Result<Vec<String>, String> {
+    Ok(list_buckets_with_regions(profile).await?.into_iter().map(|(n, _)| n).collect())
+}
+
+/// Checks a connection from the account form (an empty secret = the saved one).
 #[tauri::command]
-pub async fn test_profile(profile: Profile) -> Result<Vec<String>, String> {
-    Ok(list_buckets_with_regions(&profile).await?.into_iter().map(|(n, _)| n).collect())
+pub async fn test_profile(state: State<'_, AppState>, mut profile: Profile) -> Result<Vec<String>, String> {
+    keep_secret(&state.settings(), &mut profile);
+    check_profile(&profile).await
 }
 
-fn commit(app: &AppHandle, state: &AppState, s: Settings) -> Result<Settings, String> {
-    write_settings(app, &s)?;
+fn commit(app: &AppHandle, state: &AppState, mut s: Settings) -> Result<Settings, String> {
+    write_settings(app, &mut s)?;
     state.set_settings(s.clone());
-    Ok(s)
+    Ok(redacted(&s))
 }
 
 /// Adds or updates an account and makes it the active one.
 #[tauri::command]
-pub fn save_profile(app: AppHandle, state: State<'_, AppState>, profile: Profile) -> Result<Settings, String> {
+pub fn save_profile(app: AppHandle, state: State<'_, AppState>, mut profile: Profile) -> Result<Settings, String> {
     let mut s = state.settings();
+    keep_secret(&s, &mut profile);
     s.active = s.upsert(profile);
     commit(&app, &state, s)
 }
@@ -299,6 +365,7 @@ pub fn save_profile(app: AppHandle, state: State<'_, AppState>, profile: Profile
 pub fn delete_profile(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<Settings, String> {
     let mut s = state.settings();
     s.remove(&id);
+    OsStore::new(&app).delete(&id);
     commit(&app, &state, s)
 }
 
@@ -343,6 +410,75 @@ pub async fn list_buckets(state: State<'_, AppState>) -> Result<Vec<BucketInfo>,
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+
+    /// In-memory store; `ok = false` behaves like a machine without a credential store.
+    struct MemStore {
+        ok: bool,
+        map: RefCell<HashMap<String, String>>,
+    }
+
+    impl SecretStore for MemStore {
+        fn get(&self, id: &str) -> Option<String> {
+            self.map.borrow().get(id).cloned()
+        }
+        fn set(&self, id: &str, secret: &str) -> bool {
+            if self.ok {
+                self.map.borrow_mut().insert(id.into(), secret.into());
+            }
+            self.ok
+        }
+        fn delete(&self, id: &str) {
+            self.map.borrow_mut().remove(id);
+        }
+    }
+
+    fn mem(ok: bool) -> MemStore {
+        MemStore { ok, map: RefCell::new(HashMap::new()) }
+    }
+
+    #[test]
+    fn secrets_move_to_the_store_and_stay_out_of_the_file_and_ui() {
+        // A pre-0.4 file: the secret is in config.json.
+        let mut s = parse_settings(br#"{"profiles":[{"id":"a","endpoint":"http://x","secret_key":"S"}],"active":"a"}"#)
+            .unwrap();
+        let store = mem(true);
+        let disk = stash_secrets(&mut s, &store);
+        assert!(s.profiles[0].keychain && s.profiles[0].secret_key == "S", "memory keeps the secret");
+        assert_eq!(store.get("a").as_deref(), Some("S"));
+        let json = String::from_utf8(serde_json::to_vec(&disk).unwrap()).unwrap();
+        assert!(!json.contains("\"S\"") && json.contains("\"keychain\":true"), "{json}");
+        assert!(redacted(&s).profiles[0].secret_key.is_empty());
+        // Next launch reads it back from the store.
+        let mut again = parse_settings(json.as_bytes()).unwrap();
+        load_secrets(&mut again, &store);
+        assert_eq!(again.profiles[0].secret_key, "S");
+    }
+
+    #[test]
+    fn without_a_store_the_secret_stays_in_the_file() {
+        let mut s = Settings::default();
+        s.upsert(Profile { id: "a".into(), secret_key: "S".into(), ..Default::default() });
+        let disk = stash_secrets(&mut s, &mem(false));
+        assert!(!disk.profiles[0].keychain);
+        assert_eq!(disk.profiles[0].secret_key, "S");
+    }
+
+    #[test]
+    fn empty_secret_from_the_form_keeps_the_saved_one() {
+        let mut s = Settings::default();
+        s.upsert(Profile { id: "a".into(), secret_key: "S".into(), keychain: true, ..Default::default() });
+        let mut edit = Profile { id: "a".into(), name: "renamed".into(), ..Default::default() };
+        keep_secret(&s, &mut edit);
+        assert_eq!((edit.secret_key.as_str(), edit.keychain), ("S", true));
+        let mut changed = Profile { id: "a".into(), secret_key: "T".into(), ..Default::default() };
+        keep_secret(&s, &mut changed);
+        assert_eq!((changed.secret_key.as_str(), changed.keychain), ("T", false), "a new secret must be stored again");
+        let mut new = Profile::default();
+        keep_secret(&s, &mut new);
+        assert!(new.secret_key.is_empty(), "a new account never inherits another's secret");
+    }
 
     #[test]
     fn endpoint_normalization() {

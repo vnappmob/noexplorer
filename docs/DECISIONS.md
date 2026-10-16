@@ -108,7 +108,7 @@ AWS still accepts path style for existing buckets.
 <a id="adr-008"></a>
 
 ## ADR-008: Credentials stored in a 0600 JSON file, not the OS keychain
-Accepted · 2026-10-15
+Superseded by [ADR-020](#adr-020) · 2026-10-16
 
 **Context.** The keychain is the gold standard, but cross-platform support is uneven: Linux
 needs the Secret Service, and headless setups vary.
@@ -194,7 +194,7 @@ next save. Last bucket and prefix are remembered per profile in localStorage. Ap
 `config.json`.
 **Consequences.** The remote pane always shows a single account. Two remote panes, or copying
 between accounts, would need a client per pane (roadmap). Secrets for all accounts sit in the
-same 0600 file. The keychain move (roadmap) should cover all profiles.
+same 0600 file. The keychain move (roadmap) should cover all profiles. (Done in ADR-020.)
 
 <a id="adr-015"></a>
 
@@ -313,3 +313,46 @@ the column header instead.
 **Amendment (v0.3.2).** The watermark is a fixed background at the bottom of the pane, behind the
 transparent list (`.mark` z-index 0, `.list` z-index 1). Rows scroll over it, so it is always
 visible. (0.3.1 stacked it after the last row, which still hid it in long folders.)
+
+<a id="adr-020"></a>
+
+## ADR-020: Secret keys in the OS credential store
+Accepted · 2026-10-16 · supersedes [ADR-008](#adr-008)
+
+**Context.** The app replaces Cyberduck, which keeps secrets in the Keychain, and it is used for
+production buckets. Plain-text secrets in a 0600 file block other OS users. They don't stop any
+process running as the same user, and they end up readable in backups. The UI also received every
+secret through `get_settings`, which it never needed.
+**Decision.**
+- `secrets.rs` stores each account's secret with the `keyring` crate (v4, default mode): macOS
+  Keychain, Windows Credential Manager, Secret Service on Linux (zbus, pure Rust). Entry =
+  `service: <app identifier>`, `account: <profile id>`. Dev builds run with the `….dev` identifier,
+  so they never touch the installed app's entries.
+- `config.json` keeps `keychain: true` and an empty `secret_key`. When the store is unavailable
+  (a minimal Linux box), the secret stays in the 0600 file as before, and saving retries the store.
+- Existing files are migrated on launch (`load_settings`). Deleting an account deletes its entry.
+- Secrets never go to the UI: every command returns `config::redacted()` settings. The form's
+  empty secret means "keep the saved one" (`keep_secret`).
+**Consequences.** One new dependency (`keyring` plus its platform stores). On macOS the item is
+tied to the app's code signature, so signed updates read it without a prompt. If the signing team
+ever changes, macOS asks once per machine. Ad-hoc-signed dev builds may prompt after a rebuild.
+Copying `config.json` to another machine no longer carries the secrets, and downgrading to 0.3.x
+shows an empty secret: re-enter it in Settings.
+
+<a id="adr-021"></a>
+
+## ADR-021: Virtualized file lists
+Accepted · 2026-10-16
+
+**Context.** Dragging the splitter in a 3,000-file folder took about 55 ms per mouse move (under
+20 fps). Every width change re-laid out every row in both panes. Disabling animations, shadows,
+`contain` and `content-visibility` made no measurable difference; only fewer row elements did.
+**Decision.** `Pane` keeps only the rows near the viewport in the DOM (`drawRows`, 15 rows of
+overscan on each side) inside `.rows`, which is as tall as all rows (`padding-top` = rows above).
+Row height is measured from a rendered row and re-measured on the `textsize` event. Scroll and
+resize call `drawRows` directly (no rAF, which pauses in covered windows), and it returns early
+while the visible rows are already present. `selectIndex` scrolls with `reveal(i)` because the
+target row may not exist yet.
+**Consequences.** About 1 ms per splitter move in the same folder. Scrolling and refreshes are
+cheap for very large buckets too. Rows must keep one fixed height. Code must read rows from
+`view`/`selected`, never by querying `.row` elements, which only cover the visible window.

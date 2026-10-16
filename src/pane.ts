@@ -19,6 +19,9 @@ const FILE_ICON: Record<string, string> = {
   other: "doc",
 };
 
+/** Rows kept in the DOM beyond the visible ones, on each side (see `drawRows`). */
+const OVERSCAN = 15;
+
 export const paneHooks = {
   /** Enter / double-click on a file. */
   openFile: (_p: Pane, _e: Item): void => {},
@@ -47,6 +50,12 @@ export class Pane {
   sortDir: number;
   /** Guards against out-of-order async listings. */
   private seq = 0;
+  /** Virtualized list: only rows near the viewport are in the DOM, inside `.rows`, which is as tall
+   * as all of them (a width change, like dragging the splitter, would otherwise re-lay out every row
+   * of a big folder). `rowH` is measured from a rendered row; `win` = [first, end) rows in the DOM. */
+  private rowsEl: HTMLElement | null = null;
+  private rowH = 0;
+  private win: [number, number] = [0, 0];
 
   constructor(readonly kind: "local" | "remote") {
     this.el = $(`pane-${kind}`);
@@ -60,6 +69,13 @@ export class Pane {
       "beforeend",
       `<div class="mark mark-${kind}" aria-hidden="true"><span>${icon(mark)}</span></div>`,
     );
+    // Called straight from the events (no rAF: it pauses in covered windows); drawRows returns
+    // early while the visible rows are already in the DOM.
+    const redraw = () => this.drawRows();
+    this.list.addEventListener("scroll", redraw, { passive: true });
+    new ResizeObserver(redraw).observe(this.list);
+    // Text size changes the row height.
+    window.addEventListener("textsize", () => ((this.rowH = 0), this.drawRows(true)));
   }
 
   q<T extends HTMLElement = HTMLElement>(sel: string) {
@@ -209,6 +225,7 @@ export class Pane {
       s.className = s.dataset.sort === sortBy ? (sortDir > 0 ? "asc" : "desc") : "";
     });
 
+    this.rowsEl = null;
     if (this.isRemote && !activeProfile()) {
       this.list.innerHTML = `<div class="empty"><b>No S3 account yet</b>Click the account button above to add one.</div>`;
     } else if (!this.view.length) {
@@ -217,19 +234,56 @@ export class Pane {
         : "Drag files here from the bucket to download.";
       this.list.innerHTML = `<div class="empty">${q ? "<b>No matches</b>" : `<b>Empty folder</b>${hint}`}</div>`;
     } else {
-      this.list.innerHTML = this.view
-        .map(
-          (e, i) => `<div class="row${this.selected.has(e.key) ? " sel" : ""}" data-i="${i}"${
-            e.dir ? ` data-dir="${esc(e.key)}"` : ""
-          }>
-          <span class="name"><span class="ico${e.dir ? " dir" : ""}">${icon(e.dir ? "folder" : FILE_ICON[kindOf(e.name)])}</span><span>${esc(e.name)}</span></span>
-          <span class="size${e.calc ? " calc" : ""}">${e.dir && !e.calc ? "" : fmtSize(e.size)}</span>
-          <span class="date">${fmtDate(e.modified)}</span>
-        </div>`,
-        )
-        .join("");
+      this.list.innerHTML = `<div class="rows"></div>`;
+      this.rowsEl = this.list.firstElementChild as HTMLElement;
+      this.drawRows(true);
     }
     this.updateStatus();
+  }
+
+  private rowHtml(i: number) {
+    const e = this.view[i];
+    return `<div class="row${this.selected.has(e.key) ? " sel" : ""}" data-i="${i}"${e.dir ? ` data-dir="${esc(e.key)}"` : ""}>
+      <span class="name"><span class="ico${e.dir ? " dir" : ""}">${icon(e.dir ? "folder" : FILE_ICON[kindOf(e.name)])}</span><span>${esc(e.name)}</span></span>
+      <span class="size${e.calc ? " calc" : ""}">${e.dir && !e.calc ? "" : fmtSize(e.size)}</span>
+      <span class="date">${fmtDate(e.modified)}</span>
+    </div>`;
+  }
+
+  /** Puts the rows around the viewport in the DOM. Skipped while the visible rows are already
+   * there, so scrolling rebuilds the window only every ~OVERSCAN rows. `force` = rows changed. */
+  private drawRows(force = false) {
+    const box = this.rowsEl;
+    if (!box) return;
+    const n = this.view.length;
+    if (!this.rowH) {
+      box.innerHTML = this.rowHtml(0);
+      this.rowH = box.firstElementChild!.getBoundingClientRect().height || 36;
+      force = true;
+    }
+    const h = this.rowH;
+    const top = this.list.scrollTop - box.offsetTop;
+    const first = Math.max(0, Math.floor(top / h));
+    const end = Math.min(n, Math.ceil((top + this.list.clientHeight) / h));
+    if (!force && first >= this.win[0] && end <= this.win[1]) return;
+    const a = Math.max(0, first - OVERSCAN);
+    const b = Math.min(n, end + OVERSCAN);
+    this.win = [a, b];
+    box.style.height = `${n * h}px`;
+    box.style.paddingTop = `${a * h}px`;
+    let html = "";
+    for (let i = a; i < b; i++) html += this.rowHtml(i);
+    box.innerHTML = html;
+  }
+
+  /** Scrolls row `i` into view (it may not be in the DOM yet). */
+  private reveal(i: number) {
+    if (!this.rowsEl || !this.rowH) return;
+    const l = this.list;
+    const top = this.rowsEl.offsetTop + i * this.rowH;
+    if (top < l.scrollTop) l.scrollTop = top;
+    else if (top + this.rowH > l.scrollTop + l.clientHeight) l.scrollTop = top + this.rowH - l.clientHeight;
+    this.drawRows();
   }
 
   selectedItems() {
@@ -268,7 +322,7 @@ export class Pane {
       this.anchor = i;
     }
     this.paint();
-    this.list.querySelector(`.row[data-i="${i}"]`)?.scrollIntoView({ block: "nearest" });
+    this.reveal(i);
   }
 
   /** Index of the first selected row in `view`, or -1. */

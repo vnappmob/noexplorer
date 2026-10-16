@@ -19,7 +19,6 @@ can start right away. When you finish an item, move it to `CHANGELOG.md` and upd
   `AccessDenied`, `NoSuchBucket`… using the SDK's `ProvideErrorMetadata` (`util::err` / a new `sdk_err`).
 - **Copy between two accounts / two remote panes** (needs a client per pane, see ADR-014).
 
-- **Keychain storage for secrets** with the `keyring` crate (supersedes ADR-008), in `config.rs`.
 - **Windows code signing** via SignPath (OSS), in `release.yml`.
 - **Drag out to the OS desktop/Finder.** Needs a native drag-start (for example the
   `tauri-plugin-drag` crate) that first downloads to temp (`dnd.ts` + a new command).

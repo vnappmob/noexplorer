@@ -307,7 +307,7 @@ pub async fn open_object(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{Profile, make_client, test_profile};
+    use crate::config::{Profile, check_profile, make_client};
     use aws_sdk_s3::presigning::PresigningConfig;
     use std::time::Duration;
 
@@ -353,7 +353,7 @@ mod tests {
         let c = make_client(&cfg);
         let bucket = "noexplorer-test";
         let _ = c.create_bucket().bucket(bucket).send().await;
-        assert!(test_profile(cfg.clone()).await.unwrap().contains(&bucket.to_string()));
+        assert!(check_profile(&cfg).await.unwrap().contains(&bucket.to_string()));
 
         let dir = tmp_dir();
         std::fs::create_dir_all(dir.join("folder/sub")).unwrap();

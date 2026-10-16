@@ -38,6 +38,7 @@ export function setTheme(t: Theme) {
 export function setTextSize(px: string) {
   store.set("textSize", px);
   applyAppearance();
+  window.dispatchEvent(new Event("textsize")); // panes re-measure their row height
 }
 
 // ---------- pane splitter ----------

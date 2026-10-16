@@ -8,9 +8,12 @@ export type Profile = {
   endpoint: string;
   region: string;
   access_key: string;
+  /** Always "" from the backend (secrets stay there); "" when saving = keep the saved one. */
   secret_key: string;
   bucket: string;
   path_style: boolean;
+  /** The secret is in the OS credential store (Keychain…) rather than config.json. */
+  keychain?: boolean;
 };
 
 /** `config::General` — Settings → General. */

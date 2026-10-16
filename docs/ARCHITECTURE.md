@@ -51,10 +51,10 @@ Every command returns `Result<T, String>`, and the error string is shown to the 
 
 | Command | Args | Returns | Module | Notes |
 |---|---|---|---|---|
-| `get_settings` | – | `Settings` | config | All accounts plus the active id. No profiles means first run → the UI opens Settings |
-| `test_profile` | `profile` | `string[]` buckets | config | Falls back to `HeadBucket(profile.bucket)` if ListBuckets is denied |
-| `save_profile` | `profile` | `Settings` | config | Upsert (an empty `id` means new), make it active, write `config.json` (0600), rebuild the client |
-| `delete_profile` | `id` | `Settings` | config | If it was active, the first remaining account becomes active |
+| `get_settings` | – | `Settings` | config | All accounts plus the active id, with secrets blanked (`redacted`). No profiles means first run → the UI opens Settings |
+| `test_profile` | `profile` | `string[]` buckets | config | An empty secret uses the saved one. Falls back to `HeadBucket(profile.bucket)` if ListBuckets is denied |
+| `save_profile` | `profile` | `Settings` | config | Upsert (an empty `id` means new; an empty secret keeps the saved one), make it active, store the secret in the OS keychain, write `config.json` (0600), rebuild the client |
+| `delete_profile` | `id` | `Settings` | config | Also deletes its keychain entry. If it was active, the first remaining account becomes active |
 | `set_active_profile` | `id` | `Settings` | config | Switches the remote pane's account. Running jobs keep their own client |
 | `save_general` | `general` | `Settings` | config | Settings → General (`run_in_background`, `check_updates`, `notify`) |
 | `autostart_enabled` | – | `bool` | autostart | Is "Launch at login" registered with the OS |
@@ -129,6 +129,11 @@ first, and only on success calls `save_profile`. That returns the new `Settings`
 bucket and prefix are remembered **per account** (localStorage `bucket@<id>`, `prefix@<id>`).
 v1 files (one flat connection) are migrated in memory by `config::parse_settings` and written
 back in v2 format on the next save.
+Secret keys live in the OS credential store (`secrets.rs`, ADR-020): `config.json` keeps
+`keychain: true` and an empty `secret_key`, unless no store is available. The backend fills
+secrets in on load (`load_settings`, which also migrates secrets left in the file) and never
+sends them to the UI: every command returns `redacted()` settings, and an empty secret from the
+form means "keep the saved one".
 
 **Folder size (Σ Size)**
 `actions.ts::calcSize`: selected folders call `remote_size`/`local_size`, and the result goes
@@ -162,7 +167,8 @@ header rows. Row 1 (`.src`) is the source: the "This computer" chip and Places m
 account chip › bucket chip. Row 2 (`.pathbar`) is the path: up, clickable crumbs (empty space
 or ⌘L switches to typing a path), copy, Σ. The column header shows the item count, or the selection count and size.
 Transfers show in the activity card, plus the beam: an SVG arc over `#panes`, computed from the
-real element rects on every job tick and resize. The watermark (`.mark`) is added once by the `Pane` constructor
+real element rects on every job tick and resize. Lists are virtualized (ADR-021): `.list > .rows`
+is as tall as all rows, and `Pane.drawRows` keeps only the rows near the viewport in the DOM. The watermark (`.mark`) is added once by the `Pane` constructor
 as an absolutely positioned background at the bottom of the pane; the transparent `.list` scrolls
 over it.
 
@@ -200,7 +206,8 @@ Imports go one way to avoid cycles: `main → (actions, dnd, keyboard, menu, set
 
 | What | Where |
 |---|---|
-| Accounts + General (`Settings`, including **secret keys**, plain JSON, mode 0600) | `<app config dir>/config.json`: macOS `~/Library/Application Support/com.vnappmob.noexplorer/`, Windows `%APPDATA%\com.vnappmob.noexplorer\`, Linux `~/.config/com.vnappmob.noexplorer/` |
+| Accounts + General (`Settings`, JSON, mode 0600; secret keys only when no OS store is available) | `<app config dir>/config.json`: macOS `~/Library/Application Support/com.vnappmob.noexplorer/`, Windows `%APPDATA%\com.vnappmob.noexplorer\`, Linux `~/.config/com.vnappmob.noexplorer/` |
+| Secret keys | OS credential store: Keychain / Credential Manager / Secret Service, `service = <app identifier>`, `account = <profile id>` |
 | UI preferences (`localStorage`) | `bucket@<profileId>`, `prefix@<profileId>`, `localPath`, `hidden`, `local.sortBy`, `local.sortDir`, `remote.sortBy`, `remote.sortDir`, `theme`, `textSize`, `split` |
 | "Open" temp files | `$TMP/noexplorer/` (wiped at startup) |
 

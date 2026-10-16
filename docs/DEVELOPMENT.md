@@ -75,6 +75,8 @@ Run against `dev-s3.sh` **and**, before a release, against a real MinIO.
 - [ ] Σ Size on the current folder (path bar) and on selected folders (Size column), both panes
 - [ ] Appearance: System/Light/Dark and all text sizes; the splitter drags and double-click resets it
 - [ ] Wrong secret: Test shows a readable error and Save is blocked
+- [ ] Secrets: after a launch `config.json` has `"secret_key": ""` and `"keychain": true`, the account still connects, and `security find-generic-password -s com.vnappmob.noexplorer.dev` lists it (macOS). Editing an account with the secret field left empty keeps the key
+- [ ] A folder with thousands of files (`for i in $(seq 3000); do : > f$i; done`): splitter drag, scrolling to the end and arrow-key selection stay smooth
 - [ ] Left pane: Places menu, breadcrumbs, ↑, filter, sorting, show hidden files
 - [ ] Drag a file and a folder left → right; drop on a folder row and on a breadcrumb
 - [ ] Drag right → left (file and folder). A name collision gives `name (1).ext`

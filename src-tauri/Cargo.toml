@@ -39,6 +39,7 @@ tauri-plugin-process = "2.4.0"
 tauri-plugin-notification = "2.7.0"
 tauri-plugin-single-instance = "2.5.4"
 auto-launch = "0.6"
+keyring = "4.2.0"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

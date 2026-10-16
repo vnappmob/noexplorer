@@ -618,6 +618,10 @@ body.resizing * {
   outline: none;
   padding: 0 10px 16px;
 }
+/* virtualized rows (pane.ts drawRows): height = all rows, padding-top = rows above the window */
+.rows {
+  box-sizing: border-box;
+}
 .row {
   height: var(--row-h);
   border-radius: 8px;

@@ -23,6 +23,7 @@ mod config;
 mod jobs;
 mod local;
 mod remote;
+mod secrets;
 mod state;
 mod transfer;
 mod tray;

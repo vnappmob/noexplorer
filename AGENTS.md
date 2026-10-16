@@ -46,6 +46,7 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
 index.html           All markup (panes, dialogs, preview)      src/styles.css  All styles (light and dark)
 src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   config.rs          Accounts: Profile/Settings (config.json, v1→v2 migration) + S3 client (path-style, checksums)
+  secrets.rs         Secret keys in the OS credential store (Keychain / Credential Manager / Secret Service)
   remote.rs          S3 commands: list, presign, read_text, mkdir, delete
   transfer.rs        upload / download / open_object engine (multipart, concurrency)
   jobs.rs            Background Job + "job" progress events + cancel
@@ -104,7 +105,7 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **`safe_rel()` must wrap every object key that becomes a local path.** It is the path-traversal guard.
 - **Drag between panes uses mouse events, not HTML5 drag-and-drop.** HTML5 DnD is broken on Windows while Tauri's file drop is enabled ([ADR-003](docs/DECISIONS.md#adr-003)).
 - **Escape every untrusted string before it goes into `innerHTML`** (file names, keys, errors), using `esc()`. Text previews use `textContent`.
-- **Keep the user's secrets out of logs and errors.** The secret key only lives in `config.json` (mode 600).
+- **Secrets stay in the backend.** Secret keys live in the OS credential store (`secrets.rs`, [ADR-020](docs/DECISIONS.md#adr-020)); `config.json` (mode 600) holds them only when no store exists. Every command that returns `Settings` must return `config::redacted()`, and none goes into logs or errors.
 - **Never lose or rotate the updater signing key** (`~/.tauri/noexplorer-updater.key` on the maintainer's Mac, plus the repo secret `TAURI_SIGNING_PRIVATE_KEY`). Installed apps only accept updates signed by it; a new key means every user has to reinstall by hand ([ADR-015](docs/DECISIONS.md#adr-015)).
 - **Closing the window hides to the tray; it doesn't quit** (when `general.run_in_background` is on). Code that must run "on exit" has to handle `app.exit()` from the tray, not window close.
 - **The UI is in English.** User-facing strings live in the TS files and `index.html`.
@@ -153,6 +154,8 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **macOS keeps a login item's attribution from its first registration.** Rewriting the LaunchAgent plist doesn't change it; check with `sfltool dumpbtm` and re-register (remove, wait ~10 s, add) by bumping `ENTRY_VERSION` in `autostart.rs` ([ADR-018](docs/DECISIONS.md#adr-018)).
 - **Debug builds register "Launch at login" as `NoExplorer Dev`** (`autostart.rs`), never as `NoExplorer`. Before that rule, a dev build's startup `refresh()` rewrote the installed app's login item to `target/debug`. Don't remove the debug-name split.
 - **Run dev builds with `--config '{"identifier":"com.vnappmob.noexplorer.dev"}'` when NoExplorer is installed and running.** Otherwise single-instance hands every launch to the installed app, and both share one `config.json`.
+- **File lists are virtualized** ([ADR-021](docs/DECISIONS.md#adr-021)). Only rows near the viewport exist as `.row` elements. Read rows from `pane.view` / `pane.selected`, scroll with `selectIndex`, and keep every row the same height.
+- **Dev builds keep their secrets under the `com.vnappmob.noexplorer.dev` keychain service.** macOS may ask for keychain access after a rebuild (ad-hoc signature); release builds don't.
 - **Tauri drop positions are physical pixels.** Divide by `devicePixelRatio` before calling `elementFromPoint`.
 - **The website deploys from Cloudflare, not GitHub Actions.** Workers Builds watches the repo. Build logs live in the Cloudflare dashboard (Workers & Pages → `noexplorer-site` → Deployments), not under Actions.
 - **The workflow token can't create releases in the vnappmob org** (403 "Resource not accessible by integration"). Create the draft with `gh release create vX.Y.Z --draft --verify-tag` right after pushing the tag; `tauri-action` uploads into it.
