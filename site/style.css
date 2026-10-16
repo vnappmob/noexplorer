@@ -63,7 +63,11 @@ html {
 }
 body {
   margin: 0;
-  background: var(--bg);
+  /* The hero glow is part of the page background, so nothing sticks out sideways on phones. */
+  background:
+    var(--glow) top center / 100% 760px no-repeat,
+    var(--bg);
+  overflow-x: clip;
   color: var(--fg);
   font: 16px/1.6 var(--sans);
   -webkit-font-smoothing: antialiased;
@@ -156,14 +160,6 @@ main {
   position: relative;
   text-align: center;
   padding: 64px 0 24px;
-}
-.hero::before {
-  content: "";
-  position: absolute;
-  inset: -40px -50vw 0;
-  background: var(--glow);
-  pointer-events: none;
-  z-index: -1;
 }
 .badge {
   display: inline-flex;
