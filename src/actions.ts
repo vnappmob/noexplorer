@@ -2,6 +2,7 @@
 // `paneAction` maps the context-menu / palette action names to these.
 
 import { invoke } from "@tauri-apps/api/core";
+import { requestSizes } from "./sizes";
 import { ask } from "@tauri-apps/plugin-dialog";
 import type { Pane } from "./pane";
 import { local, remote } from "./panes";
@@ -58,6 +59,25 @@ export async function copyLink(e: Item) {
   }
 }
 
+/** "Move to Trash" / "Recycle Bin" on Windows: the label the OS uses. */
+export const TRASH_LABEL = navigator.userAgent.includes("Windows") ? "Delete (to Recycle Bin)" : "Move to Trash";
+
+/** Local selection → the OS Trash (recoverable, so no confirmation, like Finder/Explorer). */
+export async function trashLocal(list = local.selectedItems()) {
+  if (!list.length) return;
+  try {
+    const n = await invoke<number>("trash_local", { paths: list.map((e) => e.key) });
+    const bin = navigator.userAgent.includes("Windows") ? "the Recycle Bin" : "the Trash";
+    toast(`Moved ${list.length === 1 ? `“${list[0].name}”` : plural(n, "item")} to ${bin}`);
+  } catch (e) {
+    fail(e);
+  }
+  // Pick the row after the trashed ones, so ⌘⌫ can be repeated.
+  const next = local.view.findIndex((e) => list.some((x) => x.key === e.key));
+  await local.load(true);
+  if (next >= 0) local.selectIndex(Math.min(next, local.view.length - 1));
+}
+
 export async function deleteRemote(list = remote.selectedItems()) {
   if (!list.length) return;
   const dirs = list.filter((e) => e.dir).length;
@@ -101,6 +121,8 @@ async function sizeOf(p: Pane, key: string) {
  * selected, the current folder's total goes into the path bar.
  */
 export async function calcSize(p: Pane) {
+  // Local: one full scan of the folder fills every subfolder's size and the total (sizes.ts).
+  if (!p.isRemote) return requestSizes(true);
   const dirs = p.selectedItems().filter((e) => e.dir);
   if (!dirs.length) return calcCurrentDir(p);
   p.q(".dirsize").textContent = `Calculating ${plural(dirs.length, "folder")}…`;
@@ -146,7 +168,7 @@ export function paneAction(p: Pane, act: string) {
       one &&
       navigator.clipboard.writeText(p.isRemote ? `${app.bucket}/${one.key}` : one.key).then(() => toast("Copied")),
     reveal: () => invoke("reveal", { path: one ? one.key : p.cwd }).catch(fail),
-    delete: () => p.isRemote && deleteRemote(sel),
+    delete: () => (p.isRemote ? deleteRemote(sel) : trashLocal(sel)),
     size: () => calcSize(p),
     mkdir: () => mkdir(p),
     refresh: () => p.load(true),

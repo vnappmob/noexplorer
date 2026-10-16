@@ -41,11 +41,15 @@ and you're done.
 - **Drop from Finder / Explorer** onto the bucket pane. Folders keep their structure.
 - **Fast**: 6 files in parallel; large files use multipart upload with 4 parts in flight.
 - **Quick look** with Space: images, video, audio, PDF and text, local or remote.
-- **Safe by design**: the app never deletes or overwrites local files. Downloads that would
-  collide become `name (1).ext`, and partial downloads never look complete.
+- **Folder sizes as you browse**, faster than ncdu: every folder on this computer gets its size
+  and an ncdu-style bar, scanned in the background and kept up to date as files change.
+- **Safe by design**: the app never permanently deletes or overwrites local files. Downloads that
+  would collide become `name (1).ext`, partial downloads never look complete, and removing local
+  files means **Move to Trash** (recoverable).
 - **Self-hosted friendly**: path-style requests are on by default, and the connection test
   works even when the key can't list buckets.
-- **Multiple accounts**: switch between servers from the S3 pane header.
+- **Multiple accounts**: switch between servers from the S3 pane header, or straight from the
+  menu bar / tray.
 - **Runs in the background**: close the window and NoExplorer stays in the menu bar / tray,
   showing transfer progress there and notifying you when transfers finish.
 - **Auto-updates**: new versions install in place with one click.
@@ -93,7 +97,7 @@ config folder (readable only by your user).
 | `Space` | Quick look (inside it, `←` `→` go to the previous or next file) |
 | `F5` or `⌘/Ctrl + Enter` | Copy the selection to the other pane (upload or download) |
 | `Backspace` / `⌘↑` | Up one folder |
-| `⌘⌫` / `Delete` | Delete the selection from S3 |
+| `⌘⌫` / `Delete` | Delete from S3 (asks first) · on this computer: Move to Trash |
 | `⌘K` | Command palette: commands, accounts, buckets, places, files |
 | `⌘L` | Type a path |
 | `⌘R` · `⌘F` · `⌘,` | Refresh · Filter · Settings |
@@ -102,7 +106,7 @@ config folder (readable only by your user).
 
 - You can't drag files from the app out to Finder/Explorer yet. Drop them in the left pane instead.
 - Self-signed HTTPS certificates aren't accepted. Use HTTP on a LAN or a trusted certificate.
-- Local files are never deleted by the app, on purpose.
+- Local files are only ever moved to the Trash, never deleted permanently, on purpose.
 
 See the [roadmap](docs/ROADMAP.md) for what's next.
 

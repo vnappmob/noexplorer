@@ -19,7 +19,7 @@ TypeScript UI. The UI is in English. License: MIT.
 |---|---|
 | Version | `0.4.0` released 2026-10-16 ([release](https://github.com/vnappmob/noexplorer/releases/tag/v0.4.0)): secret keys in the OS keychain (ADR-020), virtualized file lists (ADR-021). Auto-update since 0.2.0; v0.1.0 users upgrade by hand once |
 | Last updated | 2026-10-16 |
-| Works and is verified | Dual-pane browse; drag both ways; drop files from the OS; multipart upload (tested with 2 GB); folder up/download; quick look (image/video/audio/pdf/text, local and remote); presigned links; delete; mkdir; transfer progress/cancel; **multiple S3 accounts** (picker + manager, v1 config migration); **Σ folder size** (remote and local) and full-path bar; **theme + text size**; **resizable split**; **auto-update** (signed, GitHub `latest.json`; real OTA 0.2.0 → 0.2.1 confirmed on macOS 2026-10-15); **tray + background running** (hide on close, live transfer rows, notifications, launch at login: macOS Login Items shows "NoExplorer", confirmed 2026-10-15 after re-registration; single instance); **Settings → General / About**; **v0.3 UI** (two-row pane headers with account/bucket dropdowns, path bar editing, activity card, transfer beam, ⌘K palette, watermarks, light/dark), checked in the app against SeaweedFS |
+| Works and is verified | Dual-pane browse; drag both ways; drop files from the OS; multipart upload (tested with 2 GB); folder up/download; quick look (image/video/audio/pdf/text, local and remote); presigned links; delete; mkdir; transfer progress/cancel; **multiple S3 accounts** (picker + manager, v1 config migration); **Σ folder size** (remote and local) and full-path bar; **theme + text size**; **resizable split**; **auto-update** (signed, GitHub `latest.json`; real OTA 0.2.0 → 0.2.1 confirmed on macOS 2026-10-15); **tray + background running** (hide on close, live transfer rows, notifications, launch at login: macOS Login Items shows "NoExplorer", confirmed 2026-10-15 after re-registration; single instance); **Settings → General / About**; **v0.3 UI** (two-row pane headers with account/bucket dropdowns, path bar editing, activity card, transfer beam, ⌘K palette, watermarks, light/dark), checked in the app against SeaweedFS; **live folder sizes** (own scanner, faster than ncdu, ADR-022) + live folder view; **Move to Trash** (macOS, ADR-023); **tray account switcher** (event path; native menu to be eyeballed) |
 | Tested on | macOS (Apple Silicon) against SeaweedFS, the maintainer's MinIO, and real AWS S3 (read-only: ap-southeast-1, dotted bucket names, cross-region detection). Windows and Linux are only checked for compilation in CI |
 | Next up | Confirm on the maintainer's Mac that the OTA update to 0.4.0 moves the secret into Keychain without a prompt and the account still connects. Confirm on the maintainer's Mac that Login Items still shows "NoExplorer" (the plist was restored after a dev build overwrote it; BTM couldn't be read while the screen was locked). Smoke-test the new UI and tray on Windows/Linux. See [docs/ROADMAP.md](docs/ROADMAP.md) |
 
@@ -41,6 +41,7 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   popover.ts         Dropdown menus anchored to a chip/button (account, bucket, this computer)
   palette.ts         ⌘K command palette + path editing (⌘L)
   updater.ts         Auto-update: check, banner, install + relaunch
+  sizes.ts           Local folder sizes: request, apply "dir-sizes", size bars, live re-list
   menu.ts            Right-click menu      keyboard.ts  All shortcuts
   types.ts           Types mirrored from Rust     util.ts / files.ts / state.ts  helpers and global state
 index.html           All markup (panes, dialogs, preview)      src/styles.css  All styles (light and dark)
@@ -51,6 +52,9 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   transfer.rs        upload / download / open_object engine (multipart, concurrency)
   jobs.rs            Background Job + "job" progress events + cancel
   local.rs           Local filesystem commands for the left pane
+  scan.rs            Parallel folder-size scanner (macOS getattrlistbulk fast path)
+  sizes.rs           Live size index: background scans, watchers, "dir-sizes" events
+  trash.rs           Move to Trash (macOS / Windows / freedesktop), no extra crates
   tray.rs            Tray/menu-bar icon: live transfer status, Show/Updates/Quit, hide-to-tray
   autostart.rs       Launch at login (LaunchAgent with bundle id, so macOS shows "NoExplorer")
   state.rs           AppState (config, client, cancel flags)    util.rs  pure helpers (tested)
@@ -100,7 +104,8 @@ Full detail, including the command table, event schema and data flows, is in [do
 
 - **Path-style addressing defaults to ON.** Self-hosted S3 needs it ([ADR-007](docs/DECISIONS.md#adr-007)).
 - **Checksums are `WhenRequired`.** Don't remove this from `make_client`; it breaks MinIO and older servers ([ADR-004](docs/DECISIONS.md#adr-004)).
-- **The app never deletes or overwrites local files.** Downloads go to `name (n).ext` and stream through `.part` files ([ADR-006](docs/DECISIONS.md#adr-006)).
+- **The app never permanently deletes or overwrites local files.** Downloads go to `name (n).ext` and stream through `.part` files ([ADR-006](docs/DECISIONS.md#adr-006)). The only way local files leave is **Move to Trash** (`trash.rs`), recoverable from the OS Trash ([ADR-023](docs/DECISIONS.md#adr-023)).
+- **Automatic folder scans stay polite** ([ADR-022](docs/DECISIONS.md#adr-022)): low-priority threads, same volume as home, and never into macOS privacy-protected folders the user hasn't opened (`sizes.rs::protected`). Otherwise just opening Home makes macOS ask for Documents/Desktop/Downloads access.
 - **Talk to a bucket through `state.client_for(&bucket)`, never `state.client()`.** On AWS each bucket may live in another region, and signing with the wrong region fails ([ADR-017](docs/DECISIONS.md#adr-017)).
 - **`safe_rel()` must wrap every object key that becomes a local path.** It is the path-traversal guard.
 - **Drag between panes uses mouse events, not HTML5 drag-and-drop.** HTML5 DnD is broken on Windows while Tauri's file drop is enabled ([ADR-003](docs/DECISIONS.md#adr-003)).
@@ -154,6 +159,8 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **macOS keeps a login item's attribution from its first registration.** Rewriting the LaunchAgent plist doesn't change it; check with `sfltool dumpbtm` and re-register (remove, wait ~10 s, add) by bumping `ENTRY_VERSION` in `autostart.rs` ([ADR-018](docs/DECISIONS.md#adr-018)).
 - **Debug builds register "Launch at login" as `NoExplorer Dev`** (`autostart.rs`), never as `NoExplorer`. Before that rule, a dev build's startup `refresh()` rewrote the installed app's login item to `target/debug`. Don't remove the debug-name split.
 - **Run dev builds with `--config '{"identifier":"com.vnappmob.noexplorer.dev"}'` when NoExplorer is installed and running.** Otherwise single-instance hands every launch to the installed app, and both share one `config.json`.
+- **`"dir-sizes"` only carries the local pane's current folder** (`folder_sizes` sets the focus). To show sizes elsewhere, call `folder_sizes` for that folder. On Linux only a root's top level is watched (inotify limits).
+- **Benchmark the scanner:** `cd src-tauri && NOEXPLORER_BENCH_DIR=~/some/big/folder cargo test --release bench_scan -- --ignored --nocapture`. Compare with `du -sk -x` and `ncdu -x -t 8 -0 -o /dev/null` (warm cache; run twice).
 - **File lists are virtualized** ([ADR-021](docs/DECISIONS.md#adr-021)). Only rows near the viewport exist as `.row` elements. Read rows from `pane.view` / `pane.selected`, scroll with `selectIndex`, and keep every row the same height.
 - **Dev builds keep their secrets under the `com.vnappmob.noexplorer.dev` keychain service.** macOS may ask for keychain access after a rebuild (ad-hoc signature); release builds don't.
 - **Tauri drop positions are physical pixels.** Divide by `devicePixelRatio` before calling `elementFromPoint`.

@@ -5,6 +5,14 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Folder sizes as you browse** (this computer). Every folder gets its size and an ncdu-style bar, filled in while a background scan runs, and remembered so going back is instant. Sizes follow changes on disk, and the folder list itself updates live when files are added or removed elsewhere. The scanner is our own: about 1.5× faster than `ncdu -t 8` and 6× faster than `du` in our tests. It stays off other disks and doesn't open private macOS folders (Documents, Desktop, Downloads, Library) until you've opened them yourself, so no surprise permission prompts; those show "—", and Σ scans everything. Turn it off in Settings → General.
+- **Move to Trash** for files and folders on this computer (⌘⌫ / Delete, right-click, ⌘K). Uses the real Trash / Recycle Bin, so you can put things back. NoExplorer still never deletes local files permanently.
+- **Accounts in the tray / menu bar.** The tray menu lists your S3 accounts; choosing one opens NoExplorer on that account.
+
+### Changed
+- Σ on the local pane scans the whole folder and fills every subfolder's size at once.
+
 ### Fixed
 - The VNAppMob link in Settings → About (and on the website) now opens github.com/vnappmob instead of a domain that doesn't resolve.
 

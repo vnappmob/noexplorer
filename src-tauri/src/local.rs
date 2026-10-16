@@ -82,47 +82,55 @@ fn is_hidden(name: &str) -> bool {
 
 /// Lists one local folder (home when `path` is empty).
 #[tauri::command]
-pub async fn list_local(path: Option<String>, hidden: bool) -> Result<LocalListing, String> {
-    tokio::task::spawn_blocking(move || {
-        let p = match path.filter(|p| !p.trim().is_empty()) {
-            Some(p) => PathBuf::from(p),
-            None => dirs::home_dir().ok_or("Home folder not found")?,
-        };
-        let rd = std::fs::read_dir(&p).map_err(|e| format!("{}: {e}", p.display()))?;
-        let mut entries = vec![];
-        for e in rd.flatten() {
-            let name = e.file_name().to_string_lossy().to_string();
-            if !hidden && is_hidden(&name) {
-                continue;
-            }
-            let path = e.path();
-            // Follow symlinks; fall back to the link itself if it's broken.
-            let Ok(md) = std::fs::metadata(&path).or_else(|_| e.metadata()) else { continue };
-            entries.push(Entry {
-                key: path.to_string_lossy().to_string(),
-                name,
-                size: if md.is_dir() { 0 } else { md.len() },
-                modified: md
-                    .modified()
-                    .ok()
-                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                    .map(|d| d.as_millis() as i64),
-                dir: md.is_dir(),
-            });
+pub async fn list_local(
+    idx: tauri::State<'_, crate::sizes::SizeIndex>,
+    path: Option<String>,
+    hidden: bool,
+) -> Result<LocalListing, String> {
+    let listing =
+        tokio::task::spawn_blocking(move || read_listing(path, hidden)).await.map_err(|e| e.to_string())??;
+    // Opening a folder grants access to it (macOS privacy): automatic size scans may enter it now.
+    idx.opened(Path::new(&listing.path));
+    Ok(listing)
+}
+
+fn read_listing(path: Option<String>, hidden: bool) -> Result<LocalListing, String> {
+    let p = match path.filter(|p| !p.trim().is_empty()) {
+        Some(p) => PathBuf::from(p),
+        None => dirs::home_dir().ok_or("Home folder not found")?,
+    };
+    let rd = std::fs::read_dir(&p).map_err(|e| format!("{}: {e}", p.display()))?;
+    let mut entries = vec![];
+    for e in rd.flatten() {
+        let name = e.file_name().to_string_lossy().to_string();
+        if !hidden && is_hidden(&name) {
+            continue;
         }
-        let mut crumbs: Vec<Crumb> =
-            p.ancestors().map(|a| Crumb { name: crumb_name(a), path: a.to_string_lossy().to_string() }).collect();
-        crumbs.reverse();
-        Ok(LocalListing {
-            path: p.to_string_lossy().to_string(),
-            parent: p.parent().map(|x| x.to_string_lossy().to_string()),
-            crumbs,
-            roots: local_roots(),
-            entries,
-        })
+        let path = e.path();
+        // Follow symlinks; fall back to the link itself if it's broken.
+        let Ok(md) = std::fs::metadata(&path).or_else(|_| e.metadata()) else { continue };
+        entries.push(Entry {
+            key: path.to_string_lossy().to_string(),
+            name,
+            size: if md.is_dir() { 0 } else { md.len() },
+            modified: md
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as i64),
+            dir: md.is_dir(),
+        });
+    }
+    let mut crumbs: Vec<Crumb> =
+        p.ancestors().map(|a| Crumb { name: crumb_name(a), path: a.to_string_lossy().to_string() }).collect();
+    crumbs.reverse();
+    Ok(LocalListing {
+        path: p.to_string_lossy().to_string(),
+        parent: p.parent().map(|x| x.to_string_lossy().to_string()),
+        crumbs,
+        roots: local_roots(),
+        entries,
     })
-    .await
-    .map_err(|e| e.to_string())?
 }
 
 /// Recursive size of a local folder (symlinks are not followed, so loops can't happen).
@@ -183,13 +191,13 @@ mod tests {
         std::fs::write(dir.join(".secret"), "x").unwrap();
         let path = Some(dir.to_string_lossy().to_string());
 
-        let l = list_local(path.clone(), false).await.unwrap();
+        let l = read_listing(path.clone(), false).unwrap();
         let mut names: Vec<_> = l.entries.iter().map(|e| (e.name.as_str(), e.dir, e.size)).collect();
         names.sort();
         assert_eq!(names, [("a.txt", false, 3), ("sub", true, 0)]);
         assert_eq!(l.crumbs.last().unwrap().path, l.path);
 
-        let l = list_local(path, true).await.unwrap();
+        let l = read_listing(path, true).unwrap();
         assert_eq!(l.entries.len(), 3);
         std::fs::remove_dir_all(dir).unwrap();
     }

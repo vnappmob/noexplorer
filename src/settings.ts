@@ -3,14 +3,16 @@
 
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { appearance, setTextSize, setTheme, type Theme } from "./appearance";
-import { remote } from "./panes";
+import { remote, switchTo } from "./panes";
 import { describeAccount, guessProvider, PRESETS, type ProviderId } from "./providers";
 import { activeProfile, app, profileKey } from "./state";
 import { openMenu, type MenuItem } from "./popover";
 import type { BucketInfo, General, Profile, Settings } from "./types";
+import { requestSizes, stopSizes } from "./sizes";
 import { checkForUpdates } from "./updater";
 import { $, esc, fail, plural, store } from "./util";
 
@@ -175,6 +177,7 @@ async function syncGeneralControls() {
   box("run_in_background").checked = g.run_in_background;
   box("check_updates").checked = g.check_updates;
   box("notify").checked = g.notify;
+  box("auto_sizes").checked = g.auto_sizes;
   box("launch_at_login").checked = await invoke<boolean>("autostart_enabled").catch(() => false);
 }
 
@@ -189,8 +192,10 @@ async function onGeneralChange(ev: Event) {
       run_in_background: box("run_in_background").checked,
       check_updates: box("check_updates").checked,
       notify: box("notify").checked,
+      auto_sizes: box("auto_sizes").checked,
     };
     app.settings = await invoke<Settings>("save_general", { general });
+    if (name === "auto_sizes") general.auto_sizes ? requestSizes() : stopSizes();
   } catch (e) {
     fail(e);
     syncGeneralControls();
@@ -313,6 +318,13 @@ export async function initSettings() {
 }
 
 export function setupSettings() {
+  // Tray menu → open the window on that account (tray.rs).
+  listen<string>("tray-open-account", async (ev) => {
+    if (dialog().open) dialog().close();
+    if (activeProfile()?.id !== ev.payload) await switchProfile(ev.payload);
+    switchTo(remote);
+  });
+  listen("tray-add-account", addAccount);
   form().addEventListener("submit", saveAccount);
   $("acct-test").onclick = testAccount;
   $("acct-delete").onclick = deleteAccount;

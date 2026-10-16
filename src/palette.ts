@@ -3,7 +3,7 @@
 // the current state; actions reuse the same functions as buttons and shortcuts.
 
 import { invoke } from "@tauri-apps/api/core";
-import { calcSize, deleteRemote, mkdir, paneAction, transfer } from "./actions";
+import { calcSize, deleteRemote, mkdir, paneAction, transfer, trashLocal, TRASH_LABEL } from "./actions";
 import { setTextSize, setTheme, appearance } from "./appearance";
 import { icon } from "./icons";
 import type { Pane } from "./pane";
@@ -33,6 +33,7 @@ function build(): Entry[] {
   if (sel.length === 1 && !sel[0].dir)
     cmd(`Quick look “${sel[0].name}”`, "eye", () => paneAction(active, "preview"), "Space");
   if (remote.selectedItems().length) cmd("Delete selection from S3", "trash", () => deleteRemote(), "⌘⌫");
+  if (local.selectedItems().length) cmd(TRASH_LABEL, "trash", () => trashLocal(), "⌘⌫");
   cmd("New folder", "folderPlus", () => mkdir(active));
   cmd("Refresh", "refresh", () => active.load(true), "⌘R");
   cmd("Folder size (Σ)", "sigma", () => calcSize(active));

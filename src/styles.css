@@ -677,6 +677,21 @@ body.resizing * {
 .row .size.calc {
   color: var(--accent);
 }
+/* ncdu-style share of the folder: a thin bar under the size, growing from the right */
+.row .size.bar {
+  background: linear-gradient(to left, var(--accent) var(--pct), transparent var(--pct)) right bottom / 100% 2px
+    no-repeat;
+  padding-bottom: 4px;
+  margin-bottom: -4px;
+}
+.pane.scanning .calc-size .i {
+  animation: spin 1.2s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .empty {
   height: 100%;
   min-height: 220px;
@@ -1148,7 +1163,8 @@ body.dragging * {
   .beam-core,
   .beam-spark,
   .running .bar2 i,
-  .crumb.target {
+  .crumb.target,
+  .pane.scanning .calc-size .i {
     animation: none !important;
   }
 }

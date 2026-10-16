@@ -65,11 +65,13 @@ pub struct General {
     pub check_updates: bool,
     /// System notification when a transfer finishes while the window is hidden.
     pub notify: bool,
+    /// Compute folder sizes in the local pane automatically (sizes.rs).
+    pub auto_sizes: bool,
 }
 
 impl Default for General {
     fn default() -> Self {
-        Self { run_in_background: true, check_updates: true, notify: true }
+        Self { run_in_background: true, check_updates: true, notify: true, auto_sizes: true }
     }
 }
 
@@ -349,6 +351,7 @@ pub async fn test_profile(state: State<'_, AppState>, mut profile: Profile) -> R
 fn commit(app: &AppHandle, state: &AppState, mut s: Settings) -> Result<Settings, String> {
     write_settings(app, &mut s)?;
     state.set_settings(s.clone());
+    crate::tray::set_accounts(app, &s);
     Ok(redacted(&s))
 }
 
@@ -533,7 +536,10 @@ mod tests {
     fn v2_roundtrip_and_partial_profiles_default_to_path_style() {
         let s = parse_settings(br#"{"profiles":[{"id":"a","endpoint":"http://x"}],"active":"a"}"#).unwrap();
         assert!(s.profiles[0].path_style, "path-style must default to on");
-        assert!(s.general.run_in_background && s.general.check_updates, "general defaults to on");
+        assert!(
+            s.general.run_in_background && s.general.check_updates && s.general.auto_sizes,
+            "general defaults to on"
+        );
         assert_eq!(s.profiles[0].region, "us-east-1");
         let again = parse_settings(&serde_json::to_vec(&s).unwrap()).unwrap();
         assert_eq!(again, s);

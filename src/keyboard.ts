@@ -1,6 +1,6 @@
 // Global keyboard shortcuts. The full table is in README.md — update both together.
 
-import { deleteRemote, openItem, transfer } from "./actions";
+import { deleteRemote, openItem, transfer, trashLocal } from "./actions";
 import { active, local, remote, switchTo } from "./panes";
 import { closePreview, openPreview, previewStep, pv, pvItem } from "./preview";
 import { openSettings } from "./settings";
@@ -72,6 +72,7 @@ function onKey(ev: KeyboardEvent) {
       break;
     case (ev.key === "Backspace" && mod) || ev.key === "Delete":
       if (p.isRemote) deleteRemote();
+      else trashLocal();
       break;
     case ev.key === "Backspace":
       p.up();

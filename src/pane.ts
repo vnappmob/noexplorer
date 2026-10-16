@@ -25,6 +25,8 @@ const OVERSCAN = 15;
 export const paneHooks = {
   /** Enter / double-click on a file. */
   openFile: (_p: Pane, _e: Item): void => {},
+  /** After every listing (entries are fresh objects, so computed sizes must be re-applied). */
+  listed: (_p: Pane): void => {},
 };
 
 export class Pane {
@@ -56,6 +58,11 @@ export class Pane {
   private rowsEl: HTMLElement | null = null;
   private rowH = 0;
   private win: [number, number] = [0, 0];
+  /** Denominator of the size bars (sum of the listed sizes), 0 = no bars. */
+  private barTotal = 0;
+  /** Local: the automatic size scan of this folder finished; folders still without a size were
+   * skipped (other disk, private folder not opened yet) and show "—". Set by sizes.ts. */
+  sizesSettled = false;
 
   constructor(readonly kind: "local" | "remote") {
     this.el = $(`pane-${kind}`);
@@ -111,6 +118,7 @@ export class Pane {
       this.selected = new Set([...this.selected].filter((k) => keys.has(k)));
     }
     this.render();
+    paneHooks.listed(this);
   }
 
   private async loadRemote(seq: number) {
@@ -133,6 +141,7 @@ export class Pane {
   }
 
   private async loadLocal(seq: number) {
+    this.sizesSettled = false;
     const l = await invoke<LocalListing>("list_local", { path: this.cwd || null, hidden: app.showHidden });
     if (seq !== this.seq) return;
     this.cwd = l.path;
@@ -234,18 +243,34 @@ export class Pane {
         : "Drag files here from the bucket to download.";
       this.list.innerHTML = `<div class="empty">${q ? "<b>No matches</b>" : `<b>Empty folder</b>${hint}`}</div>`;
     } else {
+      // Keep the scroll position (re-sorts, refreshes, sizes arriving); go() resets it itself.
+      const keep = this.list.scrollTop;
       this.list.innerHTML = `<div class="rows"></div>`;
       this.rowsEl = this.list.firstElementChild as HTMLElement;
+      if (this.rowH) this.rowsEl.style.height = `${this.view.length * this.rowH}px`;
+      this.list.scrollTop = keep;
       this.drawRows(true);
     }
     this.updateStatus();
   }
 
+  /** Redraws the rows in place (new sizes) without re-sorting. */
+  repaintRows() {
+    if (this.rowsEl) this.drawRows(true);
+    this.updateStatus();
+  }
+
   private rowHtml(i: number) {
     const e = this.view[i];
+    const known = !e.dir || e.calc;
+    // ncdu-style bar: this row's share of the folder (shown once folder sizes are known).
+    const bar =
+      this.barTotal && known ? ` style="--pct:${Math.max(0.5, (e.size / this.barTotal) * 100).toFixed(1)}%"` : "";
+    const skipped = !known && this.sizesSettled;
+    const size = known ? `${e.partial ? "≥ " : ""}${fmtSize(e.size)}` : skipped ? "—" : "";
     return `<div class="row${this.selected.has(e.key) ? " sel" : ""}" data-i="${i}"${e.dir ? ` data-dir="${esc(e.key)}"` : ""}>
       <span class="name"><span class="ico${e.dir ? " dir" : ""}">${icon(e.dir ? "folder" : FILE_ICON[kindOf(e.name)])}</span><span>${esc(e.name)}</span></span>
-      <span class="size${e.calc ? " calc" : ""}">${e.dir && !e.calc ? "" : fmtSize(e.size)}</span>
+      <span class="size${e.calc ? " calc" : ""}${bar ? " bar" : ""}"${bar}${skipped ? ' title="Not scanned automatically (another disk, or a private folder you haven’t opened yet). Click Σ to scan it."' : ""}>${size}</span>
       <span class="date">${fmtDate(e.modified)}</span>
     </div>`;
   }
@@ -262,6 +287,7 @@ export class Pane {
       force = true;
     }
     const h = this.rowH;
+    this.barTotal = this.view.some((e) => e.dir && e.calc) ? this.view.reduce((s, e) => s + e.size, 0) : 0;
     const top = this.list.scrollTop - box.offsetTop;
     const first = Math.max(0, Math.floor(top / h));
     const end = Math.min(n, Math.ceil((top + this.list.clientHeight) / h));

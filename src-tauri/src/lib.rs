@@ -23,9 +23,12 @@ mod config;
 mod jobs;
 mod local;
 mod remote;
+mod scan;
 mod secrets;
+mod sizes;
 mod state;
 mod transfer;
+mod trash;
 mod tray;
 mod util;
 
@@ -47,10 +50,11 @@ pub fn run() {
         .manage(state::AppState::default())
         .setup(|app| {
             let settings = config::load_settings(app.handle());
-            app.state::<state::AppState>().set_settings(settings);
+            app.state::<state::AppState>().set_settings(settings.clone());
             // Clean previews left over from earlier sessions.
             let _ = std::fs::remove_dir_all(transfer::temp_root());
-            tray::setup(app.handle())?;
+            tray::setup(app.handle(), &settings)?;
+            sizes::setup(app.handle());
             autostart::refresh(app.handle());
             if std::env::args().any(|a| a == HIDDEN_ARG) {
                 tray::hide_main(app.handle());
@@ -90,6 +94,9 @@ pub fn run() {
             transfer::open_object,
             local::list_local,
             local::local_size,
+            sizes::folder_sizes,
+            sizes::stop_sizes,
+            trash::trash_local,
             local::read_local_text,
             local::mkdir_local,
             local::open_local,

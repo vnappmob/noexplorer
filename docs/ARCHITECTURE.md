@@ -39,9 +39,12 @@ This is the deep reference. For orientation, read [AGENTS.md](../AGENTS.md) firs
 | `jobs.rs` | Background jobs | `Job` (atomic counters, errors, cancel flag), `Job::spawn` (250 ms ticker + final event), `cancel` |
 | `remote.rs` | S3 browsing | `Entry` row type, `list` (one level, delimiter `/`), `list_all` (recursive), `remote_size`, `presign`, `read_text`, `mkdir`, `delete` |
 | `transfer.rs` | Moving bytes | `upload`/`upload_file` (PUT or multipart), `download`/`download_file` (stream to `.part`), `open_object`, tuning constants |
-| `local.rs` | Local disk (left pane) | `list_local` (+ crumbs and Places roots), `local_size`, `read_local_text`, `mkdir_local`, `open_local`, `reveal` |
+| `local.rs` | Local disk (left pane) | `list_local` (+ crumbs and Places roots; tells `sizes` which private folders were opened), `local_size`, `read_local_text`, `mkdir_local`, `open_local`, `reveal` |
+| `scan.rs` | Folder-size engine | Parallel scanner (`scan`, `Totals`, `Sink`), macOS `getattrlistbulk` fast path, generic `read_dir` (ADR-022) |
+| `sizes.rs` | Live size index | `SizeIndex` (index of watched roots, focus folder, batched `"dir-sizes"` events), polite auto-scan policy, `notify` watchers, `folder_sizes` / `stop_sizes` |
+| `trash.rs` | Move to Trash | `trash_local`: NSFileManager (macOS), SHFileOperationW (Windows), freedesktop spec (Linux) (ADR-023) |
 | `autostart.rs` | Launch at login | `launcher()` via `auto-launch` (bundle id on macOS, AppImage path on Linux), `refresh()` rewrites an enabled entry at startup (ADR-018) |
-| `tray.rs` | Tray / menu-bar icon | Menu (status line, up to 5 transfer rows, Show / Check for Updates / Quit), macOS % title, `show_main`/`hide_main` (Dock icon toggles via activation policy), `on_job` fed by `jobs.rs` |
+| `tray.rs` | Tray / menu-bar icon | Menu (status line, up to 5 transfer rows, the S3 accounts (✓ = active) or "Add S3 Account…", Check for Updates / Quit), macOS % title, `show_main`/`hide_main` (Dock icon toggles via activation policy), `on_job` fed by `jobs.rs`, `set_accounts` fed by `config.rs` |
 | `util.rs` | Pure helpers | `err`/`humanize` (S3 code + message + hint for common mistakes), `safe_rel` (traversal guard), `unique_path`, `job_label`, `file_name`, `is_text_like` |
 
 ## IPC commands
@@ -61,7 +64,10 @@ Every command returns `Result<T, String>`, and the error string is shown to the 
 | `set_autostart` | `enabled` | – | autostart | macOS: LaunchAgent **with `AssociatedBundleIdentifiers`**; Windows: Run key; Linux: `.desktop` autostart. Starts with `--hidden` |
 | `list_buckets` | – | `BucketInfo[] {name, region}` | config | Buckets of the active account. `region` comes from AWS ListBuckets (null elsewhere) and is shown as a badge in the bucket menu |
 | `remote_size` | `bucket, prefix` | `SizeInfo {bytes, files}` | remote | Recursive. `""` = whole bucket. Lists every object, so it's slow on huge folders |
-| `local_size` | `path` | `SizeInfo` | local | Recursive walk; symlinks are not followed |
+| `local_size` | `path` | `SizeInfo` | local | Recursive walk; symlinks are not followed (single folder; the local pane uses `folder_sizes`) |
+| `folder_sizes` | `path, dirs[], auto` | `DirSizes` | sizes | Sets the focus folder, answers `dirs` + `path` from the index, starts a background scan if needed (`auto` = polite rules; false = Σ, scans everything). More arrives as `"dir-sizes"` |
+| `stop_sizes` | – | – | sizes | Clears the focus and cancels the running scan (auto sizes turned off) |
+| `trash_local` | `paths[]` | count | trash | Moves local items to the OS Trash / Recycle Bin. Refuses `/`, home and its parents |
 | `list` | `bucket, prefix` | `Entry[]` | remote | One folder level. Folders have `dir: true` and a key ending in `/` |
 | `presign` | `bucket, key, secs, inline` | URL | remote | `secs` is clamped to 60 s–7 d. `inline` forces Content-Type/Disposition for preview |
 | `read_text` | `bucket, key, max` | string | remote | Range GET `0..max`, decoded as lossy UTF-8 |
@@ -94,8 +100,24 @@ The TS mirror is `JobEvent` in `src/types.ts`.
 }
 ```
 
+**`"dir-sizes"`** is emitted by `sizes.rs` (batched, ~100 ms) while the local pane's folder is
+being scanned or changes on disk. The TS mirror is `DirSizes`; `folder_sizes` returns the same
+shape.
+
+```jsonc
+{
+  "folder": "/Users/me/Projects",                 // only sizes for the folder on screen
+  "sizes": [{ "path": "/Users/me/Projects/app", "bytes": 1234, "files": 10, "dirs": 2, "skipped": 0 }],
+  "total": { "bytes": 99, "files": 9, "dirs": 1, "skipped": 1 } | null,   // skipped > 0 → "≥"
+  "scanning": true,                               // more will come
+  "relist": false                                 // the folder's own entries changed: list it again
+}
+```
+
 **`"tray-check-updates"`** is emitted by `tray.rs` when the tray's "Check for Updates…" is
-clicked. `updater.ts` runs a manual check.
+clicked. `updater.ts` runs a manual check. **`"tray-open-account"`** (payload: profile id) and
+**`"tray-add-account"`** come from the tray's account items; `settings.ts` switches the remote
+pane to that account (or opens the account form) and focuses it.
 
 The UI also uses Tauri's built-in **drag-drop** events (`getCurrentWebview().onDragDropEvent`)
 for files dragged in from the OS.
@@ -135,10 +157,19 @@ secrets in on load (`load_settings`, which also migrates secrets left in the fil
 sends them to the UI: every command returns `redacted()` settings, and an empty secret from the
 form means "keep the saved one".
 
-**Folder size (Σ Size)**
-`actions.ts::calcSize`: selected folders call `remote_size`/`local_size`, and the result goes
-into the row (`Item.calc = true`, shown in the Size column). With no folder selected, the
-current folder's total goes in the path bar.
+**Folder sizes**
+Local pane (ADR-022): after every listing, `paneHooks.listed` → `sizes.ts::requestSizes` →
+`folder_sizes(path, dirs, auto: true)` (when Settings → General → auto sizes is on). Known
+totals come back at once. The rest stream as `"dir-sizes"` into the rows (`Item.calc`,
+`Item.partial` → "≥") and the path-bar total. The Size column then shows an ncdu-style bar
+(`--pct`, the row's share of the folder). Rows are redrawn in place (`Pane.repaintRows`), and
+re-sorted only when the scan ends if sorted by size. `relist` re-lists the folder (live view).
+Σ on the local pane is `folder_sizes(auto: false)`: a full scan including skipped folders.
+Remote pane: Σ calls `remote_size` for the selected folders (or the current one) as before.
+
+**Move to Trash**
+`actions.ts::trashLocal` (⌘⌫ / Delete, context menu, ⌘K) → `trash_local` → toast, re-list,
+select the next row. The size index follows through its watcher.
 
 **Background running and the tray**
 `lib.rs` intercepts `CloseRequested`: when `general.run_in_background` is on (the default) it
@@ -149,7 +180,9 @@ only when the set of rows changes. A finished job raises a system notification w
 isn't focused (`general.notify`). Quit happens only from the tray, ⌘Q, or with
 run_in_background off. `single-instance` focuses the running app on a second launch, and
 `RunEvent::Reopen` (Dock click) shows the window. Launch at login (`autostart.rs`) passes
-`--hidden`, so the app starts in the tray.
+`--hidden`, so the app starts in the tray. The tray lists the S3 accounts (`tray::set_accounts`,
+called on every settings commit). Choosing one shows the window and opens that account in the
+right pane.
 
 **Auto-update (OTA)**
 The release workflow signs the update bundles (`*.app.tar.gz`, `*-setup.exe`, `*.AppImage`
@@ -183,9 +216,10 @@ split (%) in localStorage. It applies them as `<html data-theme>`, the `--fs` CS
 | Module | Owns |
 |---|---|
 | `main.ts` | Boot sequence and per-pane DOM bindings (row selection, dblclick, crumbs, sort headers, footer buttons) |
-| `pane.ts` | `Pane` class: `cwd`, `entries` → `view` (filter + sort), `selected`, `load/go/up/render/paint/selectIndex`. Calls `paneHooks.openFile` for files |
+| `pane.ts` | `Pane` class: `cwd`, `entries` → `view` (filter + sort), `selected`, `load/go/up/render/repaintRows/paint/selectIndex`, virtualized rows (ADR-021), size bars. Calls `paneHooks.openFile` for files and `paneHooks.listed` after each listing |
 | `panes.ts` | `local`, `remote`, `active`, `setActive`, `switchTo` |
-| `actions.ts` | `transfer`, `openItem`, `copyLink`, `deleteRemote`, `mkdir`, `paneAction(pane, name)` |
+| `actions.ts` | `transfer`, `openItem`, `copyLink`, `deleteRemote`, `trashLocal`, `mkdir`, `calcSize`, `paneAction(pane, name)` |
+| `sizes.ts` | Local folder sizes: `requestSizes`, `stopSizes`, the `"dir-sizes"` listener (rows, bars, path-bar total, live re-list) |
 | `dnd.ts` | Mouse-event drag between panes (`armDrag` on mousedown, threshold 5 px, ghost label, drop-target highlight) and OS drops |
 | `preview.ts` | Modal state `pv`, `openPreview`, `previewStep`, `closePreview` |
 | `jobs.ts` | `"job"` listener, speed smoothing, the activity card (#activity) with the expandable transfer list, and the transfer beam (#beam) from source to destination |
@@ -210,6 +244,8 @@ Imports go one way to avoid cycles: `main → (actions, dnd, keyboard, menu, set
 | Secret keys | OS credential store: Keychain / Credential Manager / Secret Service, `service = <app identifier>`, `account = <profile id>` |
 | UI preferences (`localStorage`) | `bucket@<profileId>`, `prefix@<profileId>`, `localPath`, `hidden`, `local.sortBy`, `local.sortDir`, `remote.sortBy`, `remote.sortDir`, `theme`, `textSize`, `split` |
 | "Open" temp files | `$TMP/noexplorer/` (wiped at startup) |
+| Private folders opened in the app (macOS) | `<app config dir>/granted.json`: lets automatic size scans enter them (ADR-022) |
+| Folder-size index | Memory only (rebuilt on demand, kept fresh by watchers) |
 
 ## Security model
 

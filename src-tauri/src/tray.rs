@@ -1,7 +1,9 @@
 //! System tray / macOS menu-bar icon and background running.
 //!
-//! - The tray menu shows live transfer status (fed by `jobs.rs` via [`on_job`]), plus
-//!   Show / Check for Updates / Quit. On macOS the overall % also appears next to the icon.
+//! - The tray menu shows live transfer status (fed by `jobs.rs` via [`on_job`]), then the S3
+//!   accounts (fed by `config.rs` via [`set_accounts`]): choosing one opens the window on that
+//!   account (`"tray-open-account"`). Then Check for Updates / Quit. On macOS the overall % also
+//!   appears next to the icon.
 //! - Closing the window hides it (when `general.run_in_background` is on, see `lib.rs`);
 //!   jobs keep running. On macOS the Dock icon is hidden while the window is hidden.
 //! - "Check for Updates…" emits `"tray-check-updates"`; the UI (`updater.ts`) does the check.
@@ -9,10 +11,11 @@
 use std::sync::Mutex;
 
 use tauri::image::Image;
-use tauri::menu::{IsMenuItem, Menu, MenuItem, PredefinedMenuItem};
+use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, Wry};
 
+use crate::config::Settings;
 use crate::util::fmt_bytes;
 
 const MAX_LINES: usize = 5;
@@ -52,9 +55,13 @@ impl Line {
     }
 }
 
+/// An S3 account in the menu: (id, name, active).
+type Account = (String, String, bool);
+
 #[derive(Default)]
 pub struct TrayState {
     lines: Mutex<Vec<Line>>,
+    accounts: Mutex<Vec<Account>>,
     /// Ids currently in the menu; the menu is rebuilt only when this set changes.
     shown: Mutex<Vec<String>>,
     status_item: Mutex<Option<MenuItem<Wry>>>,
@@ -84,8 +91,9 @@ pub fn hide_main(app: &AppHandle) {
     let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 }
 
-pub fn setup(app: &AppHandle) -> tauri::Result<()> {
+pub fn setup(app: &AppHandle, settings: &Settings) -> tauri::Result<()> {
     app.manage(TrayState::default());
+    *app.state::<TrayState>().accounts.lock().unwrap() = accounts_of(settings);
     let menu = build_menu(app, &[])?;
     #[cfg(target_os = "macos")]
     let icon = Image::from_bytes(include_bytes!("../icons/tray.png"))?;
@@ -99,7 +107,17 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
         // Windows/Linux convention: left click opens the window, right click the menu.
         .show_menu_on_left_click(cfg!(target_os = "macos"))
         .on_menu_event(|app, ev| match ev.id().as_ref() {
-            "show" => show_main(app),
+            id if id.starts_with("acct:") => {
+                show_main(app);
+                let _ = app.emit("tray-open-account", &id[5..]);
+                // A check item toggles itself when clicked: redraw so only the active one is checked
+                // (the UI's switch then updates it through set_accounts).
+                rebuild(app);
+            }
+            "add-account" => {
+                show_main(app);
+                let _ = app.emit("tray-add-account", ());
+            }
             "updates" => {
                 show_main(app);
                 let _ = app.emit("tray-check-updates", ());
@@ -125,15 +143,29 @@ fn build_menu(app: &AppHandle, lines: &[Line]) -> tauri::Result<Menu<Wry>> {
         .iter()
         .map(|l| MenuItem::with_id(app, format!("job:{}", l.id), l.text(), false, None::<&str>))
         .collect::<tauri::Result<_>>()?;
-    let show = MenuItem::with_id(app, "show", "Show NoExplorer", true, None::<&str>)?;
+    let accounts = st.accounts.lock().unwrap().clone();
+    let header = MenuItem::with_id(app, "accounts", "S3 Accounts", false, None::<&str>)?;
+    let account_items: Vec<CheckMenuItem<Wry>> = accounts
+        .iter()
+        .map(|(id, name, active)| CheckMenuItem::with_id(app, format!("acct:{id}"), name, true, *active, None::<&str>))
+        .collect::<tauri::Result<_>>()?;
+    let add = MenuItem::with_id(app, "add-account", "Add S3 Account…", true, None::<&str>)?;
     let updates = MenuItem::with_id(app, "updates", "Check for Updates…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit NoExplorer", true, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
+    let sep3 = PredefinedMenuItem::separator(app)?;
 
     let mut items: Vec<&dyn IsMenuItem<Wry>> = vec![&status];
     items.extend(line_items.iter().map(|i| i as &dyn IsMenuItem<Wry>));
-    items.extend([&sep1 as &dyn IsMenuItem<Wry>, &show, &updates, &sep2, &quit]);
+    items.push(&sep1);
+    if account_items.is_empty() {
+        items.push(&add);
+    } else {
+        items.push(&header);
+        items.extend(account_items.iter().map(|i| i as &dyn IsMenuItem<Wry>));
+    }
+    items.extend([&sep2 as &dyn IsMenuItem<Wry>, &updates, &sep3, &quit]);
     let menu = Menu::with_items(app, &items)?;
 
     *st.status_item.lock().unwrap() = Some(status);
@@ -210,5 +242,29 @@ fn refresh(app: &AppHandle, st: &TrayState, lines: &[Line]) {
         let (d, t) = running.iter().fold((0, 0), |(d, t), l| (d + l.bytes_done, t + l.bytes_total));
         let title = percent(d, t).filter(|_| !running.is_empty()).map(|p| format!("{p}%"));
         let _ = tray.set_title(title);
+    }
+}
+
+fn accounts_of(s: &Settings) -> Vec<Account> {
+    let active = s.active_profile().map(|p| p.id.clone()).unwrap_or_default();
+    s.profiles.iter().map(|p| (p.id.clone(), p.name.clone(), p.id == active)).collect()
+}
+
+/// Called by `config.rs` whenever accounts change (add, rename, remove, switch).
+pub fn set_accounts(app: &AppHandle, s: &Settings) {
+    let Some(st) = app.try_state::<TrayState>() else { return };
+    let accounts = accounts_of(s);
+    if *st.accounts.lock().unwrap() == accounts {
+        return;
+    }
+    *st.accounts.lock().unwrap() = accounts;
+    rebuild(app);
+}
+
+fn rebuild(app: &AppHandle) {
+    let Some(st) = app.try_state::<TrayState>() else { return };
+    let lines = st.lines.lock().unwrap().clone();
+    if let (Some(tray), Ok(menu)) = (tray(app), build_menu(app, &lines)) {
+        let _ = tray.set_menu(Some(menu));
     }
 }

@@ -76,6 +76,9 @@ Run against `dev-s3.sh` **and**, before a release, against a real MinIO.
 - [ ] Appearance: System/Light/Dark and all text sizes; the splitter drags and double-click resets it
 - [ ] Wrong secret: Test shows a readable error and Save is blocked
 - [ ] Secrets: after a launch `config.json` has `"secret_key": ""` and `"keychain": true`, the account still connects, and `security find-generic-password -s com.vnappmob.noexplorer.dev` lists it (macOS). Editing an account with the secret field left empty keeps the key
+- [ ] Folder sizes: open a big folder; sizes and bars fill in while the Σ icon spins, the path bar shows the total. Create/delete a file in Finder: the size and the list update within ~1 s. Home shows "—" for Documents/Desktop/Downloads/Library until you open them (no macOS prompt); Σ scans them
+- [ ] ⌘⌫ on a local file/folder: it lands in the Trash (Finder "Put Back" works) and the next row is selected
+- [ ] Tray: lists the accounts (✓ on the active one); choosing another opens the window on it; with no account it offers "Add S3 Account…"
 - [ ] A folder with thousands of files (`for i in $(seq 3000); do : > f$i; done`): splitter drag, scrolling to the end and arrow-key selection stay smooth
 - [ ] Left pane: Places menu, breadcrumbs, ↑, filter, sorting, show hidden files
 - [ ] Drag a file and a folder left → right; drop on a folder row and on a breadcrumb

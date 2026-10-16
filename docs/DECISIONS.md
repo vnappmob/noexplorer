@@ -83,7 +83,7 @@ parallel GETs yet (roadmap). Measured on a laptop against local SeaweedFS in Doc
 <a id="adr-006"></a>
 
 ## ADR-006: The app never deletes or overwrites local files
-Accepted · 2026-10-15
+Accepted · 2026-10-15 · amended by [ADR-023](#adr-023) (Move to Trash, never a permanent delete)
 
 **Context.** This is a backup tool, so losing local data is the worst possible failure.
 **Decision.** There is no local delete. A download that would collide gets the next free
@@ -356,3 +356,59 @@ target row may not exist yet.
 **Consequences.** About 1 ms per splitter move in the same folder. Scrolling and refreshes are
 cheap for very large buckets too. Rows must keep one fixed height. Code must read rows from
 `view`/`selected`, never by querying `.row` elements, which only cover the visible window.
+
+<a id="adr-022"></a>
+
+## ADR-022: Own folder-size scanner and a live size index
+Accepted · 2026-10-16
+
+**Context.** The maintainer used ncdu for disk usage and wanted the local pane to show folder
+sizes on its own, faster than ncdu and without a slow, blocking scan. Re-walking each folder on
+every visit (the old `local_size`) repeats work. Scanning everything automatically would read
+the disk constantly, and on macOS it would raise privacy prompts for Desktop/Documents/Downloads
+just from opening Home.
+**Decision.**
+- `scan.rs` is our own parallel scanner, with no walker crate. On macOS one `getattrlistbulk`
+  call returns name, type, device, inode, link count and size for a batch of entries, instead of
+  one `stat` per file. Elsewhere `read_dir` is used. Workers go depth-first on their own stack and
+  share half of it only while another worker is idle. Totals bubble up lock-free (a `pending`
+  counter per folder). Rules: apparent size, hard links counted once, symlinks not followed,
+  mount points not entered. Threads are capped at 6, where scaling stops.
+- `sizes.rs` keeps an index (`path → Totals`) of finished roots, at most 6 roots and 1.5 M
+  folders, least recently used dropped first. Each root is watched with the `notify` crate
+  (FSEvents / ReadDirectoryChangesW natively recursive; inotify only on the root, because of its
+  per-folder watch limit). A change re-reads just that folder and applies the difference to its
+  ancestors. Watched roots below a new scan are reused instead of being walked again. The
+  `notify` crate is a thin layer over the OS APIs, so writing our own gives no speed.
+- The UI asks for sizes when the local pane lists a folder (`folder_sizes`). Results stream as
+  `"dir-sizes"` events, batched every 100 ms and only for the folder on screen. The same event
+  carries `relist` when that folder's own entries changed, which gives a live folder view.
+- Automatic scans are polite: utility-QoS threads on macOS, same volume as the home folder only,
+  and they skip macOS privacy-protected folders (Desktop, Documents, Downloads, ~/Library and its
+  app-data folders, the Photos library) until the user has opened them in the app (remembered
+  in `granted.json`). Skipped folders show "—" and their ancestors "≥". Σ scans everything.
+  Can be turned off in Settings → General.
+**Consequences.** Measured on an M-series Mac with a warm cache: 224k files take 1.2 s with 1
+thread and 0.55 s with 6. `du -sk` takes 3.6 s, ncdu 2.8 takes 6.4 s (1 thread) and 0.73 s
+(`-t 8`). In the app, the first sizes show after about 0.6 s, the full folder after 1.2 s, and
+a revisit after 0.13 s. A whole home folder (1.3 M files) takes about 6 s in the background.
+Memory is about 100 bytes per indexed folder. Linux only follows changes at a root's top level.
+Remote (S3) folder sizes stay manual (Σ): listing a prefix costs requests.
+
+<a id="adr-023"></a>
+
+## ADR-023: Move to Trash for local files
+Accepted · 2026-10-16 · amends [ADR-006](#adr-006)
+
+**Context.** Cleaning up after spotting big folders (the ncdu workflow) needs a way to remove
+local files. ADR-006 promises that local data is never lost.
+**Decision.** The local pane gets **Move to Trash** (⌘⌫ / Delete, the context menu, ⌘K), with
+no confirmation, like Finder and Explorer, because it is reversible. It never deletes
+permanently. `trash.rs` uses each OS's own mechanism with no extra crate:
+`NSFileManager trashItemAtURL` on macOS (Put Back works), and `SHFileOperationW` with
+`FOF_ALLOWUNDO | FOF_WANTNUKEWARNING` on Windows, so Windows asks before anything it can't
+recycle. Elsewhere it follows the freedesktop.org Trash spec (home trash, or
+`$topdir/.Trash-$uid` on other filesystems, `.trashinfo` reserved with `O_EXCL`). It refuses
+`/`, the home folder and its parents.
+**Consequences.** ADR-006 still holds: no download overwrites and no permanent delete.
+Transfers never trash anything.

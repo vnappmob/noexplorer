@@ -10,6 +10,7 @@ import { setupKeyboard } from "./keyboard";
 import { setupMenu, showMenu } from "./menu";
 import { copyPath, editPath, setupPalette } from "./palette";
 import { openMenu, setupPopover } from "./popover";
+import { requestSizes, setupSizes } from "./sizes";
 import { paneHooks, type Pane } from "./pane";
 import { local, remote, setActive } from "./panes";
 import { closePreview, openPreview, pv, pvItem } from "./preview";
@@ -20,6 +21,7 @@ import { $, fail, store } from "./util";
 
 // Remote files preview on Enter; local files open in their default app.
 paneHooks.openFile = (p, e) => (p.isRemote ? openPreview(p, e) : openItem(p, e));
+paneHooks.listed = (p) => !p.isRemote && requestSizes();
 
 function bindPane(p: Pane) {
   p.el.addEventListener("mousedown", () => setActive(p));
@@ -141,6 +143,7 @@ async function main() {
   bindPreview();
   setupPopover();
   setupPalette();
+  setupSizes();
   setupMenu();
   setupSettings();
   setupKeyboard();

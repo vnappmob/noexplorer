@@ -17,7 +17,7 @@ export type Profile = {
 };
 
 /** `config::General` — Settings → General. */
-export type General = { run_in_background: boolean; check_updates: boolean; notify: boolean };
+export type General = { run_in_background: boolean; check_updates: boolean; notify: boolean; auto_sizes: boolean };
 
 /** `config::Settings` — everything in config.json. */
 export type Settings = { profiles: Profile[]; active: string; download_dir: string; general: General };
@@ -35,8 +35,23 @@ export type Item = {
   size: number;
   modified: number | null;
   dir: boolean;
-  /** UI-only: a folder whose `size` was computed with "Σ Size" (folders are listed as 0). */
+  /** UI-only: a folder whose `size` was computed (Σ, or automatic sizes; folders are listed as 0). */
   calc?: boolean;
+  /** UI-only: `size` is a lower bound (some subfolders were skipped). */
+  partial?: boolean;
+};
+
+/** `scan::Totals` — a folder and everything below it. `skipped` > 0 = a lower bound. */
+export type Totals = { bytes: number; files: number; dirs: number; skipped: number };
+
+/** `sizes::DirSizes` — `folder_sizes` result and the `"dir-sizes"` event. */
+export type DirSizes = {
+  folder: string;
+  sizes: (Totals & { path: string })[];
+  total: Totals | null;
+  scanning: boolean;
+  /** The folder's own entries changed on disk: list it again. */
+  relist: boolean;
 };
 
 /** `local::Crumb` */
