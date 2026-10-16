@@ -1,5 +1,5 @@
 // User actions that talk to the backend: transfer, open, link, delete, mkdir.
-// `paneAction` maps the `data-act` / context-menu action names to these.
+// `paneAction` maps the context-menu / palette action names to these.
 
 import { invoke } from "@tauri-apps/api/core";
 import { ask } from "@tauri-apps/plugin-dialog";

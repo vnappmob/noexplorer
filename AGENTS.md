@@ -17,8 +17,8 @@ TypeScript UI. The UI is in English. License: MIT.
 
 | | |
 |---|---|
-| Version | `0.3.0` released 2026-10-15 ([release](https://github.com/vnappmob/noexplorer/releases/tag/v0.3.0)): the v0.3 UI redesign (ADR-019). Auto-update since 0.2.0; v0.1.0 users upgrade by hand once |
-| Last updated | 2026-10-15 |
+| Version | `0.3.1` released 2026-10-16 ([release](https://github.com/vnappmob/noexplorer/releases/tag/v0.3.1)): no floating selection bar, watermarks stack below the rows. 0.3.0 brought the UI redesign (ADR-019). Auto-update since 0.2.0; v0.1.0 users upgrade by hand once |
+| Last updated | 2026-10-16 |
 | Works and is verified | Dual-pane browse; drag both ways; drop files from the OS; multipart upload (tested with 2 GB); folder up/download; quick look (image/video/audio/pdf/text, local and remote); presigned links; delete; mkdir; transfer progress/cancel; **multiple S3 accounts** (picker + manager, v1 config migration); **Σ folder size** (remote and local) and full-path bar; **theme + text size**; **resizable split**; **auto-update** (signed, GitHub `latest.json`; real OTA 0.2.0 → 0.2.1 confirmed on macOS 2026-10-15); **tray + background running** (hide on close, live transfer rows, notifications, launch at login: macOS Login Items shows "NoExplorer", confirmed 2026-10-15 after re-registration; single instance); **Settings → General / About**; **v0.3 UI** (two-row pane headers with account/bucket dropdowns, path bar editing, activity card, transfer beam, ⌘K palette, watermarks, light/dark), checked in the app against SeaweedFS |
 | Tested on | macOS (Apple Silicon) against SeaweedFS, the maintainer's MinIO, and real AWS S3 (read-only: ap-southeast-1, dotted bucket names, cross-region detection). Windows and Linux are only checked for compilation in CI |
 | Next up | Confirm on the maintainer's Mac that Login Items still shows "NoExplorer" (the plist was restored after a dev build overwrote it; BTM couldn't be read while the screen was locked). Smoke-test the new UI and tray on Windows/Linux. See [docs/ROADMAP.md](docs/ROADMAP.md) |
@@ -119,7 +119,7 @@ Full detail, including the command table, event schema and data flows, is in [do
 
 **Add a UI action** (button, menu item, shortcut)
 - Implement the action in `actions.ts` and add a case to `paneAction()`.
-- Button: add `<button data-act="name">` to the pane footer in `index.html`. Enable or disable it in `Pane.updateStatus()`.
+- There is no per-selection toolbar (removed in 0.3.1, ADR-019): selection actions belong in the right-click menu, a shortcut and the ⌘K palette (`palette.ts` `build()`). Pane-level tools (filter, refresh, …) go in the `.src` header row in `index.html`.
 - Menu item: add it in `menu.ts`. Shortcut: add it in `keyboard.ts`, then update the shortcut table in `README.md` and in `site/index.html`.
 
 **Add a preview type:** add extensions in `files.ts` (`KIND`) and a render branch in `preview.ts`. Text types must also be added to `util::is_text_like` in Rust.
