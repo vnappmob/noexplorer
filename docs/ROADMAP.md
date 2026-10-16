@@ -15,7 +15,7 @@ Ground rules for everything below:
 
 ## Tier 1: daily-driver parity (next)
 
-**Done in 0.5:** live folder sizes (ADR-022) · Move to Trash (ADR-023) · live folder view ·
+**Done in 0.4.1:** live folder sizes (ADR-022) · Move to Trash (ADR-023) · live folder view ·
 virtualized lists (ADR-021) · tray account switcher.
 
 1. **Local file operations**: rename (F2 / click-to-rename), duplicate, copy/move between local
