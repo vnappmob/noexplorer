@@ -13,6 +13,31 @@ Ground rules for everything below:
 - **Never lose data** (ADR-006/023): no permanent local delete, no silent overwrite.
 - **Polite by default**: background work at low priority, no surprise OS permission prompts.
 
+## Now: cloud accounts and multi-account views (agreed 2026-10-16)
+
+One patch release per step, released only when the maintainer approves.
+
+0. **Provider abstraction + a client per account.** A `Provider` interface in Rust (list, stat, ranged
+   read, streamed upload/download, mkdir, delete, rename/copy, share link, size, capability
+   flags) with S3 as the first implementation. Every remote command takes the account (no single
+   "active client" any more, which lifts ADR-014's limit). `Profile.kind` = `s3 | webdav | box`, and OAuth tokens live in the OS keychain like secret keys (ADR-020). Ships as a
+   refactor with no UI change; the S3 round-trip test must pass unchanged.
+1. **Nextcloud / WebDAV**: our own small WebDAV client (PROPFIND, GET with Range, PUT, MKCOL,
+   MOVE, COPY, DELETE), Nextcloud chunked upload v2 for big files, and sign-in with **Login
+   Flow v2** (browser approval, app password into the keychain). Also covers ownCloud, NAS WebDAV
+   and any WebDAV server.
+2. **Box**: REST API with **bring-your-own OAuth app** (Custom App, user authentication). Users
+   paste the Client ID and secret; sign-in is PKCE through the system browser with a loopback
+   redirect. A path↔ID cache (Box is ID-based) and chunked upload over 50 MB.
+3. **Split remote views**: the right column holds 1–3 views stacked top/bottom, each with its own
+   account, bucket and folder (⌘\ split, ⌘W close, Tab cycles). Dragging between views copies
+   server-side on the same S3 account and streams directly between different accounts or
+   providers (no temp files), with progress in the activity card.
+
+Not planned: Google Drive (dropped by the maintainer on 2026-10-16), and exposing sync-client
+folders (iCloud Drive, `~/Library/CloudStorage`) as Places. iCloud Drive has no public API for
+third-party desktop apps.
+
 ## Tier 1: daily-driver parity (next)
 
 **Done in 0.4.1:** live folder sizes (ADR-022) · Move to Trash (ADR-023) · live folder view ·
@@ -55,7 +80,7 @@ virtualized lists (ADR-021) · tray account switcher.
 
 ## Tier 3: platform & polish
 
-- More backends behind the same pane: SFTP, WebDAV, Google Cloud Storage (XML API), Azure Blob.
+- More providers behind the same trait: SFTP, Dropbox, OneDrive, Google Cloud Storage (XML API), Azure Blob.
 - **Windows code signing** via SignPath (OSS), in `release.yml`.
 - **i18n** (Vietnamese first, ADR-011) and full keyboard/screen-reader accessibility.
 - **Frontend tests** (Vitest + happy-dom) for `Pane` sorting/selection/virtualization and `files.ts`.

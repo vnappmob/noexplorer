@@ -46,10 +46,12 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   types.ts           Types mirrored from Rust     util.ts / files.ts / state.ts  helpers and global state
 index.html           All markup (panes, dialogs, preview)      src/styles.css  All styles (light and dark)
 src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
-  config.rs          Accounts: Profile/Settings (config.json, v1→v2 migration) + S3 client (path-style, checksums)
+  config.rs          Accounts: Profile (kind = provider)/Settings (config.json, v1→v2 migration), endpoint/region helpers
+  provider.rs        `enum Remote`: one interface for all providers (ADR-025); Entry/BucketInfo
+  s3.rs              S3 provider: client (path-style, checksums, per-bucket region), list, multipart, downloads
   secrets.rs         Secret keys in the OS credential store (Keychain / Credential Manager / Secret Service)
-  remote.rs          S3 commands: list, presign, read_text, mkdir, delete
-  transfer.rs        upload / download / open_object engine (multipart, concurrency)
+  remote.rs          Browsing commands (thin wrappers over Remote): buckets, list, presign, read_text, mkdir, delete
+  transfer.rs        upload / download / open_object jobs (file concurrency; per-file work is the provider's)
   jobs.rs            Background Job + "job" progress events + cancel
   local.rs           Local filesystem commands for the left pane (+ volume_info for the storage bar)
   scan.rs            Parallel folder-size scanner (macOS getattrlistbulk fast path)
@@ -57,7 +59,7 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   trash.rs           Move to Trash (macOS / Windows / freedesktop), no extra crates
   tray.rs            Tray/menu-bar icon: live transfer status, Show/Updates/Quit, hide-to-tray
   autostart.rs       Launch at login (LaunchAgent with bundle id, so macOS shows "NoExplorer")
-  state.rs           AppState (config, client, cancel flags)    util.rs  pure helpers (tested)
+  state.rs           AppState (settings, one Remote per account, cancel flags)    util.rs  pure helpers (tested)
 src-tauri/tauri.conf.json   Window, bundle and security settings (version comes from package.json)
 site/                Static website → Cloudflare Workers static assets (config: wrangler.jsonc)
 assets/icon.svg      Icon source → icon.png (render 1024px), then `npx tauri icon assets/icon.png`
@@ -105,10 +107,10 @@ Full detail, including the command table, event schema and data flows, is in [do
 ## Invariants: do not break these
 
 - **Path-style addressing defaults to ON.** Self-hosted S3 needs it ([ADR-007](docs/DECISIONS.md#adr-007)).
-- **Checksums are `WhenRequired`.** Don't remove this from `make_client`; it breaks MinIO and older servers ([ADR-004](docs/DECISIONS.md#adr-004)).
+- **Checksums are `WhenRequired`.** Don't remove this from `s3::make_client_in`; it breaks MinIO and older servers ([ADR-004](docs/DECISIONS.md#adr-004)).
 - **The app never permanently deletes or overwrites local files.** Downloads go to `name (n).ext` and stream through `.part` files ([ADR-006](docs/DECISIONS.md#adr-006)). The only way local files leave is **Move to Trash** (`trash.rs`), recoverable from the OS Trash ([ADR-023](docs/DECISIONS.md#adr-023)).
 - **Automatic folder scans stay polite** ([ADR-022](docs/DECISIONS.md#adr-022)): low-priority threads, same volume as home, and never into macOS privacy-protected folders the user hasn't opened (`sizes.rs::protected`). Otherwise just opening Home makes macOS ask for Documents/Desktop/Downloads access.
-- **Talk to a bucket through `state.client_for(&bucket)`, never `state.client()`.** On AWS each bucket may live in another region, and signing with the wrong region fails ([ADR-017](docs/DECISIONS.md#adr-017)).
+- **Reach remote storage only through `state.remote(account)?` → `Remote` methods** ([ADR-025](docs/DECISIONS.md#adr-025)). Never build an SDK client in a command: `Remote` carries per-account caches (on AWS, each bucket's region, [ADR-017](docs/DECISIONS.md#adr-017)). New providers are a new `Remote` variant.
 - **`safe_rel()` must wrap every object key that becomes a local path.** It is the path-traversal guard.
 - **Drag between panes uses mouse events, not HTML5 drag-and-drop.** HTML5 DnD is broken on Windows while Tauri's file drop is enabled ([ADR-003](docs/DECISIONS.md#adr-003)).
 - **Escape every untrusted string before it goes into `innerHTML`** (file names, keys, errors), using `esc()`. Text previews use `textContent`.
@@ -135,7 +137,9 @@ Full detail, including the command table, event schema and data flows, is in [do
 **Add a per-account setting:** add the field to `Profile` in `config.rs` (`#[serde(default)]` keeps old files loading), to `types.ts`, to `#acct-form` in `index.html`, and to `FIELDS`/`readForm` in `settings.ts`.
 **Add a look/layout preference:** keep it per device in `appearance.ts` (localStorage), add a control to the Appearance tab, and drive it with a CSS variable or `data-*` attribute. Size new CSS from `--fs`/`--fs-sm`/`--fs-xs`, never fixed px font sizes.
 
-**Tune transfer speed:** change the constants at the top of `transfer.rs` and record the reason in ADR-005.
+**Tune transfer speed:** files in flight: `FILE_CONCURRENCY` in `transfer.rs`; S3 part size/concurrency: the constants at the top of `s3.rs`. Record the reason in ADR-005.
+
+**Add a provider:** add a `ProviderKind` variant (`config.rs`, `types.ts`), a module like `s3.rs` with the same methods, and a `Remote` variant whose `match` arms call it (`provider.rs`). Then the account form fields.
 
 ## Keep docs in sync
 

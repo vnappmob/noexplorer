@@ -1,32 +1,19 @@
-//! Upload / download / open engine.
-//!
-//! Throughput knobs (see ADR-005): up to [`FILE_CONCURRENCY`] files in flight per job; files
-//! above [`MULTIPART_THRESHOLD`] use multipart upload with [`PART_CONCURRENCY`] parts in flight.
-//! Downloads stream to `<name>.part` and are renamed on success, so partial files never look complete.
+//! Upload / download / open jobs, provider-agnostic (ADR-025): each job holds its account's
+//! `Remote` and moves up to [`FILE_CONCURRENCY`] files at once (ADR-005). How a single file moves
+//! (multipart, chunking, `.part` files) is the provider's business, see `s3.rs`.
 
-use std::io::SeekFrom;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 
-use aws_sdk_s3::Client;
-use aws_sdk_s3::primitives::ByteStream;
-use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
-use futures::{StreamExt, TryStreamExt, stream};
+use futures::{StreamExt, stream};
 use serde::Deserialize;
 use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 use crate::jobs::Job;
-use crate::remote::list_all;
 use crate::state::AppState;
-use crate::util::{err, file_name, job_label, safe_rel, unique_path};
+use crate::util::{file_name, job_label, safe_rel, unique_path};
 
-pub const MULTIPART_THRESHOLD: u64 = 16 * 1024 * 1024;
-pub const MIN_PART_SIZE: u64 = 8 * 1024 * 1024;
-/// S3 allows 10 000 parts; stay well below so huge files still fit.
-const MAX_PARTS: u64 = 9_000;
-pub const PART_CONCURRENCY: usize = 4;
 pub const FILE_CONCURRENCY: usize = 6;
 
 /// Junk files never uploaded from folders.
@@ -73,13 +60,14 @@ pub fn collect_uploads(paths: &[String], prefix: &str) -> Vec<(PathBuf, String, 
 pub async fn upload(
     app: AppHandle,
     state: State<'_, AppState>,
+    account: Option<String>,
     bucket: String,
     prefix: String,
     paths: Vec<String>,
 ) -> Result<String, String> {
-    let c = state.client_for(&bucket).await?;
+    let c = state.remote(account.as_deref())?;
     let label = job_label(paths.iter().map(|p| file_name(&p.replace('\\', "/"))).collect());
-    let job = Job::new(&app, "up", label, &bucket, &prefix);
+    let job = Job::new(&app, "up", label, c.account(), &bucket, &prefix);
     let id = job.id.clone();
     let j = job.clone();
     job.spawn(app, async move {
@@ -93,7 +81,7 @@ pub async fn upload(
                     if j.cancelled() {
                         return;
                     }
-                    match upload_file(&c, &bucket, &key, &path, size, &j).await {
+                    match c.upload_file(&bucket, &key, &path, size, &j).await {
                         Ok(()) => {
                             j.files_done.fetch_add(1, Ordering::Relaxed);
                         }
@@ -105,72 +93,6 @@ pub async fn upload(
             .await;
     });
     Ok(id)
-}
-
-/// Single PUT for small files, parallel multipart for large ones (aborted on failure).
-pub async fn upload_file(c: &Client, bucket: &str, key: &str, path: &Path, size: u64, job: &Job) -> Result<(), String> {
-    let ct = mime_guess::from_path(path).first_or_octet_stream().to_string();
-    if size <= MULTIPART_THRESHOLD {
-        let body = ByteStream::from_path(path).await.map_err(err)?;
-        c.put_object().bucket(bucket).key(key).content_type(ct).body(body).send().await.map_err(err)?;
-        job.bytes_done.fetch_add(size, Ordering::Relaxed);
-        return Ok(());
-    }
-
-    let part_size = MIN_PART_SIZE.max(size.div_ceil(MAX_PARTS));
-    let parts = size.div_ceil(part_size);
-    let created = c.create_multipart_upload().bucket(bucket).key(key).content_type(ct).send().await.map_err(err)?;
-    let upload_id = created.upload_id().ok_or("Server returned no upload id")?.to_string();
-
-    let result: Result<(), String> = async {
-        let mut done: Vec<CompletedPart> = stream::iter(0..parts)
-            .map(|i| {
-                let upload_id = upload_id.clone();
-                async move {
-                    if job.cancelled() {
-                        return Err("cancelled".to_string());
-                    }
-                    let offset = i * part_size;
-                    let len = part_size.min(size - offset);
-                    let mut f = tokio::fs::File::open(path).await.map_err(|e| e.to_string())?;
-                    f.seek(SeekFrom::Start(offset)).await.map_err(|e| e.to_string())?;
-                    let mut buf = vec![0u8; len as usize];
-                    f.read_exact(&mut buf).await.map_err(|e| e.to_string())?;
-                    let n = (i + 1) as i32;
-                    let r = c
-                        .upload_part()
-                        .bucket(bucket)
-                        .key(key)
-                        .upload_id(&upload_id)
-                        .part_number(n)
-                        .body(ByteStream::from(buf))
-                        .send()
-                        .await
-                        .map_err(err)?;
-                    job.bytes_done.fetch_add(len, Ordering::Relaxed);
-                    Ok(CompletedPart::builder().part_number(n).set_e_tag(r.e_tag().map(String::from)).build())
-                }
-            })
-            .buffer_unordered(PART_CONCURRENCY)
-            .try_collect()
-            .await?;
-        done.sort_by_key(|p| p.part_number());
-        c.complete_multipart_upload()
-            .bucket(bucket)
-            .key(key)
-            .upload_id(&upload_id)
-            .multipart_upload(CompletedMultipartUpload::builder().set_parts(Some(done)).build())
-            .send()
-            .await
-            .map_err(err)?;
-        Ok(())
-    }
-    .await;
-
-    if result.is_err() {
-        let _ = c.abort_multipart_upload().bucket(bucket).key(key).upload_id(&upload_id).send().await;
-    }
-    result
 }
 
 #[derive(Deserialize)]
@@ -193,18 +115,19 @@ fn default_download_dir(state: &AppState) -> PathBuf {
 pub async fn download(
     app: AppHandle,
     state: State<'_, AppState>,
+    account: Option<String>,
     bucket: String,
     prefix: String,
     items: Vec<DlItem>,
     dest: Option<String>,
 ) -> Result<String, String> {
-    let c = state.client_for(&bucket).await?;
+    let c = state.remote(account.as_deref())?;
     let dest = match dest.filter(|d| !d.trim().is_empty()) {
         Some(d) => PathBuf::from(d),
         None => default_download_dir(&state),
     };
     let label = job_label(items.iter().map(|i| file_name(&i.key)).collect());
-    let job = Job::new(&app, "down", label, &bucket, &prefix);
+    let job = Job::new(&app, "down", label, c.account(), &bucket, &prefix);
     *job.local_dir.lock().unwrap() = Some(dest.to_string_lossy().to_string());
     let id = job.id.clone();
     let j = job.clone();
@@ -217,7 +140,7 @@ pub async fn download(
             if it.key.ends_with('/') {
                 let root = unique_path(dest.join(safe_rel(&rel)));
                 reveal.get_or_insert(root.clone());
-                match list_all(&c, &bucket, &it.key).await {
+                match c.list_all(&bucket, &it.key).await {
                     Ok(objs) => {
                         for (k, size) in objs.into_iter().filter(|(k, _)| !k.ends_with('/')) {
                             let sub = safe_rel(&k[it.key.len()..]);
@@ -242,7 +165,7 @@ pub async fn download(
                     if j.cancelled() {
                         return;
                     }
-                    match download_file(&c, &bucket, &key, &path, &j).await {
+                    match c.download_file(&bucket, &key, &path, &j).await {
                         Ok(()) => {
                             j.files_done.fetch_add(1, Ordering::Relaxed);
                         }
@@ -256,60 +179,28 @@ pub async fn download(
     Ok(id)
 }
 
-/// Streams one object to `path` via `path.part`, renaming on success.
-pub async fn download_file(c: &Client, bucket: &str, key: &str, path: &Path, job: &Job) -> Result<(), String> {
-    if let Some(dir) = path.parent() {
-        tokio::fs::create_dir_all(dir).await.map_err(|e| e.to_string())?;
-    }
-    let mut tmp = path.as_os_str().to_owned();
-    tmp.push(".part");
-    let tmp = PathBuf::from(tmp);
-    let r = c.get_object().bucket(bucket).key(key).send().await.map_err(err)?;
-    let mut body = r.body;
-    let f = tokio::fs::File::create(&tmp).await.map_err(|e| e.to_string())?;
-    let mut w = tokio::io::BufWriter::with_capacity(1 << 20, f);
-    let res: Result<(), String> = async {
-        while let Some(chunk) = body.try_next().await.map_err(err)? {
-            if job.cancelled() {
-                return Err("cancelled".into());
-            }
-            w.write_all(&chunk).await.map_err(|e| e.to_string())?;
-            job.bytes_done.fetch_add(chunk.len() as u64, Ordering::Relaxed);
-        }
-        w.flush().await.map_err(|e| e.to_string())
-    }
-    .await;
-    drop(w);
-    match res {
-        Ok(()) => tokio::fs::rename(&tmp, path).await.map_err(|e| e.to_string()),
-        Err(e) => {
-            let _ = tokio::fs::remove_file(&tmp).await;
-            Err(e)
-        }
-    }
-}
-
 /// Downloads an object to a temp folder and opens it with the system default app.
 #[tauri::command]
 pub async fn open_object(
     app: AppHandle,
     state: State<'_, AppState>,
+    account: Option<String>,
     bucket: String,
     key: String,
 ) -> Result<(), String> {
-    let c = state.client_for(&bucket).await?;
+    let c = state.remote(account.as_deref())?;
     let path = temp_root().join(uuid::Uuid::new_v4().to_string()).join(safe_rel(&file_name(&key)));
-    let job = Job::untracked("open", file_name(&key), &bucket, "");
-    download_file(&c, &bucket, &key, &path, &job).await?;
+    let job = Job::untracked("open", file_name(&key), c.account(), &bucket, "");
+    c.download_file(&bucket, &key, &path, &job).await?;
     app.opener().open_path(path.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{Profile, check_profile, make_client};
-    use aws_sdk_s3::presigning::PresigningConfig;
-    use std::time::Duration;
+    use crate::config::{Profile, check_profile};
+    use crate::provider::Remote;
+    use crate::s3::make_client;
 
     fn tmp_dir() -> PathBuf {
         let d = std::env::temp_dir().join(format!("noexplorer-ut-{}", uuid::Uuid::new_v4()));
@@ -350,10 +241,10 @@ mod tests {
             secret_key: std::env::var("NOEXPLORER_TEST_SECRET").unwrap(),
             ..Default::default()
         };
-        let c = make_client(&cfg);
         let bucket = "noexplorer-test";
-        let _ = c.create_bucket().bucket(bucket).send().await;
+        let _ = make_client(&cfg).create_bucket().bucket(bucket).send().await;
         assert!(check_profile(&cfg).await.unwrap().contains(&bucket.to_string()));
+        let c = Remote::new(&cfg);
 
         let dir = tmp_dir();
         std::fs::create_dir_all(dir.join("folder/sub")).unwrap();
@@ -362,30 +253,25 @@ mod tests {
         std::fs::write(dir.join("folder/sub/hello.txt"), "xin chào").unwrap();
 
         let files = collect_uploads(&[dir.join("folder").to_string_lossy().to_string()], "rt/");
-        let job = Job::untracked("up", "t".into(), bucket, "");
+        let job = Job::untracked("up", "t".into(), "", bucket, "");
         for (p, k, s) in &files {
-            upload_file(&c, bucket, k, p, *s, &job).await.unwrap(); // big.bin goes multipart
+            c.upload_file(bucket, k, p, *s, &job).await.unwrap(); // big.bin goes multipart
         }
-        let all = list_all(&c, bucket, "rt/").await.unwrap();
+        let all = c.list_all(bucket, "rt/").await.unwrap();
         assert!(all.iter().any(|(k, s)| k == "rt/folder/big.bin" && *s == big.len() as u64));
 
         let out = dir.join("out/big.bin");
-        download_file(&c, bucket, "rt/folder/big.bin", &out, &job).await.unwrap();
+        c.download_file(bucket, "rt/folder/big.bin", &out, &job).await.unwrap();
         assert_eq!(std::fs::read(&out).unwrap(), big);
 
-        let url = c
-            .get_object()
-            .bucket(bucket)
-            .key("rt/folder/sub/hello.txt")
-            .presigned(PresigningConfig::expires_in(Duration::from_secs(60)).unwrap())
-            .await
-            .unwrap();
-        assert!(url.uri().contains("/noexplorer-test/rt/folder/sub/hello.txt"), "path-style expected");
+        let url = c.link(bucket, "rt/folder/sub/hello.txt", 60, false).await.unwrap();
+        assert!(url.contains("/noexplorer-test/rt/folder/sub/hello.txt"), "path-style expected");
+        assert_eq!(c.read_head(bucket, "rt/folder/sub/hello.txt", 3).await.unwrap(), b"xin");
+        let listed = c.list(bucket, "rt/folder/").await.unwrap();
+        assert!(listed.iter().any(|e| e.dir && e.key == "rt/folder/sub/"));
 
-        for (k, _) in all {
-            c.delete_object().bucket(bucket).key(k).send().await.unwrap();
-        }
-        assert!(list_all(&c, bucket, "rt/").await.unwrap().is_empty());
+        assert_eq!(c.delete(bucket, vec!["rt/".into()]).await.unwrap(), all.len() + 1);
+        assert!(c.list_all(bucket, "rt/").await.unwrap().is_empty());
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

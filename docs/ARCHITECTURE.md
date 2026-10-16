@@ -34,11 +34,13 @@ This is the deep reference. For orientation, read [AGENTS.md](../AGENTS.md) firs
 | Module | Owns | Key items |
 |---|---|---|
 | `lib.rs` | App bootstrap | `run()`: plugins (opener, dialog), loads the config, wipes the temp dir, registers commands |
-| `config.rs` | Accounts | `Profile`, `Settings` (upsert/remove/active), `parse_settings` (v1→v2 migration), `make_client(_in)` (path-style, checksums), `is_aws` / `region_from_endpoint` / `effective_region` / `detect_bucket_region` (ADR-017) |
-| `state.rs` | Shared state | `AppState { settings, client, regions, regional, cancels }`. `set_settings()` rebuilds the client and clears region caches. **`client_for(bucket)`** returns the right client (per-bucket region on AWS, see ADR-017) |
+| `config.rs` | Accounts | `Profile` (`kind` = provider), `Settings` (upsert/remove/active), `parse_settings` (v1→v2 migration), secrets in the keychain (ADR-020), `is_aws` / `region_from_endpoint` / `effective_region` (ADR-017) |
+| `provider.rs` | Provider interface | `enum Remote` (static dispatch, ADR-025): `containers`, `list`, `list_all`, `link`, `read_head`, `mkdir`, `delete`, `upload_file`, `download_file`; `Entry`, `BucketInfo` |
+| `s3.rs` | S3 provider | `make_client(_in)` (path-style, checksums), `detect_bucket_region`, `S3` (per-bucket region cache, `client_for`), multipart upload, streamed `.part` downloads, tuning constants |
+| `state.rs` | Shared state | `AppState { settings, remotes, cancels }`. **`remote(account)`** returns the cached `Arc<Remote>` for a profile id (active when `None`); `set_settings()` drops the clients of changed accounts only |
 | `jobs.rs` | Background jobs | `Job` (atomic counters, errors, cancel flag), `Job::spawn` (250 ms ticker + final event), `cancel` |
-| `remote.rs` | S3 browsing | `Entry` row type, `list` (one level, delimiter `/`), `list_all` (recursive), `remote_size`, `presign`, `read_text`, `mkdir`, `delete` |
-| `transfer.rs` | Moving bytes | `upload`/`upload_file` (PUT or multipart), `download`/`download_file` (stream to `.part`), `open_object`, tuning constants |
+| `remote.rs` | Browsing commands | Thin wrappers over `Remote`: `list_buckets`, `list`, `remote_size`, `presign`, `read_text`, `mkdir`, `delete` |
+| `transfer.rs` | Transfer jobs | `upload`, `download`, `open_object`: expand files, schedule `FILE_CONCURRENCY` at a time, call `Remote::upload_file` / `download_file` |
 | `local.rs` | Local disk (left pane) | `list_local` (+ crumbs and Places roots; tells `sizes` which private folders were opened), `local_size`, `read_local_text`, `mkdir_local`, `open_local`, `reveal` |
 | `scan.rs` | Folder-size engine | Parallel scanner (`scan`, `Totals`, `Sink`), macOS `getattrlistbulk` fast path, generic `read_dir` (ADR-022) |
 | `sizes.rs` | Live size index | `SizeIndex` (index of watched roots, focus folder, batched `"dir-sizes"` events), polite auto-scan policy, `notify` watchers, `folder_sizes` / `stop_sizes` |
@@ -51,6 +53,9 @@ This is the deep reference. For orientation, read [AGENTS.md](../AGENTS.md) firs
 
 Arguments are passed from JS as an object. Tauri converts camelCase keys to snake_case.
 Every command returns `Result<T, String>`, and the error string is shown to the user as-is.
+Remote commands (`list_buckets`, `list`, `remote_size`, `presign`, `read_text`, `mkdir`, `delete`,
+`upload`, `download`, `open_object`) also take an optional **`account`** (a profile id). Omitted
+means the active account (ADR-025).
 
 | Command | Args | Returns | Module | Notes |
 |---|---|---|---|---|
@@ -92,7 +97,7 @@ The TS mirror is `JobEvent` in `src/types.ts`.
 ```jsonc
 {
   "id": "uuid", "kind": "up" | "down", "label": "a.txt, b.txt +3 more",
-  "bucket": "demo", "prefix": "backups/",          // remote side
+  "account": "profile-id", "bucket": "demo", "prefix": "backups/",   // remote side
   "files_done": 3, "files_total": 5, "bytes_done": 123, "bytes_total": 456,
   "status": "running" | "done" | "error" | "cancelled",
   "error": null | "2 errors. First: x.bin: …",     // per-file failures don't stop the job

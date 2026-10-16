@@ -8,7 +8,8 @@ use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 use tokio::io::AsyncReadExt;
 
-use crate::remote::{Entry, SizeInfo};
+use crate::provider::Entry;
+use crate::remote::SizeInfo;
 
 #[derive(Serialize)]
 pub struct Crumb {

@@ -1,9 +1,14 @@
 // Shapes shared with the Rust backend. Keep in sync with the `#[derive(Serialize)]` structs
 // referenced in each comment.
 
-/** `config::Profile` — one S3 account. */
+/** `config::ProviderKind` — which provider an account uses. */
+export type ProviderKind = "s3";
+
+/** `config::Profile` — one remote account. */
 export type Profile = {
   id: string;
+  /** Missing in older settings = "s3". */
+  kind?: ProviderKind;
   name: string;
   endpoint: string;
   region: string;
@@ -22,13 +27,13 @@ export type General = { run_in_background: boolean; check_updates: boolean; noti
 /** `config::Settings` — everything in config.json. */
 export type Settings = { profiles: Profile[]; active: string; download_dir: string; general: General };
 
-/** `config::BucketInfo` — an entry of the bucket picker. */
+/** `provider::BucketInfo` — an entry of the bucket picker. */
 export type BucketInfo = { name: string; region: string | null };
 
 /** `remote::SizeInfo` — result of `remote_size` / `local_size`. */
 export type SizeInfo = { bytes: number; files: number };
 
-/** `remote::Entry` — a row in either pane. `key` is the S3 key (remote) or absolute path (local). */
+/** `provider::Entry` — a row in either pane. `key` is the S3 key (remote) or absolute path (local). */
 export type Item = {
   key: string;
   name: string;
@@ -68,6 +73,8 @@ export type JobEvent = {
   id: string;
   kind: "up" | "down";
   label: string;
+  /** Profile id of the remote account. */
+  account: string;
   bucket: string;
   prefix: string;
   files_done: number;

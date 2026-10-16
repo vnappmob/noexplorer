@@ -1,5 +1,5 @@
-//! Connection settings: S3 accounts ("profiles") persisted as JSON in the OS app-config dir,
-//! plus S3 client construction.
+//! Connection settings: remote accounts ("profiles") persisted as JSON in the OS app-config dir,
+//! plus endpoint/region helpers. Clients are built per account in `provider.rs` / `s3.rs`.
 //!
 //! File format (v2): `{ "profiles": [Profile…], "active": "<profile id>", "download_dir": "" }`.
 //! v1 files (a single flat connection object) are migrated on load, see [`parse_settings`].
@@ -8,23 +8,29 @@
 
 use std::path::PathBuf;
 
-use aws_sdk_s3::Client;
-use aws_sdk_s3::config::{
-    BehaviorVersion, Builder, Credentials, Region, RequestChecksumCalculation, ResponseChecksumValidation,
-};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 
+use crate::provider::Remote;
 use crate::secrets::{OsStore, SecretStore};
 use crate::state::AppState;
-use crate::util::err;
 
-/// One S3 account. Mirrors `Profile` in `src/types.ts`.
+/// Which provider an account uses (`provider.rs`). Mirrors `ProviderKind` in `src/types.ts`.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ProviderKind {
+    #[default]
+    S3,
+}
+
+/// One remote account. Mirrors `Profile` in `src/types.ts`.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]
 pub struct Profile {
     /// Stable id (uuid), assigned on first save.
     pub id: String,
+    /// Older files have no `kind`: they are S3 accounts.
+    pub kind: ProviderKind,
     /// Display name in the account picker.
     pub name: String,
     pub endpoint: String,
@@ -43,6 +49,7 @@ impl Default for Profile {
     fn default() -> Self {
         Self {
             id: String::new(),
+            kind: ProviderKind::S3,
             name: String::new(),
             endpoint: String::new(),
             region: "us-east-1".into(),
@@ -275,60 +282,6 @@ pub fn effective_region(p: &Profile) -> String {
     })
 }
 
-pub fn make_client(p: &Profile) -> Client {
-    make_client_in(p, &effective_region(p))
-}
-
-/// Client signing for `region`. AWS profiles ignore the endpoint field (the SDK picks
-/// `s3.<region>.amazonaws.com`); other providers always use their endpoint.
-pub fn make_client_in(p: &Profile, region: &str) -> Client {
-    let mut b = Builder::new()
-        .behavior_version(BehaviorVersion::latest())
-        .region(Region::new(region.to_string()))
-        .credentials_provider(Credentials::new(p.access_key.trim(), p.secret_key.trim(), None, None, "noexplorer"))
-        .force_path_style(p.path_style)
-        // Only send/verify checksums when an API requires them: newer SDK defaults (CRC32 on
-        // every request) break some self-hosted / older S3-compatible servers. See ADR-004.
-        .request_checksum_calculation(RequestChecksumCalculation::WhenRequired)
-        .response_checksum_validation(ResponseChecksumValidation::WhenRequired);
-    let endpoint = normalize_endpoint(&p.endpoint);
-    if !endpoint.is_empty() && !is_aws(p) {
-        b = b.endpoint_url(endpoint);
-    }
-    Client::from_conf(b.build())
-}
-
-/// AWS: the region a bucket lives in. HEAD Bucket answers with `x-amz-bucket-region`, even
-/// on the 301 you get when asking the wrong region, so one request is enough.
-pub async fn detect_bucket_region(p: &Profile, bucket: &str) -> Option<String> {
-    let c = make_client_in(p, "us-east-1");
-    match c.head_bucket().bucket(bucket).send().await {
-        Ok(o) => o.bucket_region().map(String::from),
-        Err(e) => e.raw_response().and_then(|r| r.headers().get("x-amz-bucket-region")).map(String::from),
-    }
-}
-
-/// Bucket names (+ region when the server reports it, as AWS does) visible to these credentials.
-pub async fn list_buckets_with_regions(p: &Profile) -> Result<Vec<(String, Option<String>)>, String> {
-    let c = make_client(p);
-    match c.list_buckets().send().await {
-        Ok(r) => Ok(r
-            .buckets()
-            .iter()
-            .filter_map(|b| b.name().map(|n| (n.to_string(), b.bucket_region().map(String::from))))
-            .collect()),
-        Err(e) if !p.bucket.trim().is_empty() => {
-            // The key may lack s3:ListAllMyBuckets; fall back to the configured bucket.
-            let bucket = p.bucket.trim();
-            let region = if is_aws(p) { detect_bucket_region(p, bucket).await } else { None };
-            let check = region.as_deref().map(|r| make_client_in(p, r)).unwrap_or(c);
-            check.head_bucket().bucket(bucket).send().await.map_err(|_| err(e))?;
-            Ok(vec![(bucket.to_string(), region)])
-        }
-        Err(e) => Err(err(e)),
-    }
-}
-
 // ---------- commands ----------
 
 #[tauri::command]
@@ -336,9 +289,9 @@ pub fn get_settings(state: State<'_, AppState>) -> Settings {
     redacted(&state.settings())
 }
 
-/// Buckets visible with these credentials.
+/// Containers (buckets) visible with these credentials.
 pub async fn check_profile(profile: &Profile) -> Result<Vec<String>, String> {
-    Ok(list_buckets_with_regions(profile).await?.into_iter().map(|(n, _)| n).collect())
+    Ok(Remote::new(profile).containers().await?.into_iter().map(|b| b.name).collect())
 }
 
 /// Checks a connection from the account form (an empty secret = the saved one).
@@ -387,27 +340,6 @@ pub fn save_general(app: AppHandle, state: State<'_, AppState>, general: General
     let mut s = state.settings();
     s.general = general;
     commit(&app, &state, s)
-}
-
-/// A bucket for the bucket picker. Mirrors `BucketInfo` in `src/types.ts`.
-#[derive(Serialize)]
-pub struct BucketInfo {
-    pub name: String,
-    /// Known on AWS (from ListBuckets); None for most self-hosted servers.
-    pub region: Option<String>,
-}
-
-/// Buckets of the active account.
-#[tauri::command]
-pub async fn list_buckets(state: State<'_, AppState>) -> Result<Vec<BucketInfo>, String> {
-    let p = state.settings().active_profile().cloned().ok_or("No account configured")?;
-    let buckets = list_buckets_with_regions(&p).await?;
-    for (name, region) in &buckets {
-        if let Some(r) = region {
-            state.remember_region(name, r); // saves a HEAD per bucket on AWS
-        }
-    }
-    Ok(buckets.into_iter().map(|(name, region)| BucketInfo { name, region }).collect())
 }
 
 #[cfg(test)]

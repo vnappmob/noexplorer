@@ -183,7 +183,7 @@ Action with `wrangler-action`. It was dropped because Workers Builds needs no se
 <a id="adr-014"></a>
 
 ## ADR-014: Multiple S3 accounts live in one `config.json` (v2) with a single active client
-Accepted · 2026-10-15 · extends ADR-008
+Accepted · 2026-10-15 · extends ADR-008 · the single client is replaced by [ADR-025](#adr-025)
 
 **Context.** Users back up to more than one server (home NAS, company MinIO, R2…).
 **Decision.** `config.json` becomes `{profiles[], active, download_dir}`. The backend holds one
@@ -444,3 +444,26 @@ debug info. The template's `crate-type = ["staticlib", "cdylib", "rlib"]` also l
 
 **Consequences.** A debugger shows dependency frames without source. Set `debug = true`
 locally to step into a crate. `scripts/clean-build.sh` still keeps the total bounded over time.
+
+<a id="adr-025"></a>
+
+## ADR-025: Providers behind one `Remote` interface, one client per account
+Accepted · 2026-10-16 · replaces ADR-014's single active client
+
+**Context.** Nextcloud/WebDAV and Box accounts are next, and the remote pane will split into
+several views, each on its own account. Every command used to call `state.client_for(bucket)` on
+one S3 client for the active profile.
+**Decision.**
+- `provider.rs` defines `enum Remote` with one variant per provider (`S3` today). It uses static
+  dispatch: no `dyn` and no async-trait crate. Each method (`containers`, `list`, `list_all`,
+  `link`, `read_head`, `mkdir`, `delete`, `upload_file`, `download_file`) is a `match` on the
+  variant. Locations are `(container, key)`: S3 container = bucket, folder keys end with `/`.
+- `s3.rs` owns everything S3: client construction (path-style ADR-007, checksums ADR-004), the
+  per-bucket region cache on AWS (ADR-017), multipart upload, streamed `.part` downloads.
+- `AppState::remote(account)` caches one `Arc<Remote>` per profile id. `None` means the active
+  account. A settings change drops only the clients of accounts that changed. Running jobs hold
+  their own `Arc`.
+- Every remote command takes an optional `account`, and `"job"` events carry it.
+  `Profile.kind` (default `s3`) selects the provider.
+**Consequences.** No UI change yet; the S3 round-trip test passes unchanged. A new provider is a
+new variant plus its file. Transfers stay generic: `transfer.rs` only schedules files.

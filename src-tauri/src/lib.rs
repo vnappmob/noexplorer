@@ -22,7 +22,9 @@ mod autostart;
 mod config;
 mod jobs;
 mod local;
+mod provider;
 mod remote;
+mod s3;
 mod scan;
 mod secrets;
 mod sizes;
@@ -81,7 +83,7 @@ pub fn run() {
             config::save_general,
             autostart::autostart_enabled,
             autostart::set_autostart,
-            config::list_buckets,
+            remote::list_buckets,
             remote::list,
             remote::remote_size,
             remote::presign,

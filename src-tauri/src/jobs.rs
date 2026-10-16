@@ -22,6 +22,8 @@ pub struct Job {
     pub id: String,
     pub kind: &'static str,
     pub label: String,
+    /// Profile id of the remote account.
+    pub account: String,
     pub bucket: String,
     pub prefix: String,
     pub files_total: AtomicU64,
@@ -42,6 +44,7 @@ pub struct JobEvent {
     id: String,
     kind: &'static str,
     label: String,
+    account: String,
     bucket: String,
     prefix: String,
     files_done: u64,
@@ -56,11 +59,12 @@ pub struct JobEvent {
 
 impl Job {
     /// A job that isn't registered for cancellation or reported to the UI.
-    pub fn untracked(kind: &'static str, label: String, bucket: &str, prefix: &str) -> Job {
+    pub fn untracked(kind: &'static str, label: String, account: &str, bucket: &str, prefix: &str) -> Job {
         Job {
             id: uuid::Uuid::new_v4().to_string(),
             kind,
             label,
+            account: account.into(),
             bucket: bucket.into(),
             prefix: prefix.into(),
             files_total: AtomicU64::new(0),
@@ -75,8 +79,15 @@ impl Job {
     }
 
     /// A job registered in [`AppState::cancels`] so the UI can cancel it by id.
-    pub fn new(app: &AppHandle, kind: &'static str, label: String, bucket: &str, prefix: &str) -> Arc<Job> {
-        let job = Job::untracked(kind, label, bucket, prefix);
+    pub fn new(
+        app: &AppHandle,
+        kind: &'static str,
+        label: String,
+        account: &str,
+        bucket: &str,
+        prefix: &str,
+    ) -> Arc<Job> {
+        let job = Job::untracked(kind, label, account, bucket, prefix);
         app.state::<AppState>().cancels.lock().unwrap().insert(job.id.clone(), job.cancel.clone());
         Arc::new(job)
     }
@@ -128,6 +139,7 @@ impl Job {
             id: self.id.clone(),
             kind: self.kind,
             label: self.label.clone(),
+            account: self.account.clone(),
             bucket: self.bucket.clone(),
             prefix: self.prefix.clone(),
             files_done: self.files_done.load(Ordering::Relaxed),
