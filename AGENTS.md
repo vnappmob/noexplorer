@@ -42,6 +42,7 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   palette.ts         ⌘K command palette + path editing (⌘L)
   updater.ts         Auto-update: check, banner, install + relaunch
   sizes.ts           Local folder sizes: request, apply "dir-sizes", live re-list, storage bar
+  compare.ts         Compare dialog: run, tabs, verdict that explains count gaps, upload/download the diff
   menu.ts            Right-click menu      keyboard.ts  All shortcuts
   types.ts           Types mirrored from Rust     util.ts / files.ts / state.ts  helpers and global state
 index.html           All markup (panes, dialogs, preview)      src/styles.css  All styles (light and dark)
@@ -51,6 +52,8 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   s3.rs              S3 provider: client (path-style, checksums, per-bucket region), list, multipart, downloads
   webdav.rs          Nextcloud/WebDAV provider: own small client, chunked upload v2, shares, Login Flow v2
   proxy.rs           nxr:// scheme: streams remote files to previews (Range, CORS) when there's no presigned URL
+  box_api.rs         Box provider (beta): BYO OAuth app, loopback sign-in, rotating refresh token, sessions
+  compare.rs         Compare local vs remote folders: missing/changed/junk, checksum verify (ETag/SHA-1)
   secrets.rs         Secret keys in the OS credential store (Keychain / Credential Manager / Secret Service)
   remote.rs          Browsing commands (thin wrappers over Remote): buckets, list, presign, read_text, mkdir, delete
   transfer.rs        upload / download / open_object jobs (file concurrency; per-file work is the provider's)
@@ -175,6 +178,9 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **Benchmark the scanner:** `cd src-tauri && NOEXPLORER_BENCH_DIR=~/some/big/folder cargo test --release bench_scan -- --ignored --nocapture`. Compare with `du -sk -x` and `ncdu -x -t 8 -0 -o /dev/null` (warm cache; run twice).
 - **`reqwest` 0.13 hides `.form()` behind a feature**: `webdav.rs` builds form bodies itself (`FormExt::form_body`) so the shared reqwest build stays unchanged. Install the rustls ring provider before building a client (`webdav::http()` does).
 - **`nxr://` responses must not set `Content-Length`**: the webview adds it, and a duplicate makes macOS video stay at `readyState 0`. Keep the CORS headers too: `fetch()` from the app's origin preflights.
+- **Box rotates its refresh token on every refresh**: always persist the new one (`BoxCom::access` → `save_refresh`), or the account is signed out on the next launch. The redirect URI is fixed at `http://127.0.0.1:53682/callback` and must match the user's Box app.
+- **Box has no test account here**: `box_roundtrip_against_mock` (in `box_api.rs`) is the safety net. Keep the mock in step with any API change, and say "beta" until a real run is confirmed.
+- **Compare must never call a file "verified" without reproducing the server's hash.** Unknown multipart part sizes and KMS ETags count as "same size".
 - **`quick-xml` 0.42 gives names as `&str`, and entities arrive as separate `GeneralRef` events** (`parse_multistatus` handles both).
 - **File lists are virtualized** ([ADR-021](docs/DECISIONS.md#adr-021)). Only rows near the viewport exist as `.row` elements. Read rows from `pane.view` / `pane.selected`, scroll with `selectIndex`, and keep every row the same height.
 - **Dev builds keep their secrets under the `com.vnappmob.noexplorer.dev` keychain service.** macOS may ask for keychain access after a rebuild (ad-hoc signature); release builds don't.

@@ -4,7 +4,7 @@
 
 import type { Profile, ProviderKind } from "./types";
 
-export type ProviderId = "custom" | "aws" | "r2" | "b2" | "wasabi" | "do" | "nextcloud" | "webdav";
+export type ProviderId = "custom" | "aws" | "r2" | "b2" | "wasabi" | "do" | "nextcloud" | "webdav" | "box";
 
 type Preset = {
   label: string;
@@ -100,6 +100,17 @@ export const PRESETS: Record<ProviderId, Preset> = {
     pathStyle: true,
     matches: () => false,
   },
+  box: {
+    kind: "box",
+    label: "Box",
+    hint: "Uses your own Box app: Box Developer Console → Create Platform App → Custom App → User Authentication (OAuth 2.0). Set the Redirect URI to http://127.0.0.1:53682/callback, tick Read and Write all files and folders, then paste the Client ID and Client secret here.",
+    endpointPlaceholder: "",
+    endpointRequired: false,
+    regionPlaceholder: "",
+    region: "",
+    pathStyle: true,
+    matches: () => false,
+  },
   webdav: {
     kind: "webdav",
     label: "WebDAV",
@@ -120,7 +131,7 @@ export function endpointHost(endpoint: string) {
 
 /** Which preset an existing account looks like (S3 with an empty endpoint = AWS). */
 export function guessProvider(p: Pick<Profile, "endpoint"> & { kind?: ProviderKind }): ProviderId {
-  if (p.kind === "nextcloud" || p.kind === "webdav") return p.kind;
+  if (p.kind === "nextcloud" || p.kind === "webdav" || p.kind === "box") return p.kind;
   const h = endpointHost(p.endpoint);
   for (const id of ["aws", "r2", "b2", "wasabi", "do"] as const) if (PRESETS[id].matches(h)) return id;
   return "custom";
@@ -129,6 +140,7 @@ export function guessProvider(p: Pick<Profile, "endpoint"> & { kind?: ProviderKi
 /** One-line summary for account lists: "AWS S3 · ap-southeast-1", "minio.example.com". */
 export function describeAccount(p: Profile) {
   const id = guessProvider(p);
+  if (id === "box") return "Box";
   if (id === "nextcloud" || id === "webdav") return `${PRESETS[id].label} · ${endpointHost(p.endpoint)}`;
   if (id === "aws") return p.region ? `AWS S3 · ${p.region}` : "AWS S3";
   const host = endpointHost(p.endpoint);

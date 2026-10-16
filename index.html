@@ -156,18 +156,19 @@
                   <option value="do">DigitalOcean Spaces</option>
                   <option value="nextcloud">Nextcloud / ownCloud</option>
                   <option value="webdav">WebDAV (NAS, any server)</option>
+                  <option value="box">Box (beta)</option>
                 </select>
               </label>
               <label>Name <input name="name" placeholder="e.g. Home NAS, Company MinIO" spellcheck="false" /></label>
             </div>
             <p id="acct-hint"></p>
-            <label><span id="lbl-endpoint">Endpoint</span>
+            <label id="acct-endpoint-row"><span id="lbl-endpoint">Endpoint</span>
               <input name="endpoint" placeholder="https://s3.example.com or http://192.168.1.10:9000" required spellcheck="false" />
             </label>
             <div id="acct-signin" class="signin" hidden>
               <button type="button" id="acct-nc-login" class="primary">Sign in with Nextcloud…</button>
               <button type="button" id="acct-nc-cancel" hidden>Cancel</button>
-              <small>Opens your browser. Or enter a user name and an app password below.</small>
+              <small id="acct-signin-hint">Opens your browser. Or enter a user name and an app password below.</small>
             </div>
             <div class="row2 s3-only">
               <label>Region <input name="region" placeholder="us-east-1" spellcheck="false" /></label>

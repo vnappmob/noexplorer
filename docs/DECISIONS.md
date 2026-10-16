@@ -499,3 +499,57 @@ need an auth header.
 (`scripts/dev-nextcloud.sh`): listing, 40 MB chunked upload, upload into new folders,
 byte-exact download, ranged reads, shares, mkdir, delete, and in-app previews (image, video seek,
 PDF). Plain WebDAV can't make share links. Listing a very large tree is one PROPFIND per folder.
+
+<a id="adr-027"></a>
+
+## ADR-027: Box through the user's own OAuth app (beta)
+Accepted · 2026-10-16
+
+**Context.** NoExplorer is open source, so it can't ship a Box client secret. The maintainer
+chose bring-your-own-app, the way rclone and Cyberduck handle it. There was no Box account
+available to test against while building it.
+**Decision.**
+- `box_api.rs` is a `Remote` variant (`ProviderKind::Box`). It talks to the REST API on the shared
+  reqwest/rustls client, with SHA-1 and base64 from crates already in the tree.
+- Sign-in (`box_login`): the user's Client ID and secret, the browser's authorize page, and a
+  loopback listener on the fixed redirect `http://127.0.0.1:53682/callback` (registered in the
+  Box app) with a `state` check. The code is exchanged for tokens.
+- Tokens: the access token stays in memory. The refresh token rotates on every refresh, so it is
+  saved to the keychain each time (`box-refresh:<profile id>`, via the global store that
+  `secrets::init` sets up). Refreshes are serialized, a 401 refreshes once and retries, and a 429
+  waits for Retry-After.
+- Paths are mapped to IDs through a cache that listings fill; a missing path resolves by listing
+  its parents (Box forbids duplicate names in a folder).
+- Uploads under 50 MB use one multipart POST, built by hand and streamed (no `multipart`
+  feature). Larger files use an upload session: parts read in order (whole-file SHA-1), 4 in
+  flight, each with its own SHA-1, then a commit that retries on 202. An existing name gets a new
+  version instead of a conflict. Deletes go to the Box trash. "Copy link" makes an open shared
+  link that expires.
+**Consequences.** Covered by `box_roundtrip_against_mock`, an in-memory Box API that checks part
+and file digests, paging, token rotation, 401 retry, versions, ranges, shares and trash. It has
+**not yet run against the real Box service**, so it is labeled beta in the UI until the
+maintainer confirms it. Expiring links may be refused on free Box plans; Box's message is shown.
+
+<a id="adr-028"></a>
+
+## ADR-028: Compare folders with server-side hashes
+Accepted · 2026-10-16
+
+**Context.** After uploading a folder, the maintainer saw 1,932 files locally and 1,928 on the
+remote. They needed a way to see exactly what differs and to prove that the files that are
+there are intact.
+**Decision.**
+- `compare.rs` pairs files by path relative to the two roots: missing on the remote, missing
+  locally, size differs. Junk the uploader skips on purpose (`SKIP_NAMES`: `.DS_Store`,
+  `Thumbs.db`, `desktop.ini`) and symlinks (never followed) are reported separately, and the
+  dialog explains the count gap in plain words.
+- "Verify" checks content without downloading. The local file is hashed (in parallel, up to 6
+  files) and compared with what the server already has: S3 ETag (MD5; multipart = MD5 of part
+  MD5s, tried with NoExplorer's own part size first, then common sizes from aws-cli, rclone,
+  s3cmd…), Box SHA-1, or Nextcloud `oc:checksums`. When no hash can be reproduced (SSE-KMS
+  ETags, unknown part sizes, plain WebDAV), the file counts as "same size", never "verified".
+- Fixes are one click: `upload_rel` (missing and changed files) and `download_rel` (files only
+  on the remote; `safe_rel` on server paths, never overwriting locally).
+**Consequences.** Tested on dev S3 (`compare_s3_roundtrip`: deleted, remote-only, same-size
+edit, size change, junk, a 20 MB multipart file verified). Hashing reads every compared byte
+once (twice for multipart files with two candidate part sizes).

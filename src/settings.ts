@@ -100,10 +100,23 @@ function applyPreset(id: ProviderId, fill: boolean) {
   form()
     .querySelectorAll<HTMLElement>(".s3-only")
     .forEach((el) => (el.hidden = !s3));
-  $("acct-signin").hidden = pr.kind !== "nextcloud";
+  const box = pr.kind === "box";
+  $("acct-signin").hidden = pr.kind !== "nextcloud" && !box;
+  $("acct-nc-login").textContent = box ? "Sign in with Box…" : "Sign in with Nextcloud…";
+  $("acct-signin-hint").textContent = box
+    ? "Opens your browser to approve your Box app. Fill in the Client ID and secret below first."
+    : "Opens your browser. Or enter a user name and an app password below.";
+  $("acct-endpoint-row").hidden = box;
+  endpoint.required = pr.endpointRequired && !box;
   $("lbl-endpoint").textContent = s3 ? "Endpoint" : pr.kind === "nextcloud" ? "Server address" : "WebDAV URL";
-  $("lbl-access").textContent = s3 ? "Access key" : "User name";
-  $("lbl-secret").textContent = s3 ? "Secret key" : pr.kind === "nextcloud" ? "App password" : "Password";
+  $("lbl-access").textContent = s3 ? "Access key" : box ? "Client ID" : "User name";
+  $("lbl-secret").textContent = s3
+    ? "Secret key"
+    : box
+      ? "Client secret"
+      : pr.kind === "nextcloud"
+        ? "App password"
+        : "Password";
   input("access_key").required = pr.kind !== "nextcloud";
   if (!fill) return;
   if (guessProvider({ endpoint: endpoint.value }) !== id || !s3) endpoint.value = "";
@@ -154,6 +167,8 @@ async function testAccount(): Promise<boolean> {
 /** Save = test first, then persist and switch the remote pane to this account. */
 async function saveAccount(ev: Event) {
   ev.preventDefault();
+  // Box accounts are created by signing in (that's where the tokens come from).
+  if (readForm().kind === "box") return boxSignIn();
   if (!(await testAccount())) return;
   try {
     const s = await invoke<Settings>("save_profile", { profile: readForm() });
@@ -161,6 +176,32 @@ async function saveAccount(ev: Event) {
     dialog().close();
   } catch (e) {
     setMsg(`✗ ${e}`, "err");
+  }
+}
+
+/** Box with the user's own OAuth app: the browser approves, the backend saves the account and
+ * its tokens (keychain). */
+async function boxSignIn() {
+  const clientId = input("access_key").value.trim();
+  if (!clientId) return (setMsg("Enter your Box app's Client ID first.", "err"), input("access_key").focus());
+  const btn = $<HTMLButtonElement>("acct-nc-login");
+  btn.disabled = true;
+  $("acct-nc-cancel").hidden = false;
+  setMsg("Approve the app in the browser window that just opened…");
+  try {
+    const s = await invoke<Settings>("box_login", {
+      clientId,
+      clientSecret: input("secret_key").value,
+      id: editing || null,
+      name: input("name").value,
+    });
+    await applySettings(s);
+    dialog().close();
+  } catch (e) {
+    setMsg(`✗ ${e}`, "err");
+  } finally {
+    btn.disabled = false;
+    $("acct-nc-cancel").hidden = true;
   }
 }
 
@@ -366,7 +407,7 @@ export function setupSettings() {
   listen("tray-add-account", addAccount);
   form().addEventListener("submit", saveAccount);
   $("acct-test").onclick = testAccount;
-  $("acct-nc-login").onclick = nextcloudSignIn;
+  $("acct-nc-login").onclick = () => (readForm().kind === "box" ? boxSignIn() : nextcloudSignIn());
   $("acct-nc-cancel").onclick = () => invoke("cancel_login");
   $("acct-delete").onclick = deleteAccount;
   $("acct-add").onclick = () => editAccount(null);

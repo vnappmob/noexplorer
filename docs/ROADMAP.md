@@ -27,7 +27,8 @@ One patch release per step, released only when the maintainer approves.
    MOVE, COPY, DELETE), Nextcloud chunked upload v2 for big files, and sign-in with **Login
    Flow v2** (browser approval, app password into the keychain). Also covers ownCloud, NAS WebDAV
    and any WebDAV server.
-2. **Box**: REST API with **bring-your-own OAuth app** (Custom App, user authentication). Users
+2. ✅ (beta) **Box** (ADR-027): needs a first run against real Box (no test account here; covered by
+   an in-memory mock). Original plan — REST API with **bring-your-own OAuth app** (Custom App, user authentication). Users
    paste the Client ID and secret; sign-in is PKCE through the system browser with a loopback
    redirect. A path↔ID cache (Box is ID-based) and chunked upload over 50 MB.
 3. **Split remote views**: the right column holds 1–3 views stacked top/bottom, each with its own
@@ -38,6 +39,8 @@ One patch release per step, released only when the maintainer approves.
 Not planned: Google Drive (dropped by the maintainer on 2026-10-16), and exposing sync-client
 folders (iCloud Drive, `~/Library/CloudStorage`) as Places. iCloud Drive has no public API for
 third-party desktop apps.
+
+**Also done:** Compare folders with checksums (ADR-028).
 
 ## Tier 1: daily-driver parity (next)
 

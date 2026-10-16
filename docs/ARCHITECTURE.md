@@ -39,6 +39,8 @@ This is the deep reference. For orientation, read [AGENTS.md](../AGENTS.md) firs
 | `s3.rs` | S3 provider | `make_client(_in)` (path-style, checksums), `detect_bucket_region`, `S3` (per-bucket region cache, `client_for`), multipart upload, streamed `.part` downloads, tuning constants |
 | `webdav.rs` | Nextcloud / WebDAV provider | `Dav` (own client: PROPFIND/GET Range/PUT/MKCOL/DELETE/MOVE), Nextcloud chunked upload v2 and OCS shares, `parse_multistatus`, Login Flow v2 (`nextcloud_login`, `cancel_login`), shared `http()` client (ADR-026) |
 | `proxy.rs` | Preview proxy | The `nxr://` scheme: streams `Remote::read_range` to the webview with Range + CORS for providers without presigned URLs |
+| `box_api.rs` | Box provider (beta) | `BoxCom`: token refresh with rotation (keychain), path → ID cache, multipart and session uploads with SHA-1, versions, trash deletes, shared links; `box_login` (loopback OAuth) (ADR-027) |
+| `compare.rs` | Compare folders | `compare` / `diff`: local walk (junk, symlinks), `Remote::list_files` with hashes, pairing, parallel hash checks (MD5 / multipart ETag / SHA-1), `"compare-progress"` (ADR-028) |
 | `state.rs` | Shared state | `AppState { settings, remotes, cancels }`. **`remote(account)`** returns the cached `Arc<Remote>` for a profile id (active when `None`); `set_settings()` drops the clients of changed accounts only |
 | `jobs.rs` | Background jobs | `Job` (atomic counters, errors, cancel flag), `Job::spawn` (250 ms ticker + final event), `cancel` |
 | `remote.rs` | Browsing commands | Thin wrappers over `Remote`: `list_buckets`, `list`, `remote_size`, `presign`, `read_text`, `mkdir`, `delete` |
@@ -76,7 +78,11 @@ means the active account (ADR-025).
 | `stop_sizes` | – | – | sizes | Clears the focus and cancels the running scan (auto sizes turned off) |
 | `volume_info` | `path` | `VolumeInfo {name, total, available}` | local | The disk under `path`, for the storage bar. macOS: NSURL volume resource values (available = "important usage", as System Settings shows); Windows: `GetDiskFreeSpaceExW`; Linux: `statvfs` |
 | `nextcloud_login` | `server, id?, name` | `Settings` | webdav | Login Flow v2: opens the browser, polls until approved (20 min), saves the account with its app password in the keychain, makes it active |
-| `cancel_login` | – | – | webdav | Stops a waiting `nextcloud_login` |
+| `cancel_login` | – | – | webdav | Stops a waiting `nextcloud_login` or `box_login` |
+| `box_login` | `client_id, client_secret, id?, name` | `Settings` | box_api | Opens Box's authorize page, waits on `127.0.0.1:53682/callback`, exchanges the code, saves the account (client secret + refresh token in the keychain) |
+| `compare` | `id, account?, bucket, prefix, local, verify` | `Diff` | compare | Local folder vs remote folder; emits `"compare-progress"`; `cancel(id)` stops it |
+| `upload_rel` | `account?, bucket, prefix, root, rels[]` | job id | transfer | Uploads `root/rel` to `prefix + rel` (Compare → Upload) |
+| `download_rel` | `account?, bucket, prefix, root, items[{key: rel, size}]` | job id | transfer | Downloads `prefix + rel` to `root/rel` (`safe_rel`, never overwrites) |
 | `trash_local` | `paths[]` | count | trash | Moves local items to the OS Trash / Recycle Bin. Refuses `/`, home and its parents |
 | `list` | `bucket, prefix` | `Entry[]` | remote | One folder level. Folders have `dir: true` and a key ending in `/` |
 | `presign` | `bucket, key, secs, inline` | URL | remote | `secs` is clamped to 60 s–7 d. `inline` forces Content-Type/Disposition for preview |
@@ -123,6 +129,9 @@ shape.
   "relist": false                                 // the folder's own entries changed: list it again
 }
 ```
+
+**`"compare-progress"`** `{id, phase: "listing" | "hashing" | "done", done, total}` (bytes while
+hashing) is emitted by `compare.rs` for the Compare dialog.
 
 **`"tray-check-updates"`** is emitted by `tray.rs` when the tray's "Check for Updates…" is
 clicked. `updater.ts` runs a manual check. **`"tray-open-account"`** (payload: profile id) and
@@ -252,6 +261,7 @@ Imports go one way to avoid cycles: `main → (actions, dnd, keyboard, menu, set
 | What | Where |
 |---|---|
 | Accounts + General (`Settings`, JSON, mode 0600; secret keys only when no OS store is available) | `<app config dir>/config.json`: macOS `~/Library/Application Support/com.vnappmob.noexplorer/`, Windows `%APPDATA%\com.vnappmob.noexplorer\`, Linux `~/.config/com.vnappmob.noexplorer/` |
+| Box refresh tokens | OS credential store, `account = box-refresh:<profile id>` (rotated on every refresh) |
 | Secret keys | OS credential store: Keychain / Credential Manager / Secret Service, `service = <app identifier>`, `account = <profile id>` |
 | UI preferences (`localStorage`) | `bucket@<profileId>`, `prefix@<profileId>`, `localPath`, `hidden`, `local.sortBy`, `local.sortDir`, `remote.sortBy`, `remote.sortDir`, `theme`, `textSize`, `split` |
 | "Open" temp files | `$TMP/noexplorer/` (wiped at startup) |

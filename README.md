@@ -49,8 +49,12 @@ and you're done.
   files means **Move to Trash** (recoverable).
 - **Self-hosted friendly**: path-style requests are on by default, and the connection test
   works even when the key can't list buckets.
-- **S3, Nextcloud and WebDAV**: AWS, R2, B2, Wasabi, MinIO… plus Nextcloud/ownCloud (sign in
-  through the browser) and any WebDAV server or NAS. Previews and transfers work the same way.
+- **S3, Nextcloud, WebDAV and Box (beta)**: AWS, R2, B2, Wasabi, MinIO… plus Nextcloud/ownCloud
+  (sign in through the browser), any WebDAV server or NAS, and Box with your own app. Previews and
+  transfers work the same way everywhere.
+- **Compare folders**: after a backup, see exactly what's missing or different on each side.
+  Contents are checked by checksum without downloading, system junk (`.DS_Store`…) is explained,
+  and one click uploads or downloads the difference.
 - **Multiple accounts**: switch between servers from the remote pane header, or straight from
   the menu bar / tray.
 - **Runs in the background**: close the window and NoExplorer stays in the menu bar / tray,
@@ -83,6 +87,12 @@ you like, then switch between them from the picker in the remote pane header.
 Nextcloud…**. Approve in the browser and you're done (NoExplorer gets its own app password, kept
 in your system keychain). **WebDAV / NAS:** pick *WebDAV* and enter the folder URL, user name and
 password.
+
+**Box (beta):** Box needs your own (free) app, because an open-source app can't ship a secret. In
+the [Box Developer Console](https://app.box.com/developers/console): *Create Platform App →
+Custom App → User Authentication (OAuth 2.0)*. Set the **Redirect URI** to
+`http://127.0.0.1:53682/callback` and tick *Read and write all files and folders*. Then pick *Box*
+in NoExplorer, paste the **Client ID** and **Client secret**, and click **Sign in with Box…**.
 
 **S3 and compatible services:**
 

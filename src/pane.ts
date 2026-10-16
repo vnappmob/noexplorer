@@ -123,7 +123,8 @@ export class Pane {
     store.set(profileKey("bucket"), app.bucket);
     store.set(profileKey("prefix"), this.cwd);
     const kind = activeProfile()?.kind ?? "s3";
-    this.q(".scheme").textContent = kind === "s3" ? "s3://" : kind === "nextcloud" ? "nextcloud://" : "dav://";
+    this.q(".scheme").textContent =
+      kind === "s3" ? "s3://" : kind === "nextcloud" ? "nextcloud://" : kind === "box" ? "box://" : "dav://";
     this.crumbs = [{ name: app.bucket || "—", path: "" }];
     let acc = "";
     for (const p of this.cwd.split("/").filter(Boolean)) {
@@ -169,6 +170,7 @@ export class Pane {
     const base = p.endpoint.replace(/\/+$/, "");
     if (p.kind === "nextcloud") return `${base}/remote.php/dav/files/${encodeURIComponent(p.access_key)}/${this.cwd}`;
     if (p.kind === "webdav") return `${base}/${this.cwd}`;
+    if (p.kind === "box") return `box://${this.cwd}`;
     return `s3://${app.bucket}/${this.cwd}`;
   }
 

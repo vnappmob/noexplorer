@@ -852,6 +852,376 @@ fn rfc3339_in(secs: u64) -> String {
 mod tests {
     use super::*;
 
+    // ---------- a tiny in-memory Box API, enough to drive BoxCom end to end ----------
+
+    #[derive(Clone)]
+    struct Node {
+        parent: u64,
+        name: String,
+        dir: bool,
+        data: Vec<u8>,
+    }
+
+    /// Upload session: (parent folder, name, size, existing file, parts by offset).
+    type Session = (u64, String, u64, Option<u64>, Vec<(u64, Vec<u8>)>);
+
+    #[derive(Default)]
+    struct Mock {
+        next: u64,
+        nodes: HashMap<u64, Node>,
+        sessions: HashMap<String, Session>,
+        refresh: String,
+        access: String,
+        /// Answer the next API call with 401 (to test refresh + retry).
+        expire_next: bool,
+        refreshes: u32,
+    }
+
+    impl Mock {
+        fn id(&mut self) -> u64 {
+            self.next += 1;
+            self.next
+        }
+        fn child(&self, parent: u64, name: &str) -> Option<u64> {
+            self.nodes.iter().find(|(_, n)| n.parent == parent && n.name == name).map(|(i, _)| *i)
+        }
+        fn file_json(&self, id: u64) -> Value {
+            let n = &self.nodes[&id];
+            json!({ "type": if n.dir { "folder" } else { "file" }, "id": id.to_string(), "name": n.name,
+                    "size": n.data.len(), "modified_at": "2026-10-16T10:00:00-07:00",
+                    "sha1": if n.dir { String::new() } else { hex(&Sha1::digest(&n.data)) } })
+        }
+    }
+
+    fn hex(b: &[u8]) -> String {
+        b.iter().map(|x| format!("{x:02x}")).collect()
+    }
+
+    /// Reads one HTTP request (Content-Length or chunked body).
+    async fn read_req(sock: &mut tokio::net::TcpStream) -> Option<(String, String, HashMap<String, String>, Vec<u8>)> {
+        let mut buf = vec![];
+        let mut tmp = [0u8; 65536];
+        let head_end = loop {
+            if let Some(i) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                break i;
+            }
+            let n = sock.read(&mut tmp).await.ok()?;
+            if n == 0 {
+                return None;
+            }
+            buf.extend_from_slice(&tmp[..n]);
+        };
+        let head = String::from_utf8_lossy(&buf[..head_end]).to_string();
+        let mut lines = head.split("\r\n");
+        let mut first = lines.next()?.split_whitespace();
+        let (method, target) = (first.next()?.to_string(), first.next()?.to_string());
+        let headers: HashMap<String, String> = lines
+            .filter_map(|l| l.split_once(':'))
+            .map(|(k, v)| (k.trim().to_ascii_lowercase(), v.trim().to_string()))
+            .collect();
+        let mut body = buf[head_end + 4..].to_vec();
+        if let Some(len) = headers.get("content-length").and_then(|l| l.parse::<usize>().ok()) {
+            while body.len() < len {
+                let n = sock.read(&mut tmp).await.ok()?;
+                if n == 0 {
+                    break;
+                }
+                body.extend_from_slice(&tmp[..n]);
+            }
+        } else if headers.get("transfer-encoding").is_some_and(|t| t.contains("chunked")) {
+            loop {
+                if let Some(end) = find_chunked_end(&body) {
+                    body = dechunk(&body[..end]);
+                    break;
+                }
+                let n = sock.read(&mut tmp).await.ok()?;
+                if n == 0 {
+                    break;
+                }
+                body.extend_from_slice(&tmp[..n]);
+            }
+        }
+        Some((method, target, headers, body))
+    }
+
+    fn find_chunked_end(b: &[u8]) -> Option<usize> {
+        b.windows(5).position(|w| w == b"0\r\n\r\n").map(|i| i + 5)
+    }
+
+    fn dechunk(mut b: &[u8]) -> Vec<u8> {
+        let mut out = vec![];
+        loop {
+            let Some(i) = b.windows(2).position(|w| w == b"\r\n") else { return out };
+            let len = usize::from_str_radix(String::from_utf8_lossy(&b[..i]).trim(), 16).unwrap_or(0);
+            if len == 0 {
+                return out;
+            }
+            out.extend_from_slice(&b[i + 2..i + 2 + len]);
+            b = &b[i + 2 + len + 2..];
+        }
+    }
+
+    fn respond(status: u16, body: &[u8], extra: &str) -> Vec<u8> {
+        let mut r = format!(
+            "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n{extra}\r\n",
+            body.len()
+        )
+        .into_bytes();
+        r.extend_from_slice(body);
+        r
+    }
+
+    /// Multipart body → (attributes JSON, file bytes).
+    fn parse_multipart(body: &[u8], boundary: &str) -> (Value, Vec<u8>) {
+        let text = |b: &[u8]| String::from_utf8_lossy(b).to_string();
+        let sep = format!("--{boundary}");
+        let pos = |hay: &[u8], needle: &[u8], from: usize| {
+            hay[from..].windows(needle.len()).position(|w| w == needle).map(|i| i + from)
+        };
+        let a0 = pos(body, b"\r\n\r\n", 0).unwrap() + 4;
+        let a1 = pos(body, format!("\r\n{sep}").as_bytes(), a0).unwrap();
+        let attrs: Value = serde_json::from_str(&text(&body[a0..a1])).unwrap();
+        let f0 = pos(body, b"\r\n\r\n", a1 + 2).unwrap() + 4;
+        let f1 = pos(body, format!("\r\n{sep}--").as_bytes(), f0).unwrap();
+        (attrs, body[f0..f1].to_vec())
+    }
+
+    async fn serve(state: Arc<Mutex<Mock>>, mut sock: tokio::net::TcpStream) {
+        let Some((method, target, headers, body)) = read_req(&mut sock).await else { return };
+        let (path, query) = target.split_once('?').unwrap_or((&target, ""));
+        let path = path.to_string();
+        let reply = {
+            let mut m = state.lock().unwrap();
+            if path == "/oauth2/token" {
+                let f = parse_query(&String::from_utf8_lossy(&body));
+                if f.get("refresh_token") != Some(&m.refresh) {
+                    respond(400, br#"{"error":"invalid_grant"}"#, "")
+                } else {
+                    m.refreshes += 1;
+                    m.refresh = format!("refresh-{}", m.refreshes);
+                    m.access = format!("access-{}", m.refreshes);
+                    respond(
+                        200,
+                        json!({ "access_token": m.access, "refresh_token": m.refresh, "expires_in": 3600 })
+                            .to_string()
+                            .as_bytes(),
+                        "",
+                    )
+                }
+            } else if headers.get("authorization") != Some(&format!("Bearer {}", m.access)) || m.expire_next {
+                m.expire_next = false;
+                respond(401, br#"{"message":"expired"}"#, "")
+            } else {
+                let seg: Vec<&str> = path.trim_start_matches('/').split('/').collect();
+                match (method.as_str(), seg.as_slice()) {
+                    ("GET", ["2.0", "users", "me"]) => respond(200, br#"{"id":"1","login":"dev@example.com"}"#, ""),
+                    ("GET", ["2.0", "folders", id, "items"]) => {
+                        let id: u64 = id.parse().unwrap();
+                        let mut kids: Vec<u64> =
+                            m.nodes.iter().filter(|(_, n)| n.parent == id).map(|(i, _)| *i).collect();
+                        kids.sort();
+                        let q = parse_query(query);
+                        let (off, lim) = (q["offset"].parse::<usize>().unwrap(), 2usize); // tiny pages: test paging
+                        let page: Vec<Value> = kids.iter().skip(off).take(lim).map(|k| m.file_json(*k)).collect();
+                        respond(200, json!({ "total_count": kids.len(), "entries": page }).to_string().as_bytes(), "")
+                    }
+                    ("POST", ["2.0", "folders"]) => {
+                        let v: Value = serde_json::from_slice(&body).unwrap();
+                        let parent: u64 = v["parent"]["id"].as_str().unwrap().parse().unwrap();
+                        let name = v["name"].as_str().unwrap().to_string();
+                        if let Some(c) = m.child(parent, &name) {
+                            respond(
+                                409,
+                                json!({ "context_info": { "conflicts": [{ "id": c.to_string() }] } })
+                                    .to_string()
+                                    .as_bytes(),
+                                "",
+                            )
+                        } else {
+                            let id = m.id();
+                            m.nodes.insert(id, Node { parent, name, dir: true, data: vec![] });
+                            respond(201, json!({ "id": id.to_string() }).to_string().as_bytes(), "")
+                        }
+                    }
+                    ("POST", ["api", "2.0", "files", rest @ ..]) if rest.last() == Some(&"content") => {
+                        let boundary = headers["content-type"].split("boundary=").nth(1).unwrap().to_string();
+                        let (attrs, data) = parse_multipart(&body, &boundary);
+                        let parent: u64 = attrs["parent"]["id"].as_str().unwrap().parse().unwrap();
+                        let name = attrs["name"].as_str().unwrap().to_string();
+                        let target = if rest.len() == 2 { rest[0].parse::<u64>().ok() } else { None };
+                        match (target, m.child(parent, &name)) {
+                            (None, Some(c)) => respond(
+                                409,
+                                json!({ "context_info": { "conflicts": { "id": c.to_string() } } })
+                                    .to_string()
+                                    .as_bytes(),
+                                "",
+                            ),
+                            (t, c) => {
+                                let id = t.or(c).unwrap_or_else(|| m.id());
+                                m.nodes.insert(id, Node { parent, name, dir: false, data });
+                                respond(201, json!({ "entries": [m.file_json(id)] }).to_string().as_bytes(), "")
+                            }
+                        }
+                    }
+                    ("POST", ["api", "2.0", "files", rest @ ..]) if rest.last() == Some(&"upload_sessions") => {
+                        let v: Value = serde_json::from_slice(&body).unwrap();
+                        let size = v["file_size"].as_u64().unwrap();
+                        let (parent, name, existing) = if rest.len() == 2 {
+                            let id: u64 = rest[0].parse().unwrap();
+                            (m.nodes[&id].parent, m.nodes[&id].name.clone(), Some(id))
+                        } else {
+                            (
+                                v["folder_id"].as_str().unwrap().parse().unwrap(),
+                                v["file_name"].as_str().unwrap().to_string(),
+                                None,
+                            )
+                        };
+                        let sid = format!("s{}", m.id());
+                        m.sessions.insert(sid.clone(), (parent, name, size, existing, vec![]));
+                        let part = 8 * 1024 * 1024u64;
+                        respond(
+                            201,
+                            json!({ "id": sid, "part_size": part, "total_parts": size.div_ceil(part) })
+                                .to_string()
+                                .as_bytes(),
+                            "",
+                        )
+                    }
+                    ("PUT", ["api", "2.0", "files", "upload_sessions", sid]) => {
+                        let digest = headers["digest"].trim_start_matches("sha=").to_string();
+                        assert_eq!(digest, b64(&Sha1::digest(&body)), "part digest");
+                        let off: u64 = headers["content-range"].split(['-', ' ']).nth(1).unwrap().parse().unwrap();
+                        m.sessions.get_mut(*sid).unwrap().4.push((off, body.clone()));
+                        respond(
+                            200,
+                            json!({ "part": { "part_id": format!("p{off}"), "offset": off, "size": body.len() } })
+                                .to_string()
+                                .as_bytes(),
+                            "",
+                        )
+                    }
+                    ("POST", ["api", "2.0", "files", "upload_sessions", sid, "commit"]) => {
+                        let (parent, name, size, existing, mut parts) = m.sessions.remove(*sid).unwrap();
+                        parts.sort_by_key(|p| p.0);
+                        let data: Vec<u8> = parts.into_iter().flat_map(|p| p.1).collect();
+                        assert_eq!(data.len() as u64, size);
+                        assert_eq!(
+                            headers["digest"].trim_start_matches("sha="),
+                            b64(&Sha1::digest(&data)),
+                            "whole-file digest"
+                        );
+                        let id = existing.unwrap_or_else(|| m.id());
+                        m.nodes.insert(id, Node { parent, name, dir: false, data });
+                        respond(201, json!({ "entries": [m.file_json(id)] }).to_string().as_bytes(), "")
+                    }
+                    ("GET", ["2.0", "files", id, "content"]) => {
+                        let data = m.nodes[&id.parse::<u64>().unwrap()].data.clone();
+                        match headers
+                            .get("range")
+                            .and_then(|r| r.strip_prefix("bytes="))
+                            .and_then(|r| r.split_once('-'))
+                        {
+                            Some((a, b)) => {
+                                let a: usize = a.parse().unwrap();
+                                let b = b.parse::<usize>().unwrap_or(data.len() - 1).min(data.len() - 1);
+                                respond(206, &data[a..=b], &format!("Content-Range: bytes {a}-{b}/{}\r\n", data.len()))
+                            }
+                            None => respond(200, &data, ""),
+                        }
+                    }
+                    ("DELETE", ["2.0", kind, id]) => {
+                        let id: u64 = id.parse().unwrap();
+                        let mut gone = vec![id];
+                        while let Some(g) = gone.pop() {
+                            m.nodes.remove(&g);
+                            gone.extend(m.nodes.iter().filter(|(_, n)| n.parent == g).map(|(i, _)| *i));
+                        }
+                        let _ = kind;
+                        respond(204, b"", "")
+                    }
+                    ("PUT", ["2.0", _kind, id]) => respond(
+                        200,
+                        json!({ "shared_link": { "url": format!("https://app.box.com/s/{id}") } })
+                            .to_string()
+                            .as_bytes(),
+                        "",
+                    ),
+                    _ => respond(404, br#"{"message":"no route"}"#, ""),
+                }
+            }
+        };
+        let _ = sock.write_all(&reply).await;
+    }
+
+    #[tokio::test]
+    async fn box_roundtrip_against_mock() {
+        let state = Arc::new(Mutex::new(Mock { refresh: "refresh-0".into(), ..Default::default() }));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let st = state.clone();
+        tokio::spawn(async move {
+            while let Ok((sock, _)) = listener.accept().await {
+                tokio::spawn(serve(st.clone(), sock));
+            }
+        });
+        let saved = Arc::new(Mutex::new(String::new()));
+        let saved2 = saved.clone();
+        let p =
+            Profile { id: "bx".into(), access_key: "cid".into(), secret_key: "csecret".into(), ..Default::default() };
+        let ep = Endpoints { api: format!("http://{addr}"), upload: format!("http://{addr}/api") };
+        let b =
+            BoxCom::with(&p, "refresh-0".into(), Arc::new(move |t: &str| *saved2.lock().unwrap() = t.to_string()), ep);
+
+        assert_eq!(b.containers().await.unwrap()[0].name, "All Files");
+        assert_eq!(*saved.lock().unwrap(), "refresh-1", "rotated refresh token saved");
+
+        let dir = std::env::temp_dir().join(format!("nx-box-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let big: Vec<u8> = (0..(60 * 1024 * 1024 + 9)).map(|i| (i * 31 % 251) as u8).collect();
+        std::fs::write(dir.join("big.bin"), &big).unwrap();
+        std::fs::write(dir.join("a.txt"), "hello box").unwrap();
+        let job = Job::untracked("up", "t".into(), "bx", "All Files", "");
+        b.upload_file("", "docs/sub/a.txt", &dir.join("a.txt"), 9, &job).await.unwrap(); // creates docs/ and sub/
+        b.upload_file("", "docs/big.bin", &dir.join("big.bin"), big.len() as u64, &job).await.unwrap(); // session
+        for i in 0..3 {
+            std::fs::write(dir.join("n.txt"), format!("n{i}")).unwrap();
+            b.upload_file("", &format!("docs/n{i}.txt"), &dir.join("n.txt"), 2, &job).await.unwrap();
+        }
+        // A fresh client (empty path cache) must find everything by listing, across pages.
+        state.lock().unwrap().expire_next = true; // and survive an expired token
+        let b2 = BoxCom::with(&p, saved.lock().unwrap().clone(), Arc::new(|_: &str| {}), b.ep.clone());
+        let mut keys: Vec<(String, u64)> = b2.list_all("", "docs/").await.unwrap();
+        keys.sort();
+        assert_eq!(
+            keys,
+            [
+                ("docs/big.bin".to_string(), big.len() as u64),
+                ("docs/n0.txt".into(), 2),
+                ("docs/n1.txt".into(), 2),
+                ("docs/n2.txt".into(), 2),
+                ("docs/sub/a.txt".into(), 9)
+            ]
+        );
+        let files = b2.list("", "docs/sub/").await.unwrap();
+        assert_eq!(files[0].hash.as_deref(), Some(format!("sha1:{}", hex(&Sha1::digest(b"hello box"))).as_str()));
+        // A second upload of the same name is a new version, not a duplicate.
+        std::fs::write(dir.join("a.txt"), "hello again").unwrap();
+        b2.upload_file("", "docs/sub/a.txt", &dir.join("a.txt"), 11, &job).await.unwrap();
+        assert_eq!(b2.list("", "docs/sub/").await.unwrap().len(), 1);
+        b2.download_file("", "docs/big.bin", &dir.join("out.bin"), &job).await.unwrap();
+        assert!(std::fs::read(dir.join("out.bin")).unwrap() == big, "download differs");
+        let (part, total) = b2.read_range("docs/big.bin", 5, Some(14), 1 << 20).await.unwrap();
+        assert_eq!((part.as_slice(), total), (&big[5..15], Some(big.len() as u64)));
+        assert!(b2.link("", "docs/n0.txt", 7 * 86_400, false).await.unwrap().contains("/s/"));
+        b2.mkdir("", "docs/", "made").await.unwrap();
+        assert!(b2.list("", "docs/").await.unwrap().iter().any(|e| e.key == "docs/made/"));
+        assert_eq!(b2.delete("", vec!["docs/".into()]).await.unwrap(), 1);
+        assert!(state.lock().unwrap().nodes.is_empty(), "everything went to the (mock) trash");
+        assert!(state.lock().unwrap().refreshes >= 3, "the expired token was refreshed");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     #[test]
     fn helpers() {
         assert_eq!(parent_of("a/b/c.txt"), "a/b/");

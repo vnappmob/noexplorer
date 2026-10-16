@@ -86,6 +86,8 @@ Run against `dev-s3.sh` **and**, before a release, against a real MinIO.
 - [ ] ⌘⌫ on a local file/folder: it lands in the Trash (Finder "Put Back" works) and the next row is selected
 - [ ] Tray: lists the accounts (✓ on the active one); choosing another opens the window on it; with no account it offers "Add S3 Account…"
 - [ ] Nextcloud: **Sign in with Nextcloud…** opens the browser; after approving, the account appears and lists files. Space previews an image, a PDF and a video (seeking works). Upload a folder and a > 16 MB file, download them back, Copy link gives a `/s/…` share, delete
+- [ ] Box (needs a real Box app, see README): sign in, list, preview, upload small and > 50 MB files, re-upload (new version), download, Copy link, delete (goes to Box trash). Relaunch: still signed in (rotated refresh token was saved)
+- [ ] Compare: upload a folder, delete a remote file, edit a local file keeping its size, add `.DS_Store`; ⌘K → Compare shows each case, Verify marks the edit as "different content", junk is explained, Upload/Download fix it and a re-run says everything matches
 - [ ] WebDAV (any server): list, preview, upload into a new sub-folder, download, delete
 - [ ] A folder with thousands of files (`for i in $(seq 3000); do : > f$i; done`): splitter drag, scrolling to the end and arrow-key selection stay smooth
 - [ ] Left pane: Places menu, breadcrumbs, ↑, filter, sorting, show hidden files
