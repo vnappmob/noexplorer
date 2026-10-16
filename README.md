@@ -42,7 +42,7 @@ and you're done.
 - **Fast**: 6 files in parallel; large files use multipart upload with 4 parts in flight.
 - **Quick look** with Space: images, video, audio, PDF and text, local or remote.
 - **Folder sizes as you browse**, faster than ncdu: every folder on this computer gets its size
-  and an ncdu-style bar, scanned in the background and kept up to date as files change.
+  and a usage meter, scanned in the background and kept up to date as files change.
 - **Safe by design**: the app never permanently deletes or overwrites local files. Downloads that
   would collide become `name (1).ext`, partial downloads never look complete, and removing local
   files means **Move to Trash** (recoverable).

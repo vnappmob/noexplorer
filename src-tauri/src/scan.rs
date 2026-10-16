@@ -9,7 +9,7 @@
 //!   the last one to finish adds the folder's totals to its parent and reports it.
 //! - Apparent sizes (what the file rows show), hard links counted once, symlinks never followed,
 //!   other devices (mount points) not entered. Unreadable or skipped folders mark their ancestors
-//!   `partial` (the UI shows "≥").
+//!   `partial` (the totals are a lower bound; the UI explains it in a tooltip).
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};

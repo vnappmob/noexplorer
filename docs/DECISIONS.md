@@ -386,7 +386,7 @@ just from opening Home.
 - Automatic scans are polite: utility-QoS threads on macOS, same volume as the home folder only,
   and they skip macOS privacy-protected folders (Desktop, Documents, Downloads, ~/Library and its
   app-data folders, the Photos library) until the user has opened them in the app (remembered
-  in `granted.json`). Skipped folders show "—" and their ancestors "≥". Σ scans everything.
+  in `granted.json`). Skipped folders show "—" (their ancestors' totals are lower bounds, explained in a tooltip). Σ scans everything.
   Can be turned off in Settings → General.
 **Consequences.** Measured on an M-series Mac with a warm cache: 224k files take 1.2 s with 1
 thread and 0.55 s with 6. `du -sk` takes 3.6 s, ncdu 2.8 takes 6.4 s (1 thread) and 0.73 s
@@ -394,6 +394,9 @@ thread and 0.55 s with 6. `du -sk` takes 3.6 s, ncdu 2.8 takes 6.4 s (1 thread) 
 a revisit after 0.13 s. A whole home folder (1.3 M files) takes about 6 s in the background.
 Memory is about 100 bytes per indexed folder. Linux only follows changes at a root's top level.
 Remote (S3) folder sizes stay manual (Σ): listing a prefix costs requests.
+
+**Amendment (0.4.2).** The share of the folder is a pill meter beside the size, not an underline,
+and lower bounds no longer get a "≥" prefix (the tooltip explains them).
 
 <a id="adr-023"></a>
 

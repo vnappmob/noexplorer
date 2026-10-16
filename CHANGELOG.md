@@ -5,6 +5,9 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Folder sizes show a modern pill-shaped usage meter beside each size (aligned in one column) instead of a thin underline, and sizes no longer get a "≥" prefix when some folders inside were skipped (hover for the explanation).
+
 ## [0.4.1] - 2026-10-16
 
 ### Added

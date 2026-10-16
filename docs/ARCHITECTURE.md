@@ -108,7 +108,7 @@ shape.
 {
   "folder": "/Users/me/Projects",                 // only sizes for the folder on screen
   "sizes": [{ "path": "/Users/me/Projects/app", "bytes": 1234, "files": 10, "dirs": 2, "skipped": 0 }],
-  "total": { "bytes": 99, "files": 9, "dirs": 1, "skipped": 1 } | null,   // skipped > 0 → "≥"
+  "total": { "bytes": 99, "files": 9, "dirs": 1, "skipped": 1 } | null,   // skipped > 0: a lower bound (tooltip)
   "scanning": true,                               // more will come
   "relist": false                                 // the folder's own entries changed: list it again
 }
@@ -161,8 +161,9 @@ form means "keep the saved one".
 Local pane (ADR-022): after every listing, `paneHooks.listed` → `sizes.ts::requestSizes` →
 `folder_sizes(path, dirs, auto: true)` (when Settings → General → auto sizes is on). Known
 totals come back at once. The rest stream as `"dir-sizes"` into the rows (`Item.calc`,
-`Item.partial` → "≥") and the path-bar total. The Size column then shows an ncdu-style bar
-(`--pct`, the row's share of the folder). Rows are redrawn in place (`Pane.repaintRows`), and
+`Item.partial` → a tooltip) and the path-bar total. The Size column then shows a pill meter
+(`.meter`, width `--pct` = the row's share of the folder; the pane gets `has-meters`, which widens
+the column). Rows are redrawn in place (`Pane.repaintRows`), and
 re-sorted only when the scan ends if sorted by size. `relist` re-lists the folder (live view).
 Σ on the local pane is `folder_sizes(auto: false)`: a full scan including skipped folders.
 Remote pane: Σ calls `remote_size` for the selected folders (or the current one) as before.

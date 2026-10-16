@@ -36,8 +36,7 @@ function apply(d: DirSizes) {
   }
   const out = local.q(".dirsize");
   if (d.total) {
-    const ge = d.total.skipped ? "≥ " : "";
-    out.textContent = `${ge}${fmtSize(d.total.bytes)} · ${plural(d.total.files, "file")}`;
+    out.textContent = `${fmtSize(d.total.bytes)} · ${plural(d.total.files, "file")}`;
     out.title = d.total.skipped
       ? "Some folders were skipped (other disks, private folders you haven't opened yet, or no permission). Click Σ to scan everything."
       : "";
