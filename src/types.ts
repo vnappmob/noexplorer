@@ -41,6 +41,9 @@ export type Item = {
   partial?: boolean;
 };
 
+/** `local::VolumeInfo` — the disk under the local pane's folder (storage bar). */
+export type VolumeInfo = { name: string; total: number; available: number };
+
 /** `scan::Totals` — a folder and everything below it. `skipped` > 0 = a lower bound. */
 export type Totals = { bytes: number; files: number; dirs: number; skipped: number };
 

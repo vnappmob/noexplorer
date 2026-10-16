@@ -150,6 +150,129 @@ pub async fn local_size(path: String) -> Result<SizeInfo, String> {
     .map_err(|e| e.to_string())
 }
 
+/// The disk holding a folder, for the storage bar under the local pane. Mirrors `VolumeInfo` in
+/// `src/types.ts`.
+#[derive(Serialize, Debug)]
+pub struct VolumeInfo {
+    /// "Macintosh HD", "Local Disk (C:)", "/home"…
+    name: String,
+    total: u64,
+    /// What the OS calls available (macOS: including purgeable space, as System Settings shows).
+    available: u64,
+}
+
+#[tauri::command]
+pub async fn volume_info(path: String) -> Result<VolumeInfo, String> {
+    tokio::task::spawn_blocking(move || volume(Path::new(&path)).map_err(|e| format!("{path}: {e}")))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// macOS: the same numbers as System Settings → Storage (NSURL volume resource values).
+#[cfg(target_os = "macos")]
+fn volume(p: &Path) -> Result<VolumeInfo, String> {
+    use objc2::rc::Retained;
+    use objc2::runtime::AnyObject;
+    use objc2_foundation::{
+        NSNumber, NSString, NSURL, NSURLResourceKey, NSURLVolumeAvailableCapacityForImportantUsageKey,
+        NSURLVolumeAvailableCapacityKey, NSURLVolumeLocalizedNameKey, NSURLVolumeTotalCapacityKey,
+    };
+    let url = NSURL::fileURLWithPath(&NSString::from_str(&p.to_string_lossy()));
+    let get = |key: &NSURLResourceKey| -> Option<Retained<AnyObject>> {
+        let mut v = None;
+        // SAFETY: `v` receives whatever object type the key documents; we downcast before use.
+        unsafe { url.getResourceValue_forKey_error(&mut v, key) }.ok()?;
+        v
+    };
+    let num = |key: &NSURLResourceKey| get(key)?.downcast::<NSNumber>().ok().map(|n| n.longLongValue().max(0) as u64);
+    // SAFETY: Foundation's constant keys, valid for the process lifetime.
+    let (k_total, k_important, k_avail, k_name) = unsafe {
+        (
+            NSURLVolumeTotalCapacityKey,
+            NSURLVolumeAvailableCapacityForImportantUsageKey,
+            NSURLVolumeAvailableCapacityKey,
+            NSURLVolumeLocalizedNameKey,
+        )
+    };
+    let total = num(k_total).ok_or("volume size unknown")?;
+    let available = num(k_important).filter(|&a| a > 0).or_else(|| num(k_avail)).unwrap_or(0);
+    let name = get(k_name).and_then(|o| o.downcast::<NSString>().ok()).map(|s| s.to_string()).unwrap_or_default();
+    Ok(VolumeInfo { name, total, available })
+}
+
+#[cfg(windows)]
+fn volume(p: &Path) -> Result<VolumeInfo, String> {
+    use std::os::windows::ffi::OsStrExt;
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn GetDiskFreeSpaceExW(dir: *const u16, avail: *mut u64, total: *mut u64, free: *mut u64) -> i32;
+        #[allow(clippy::too_many_arguments)]
+        fn GetVolumeInformationW(
+            root: *const u16,
+            name: *mut u16,
+            name_len: u32,
+            serial: *mut u32,
+            max_component: *mut u32,
+            flags: *mut u32,
+            fs_name: *mut u16,
+            fs_name_len: u32,
+        ) -> i32;
+    }
+    let root: PathBuf = p.ancestors().last().map(Path::to_path_buf).unwrap_or_else(|| p.to_path_buf());
+    let wide = |q: &Path| q.as_os_str().encode_wide().chain([0]).collect::<Vec<u16>>();
+    let (mut avail, mut total, mut free) = (0u64, 0u64, 0u64);
+    if unsafe { GetDiskFreeSpaceExW(wide(p).as_ptr(), &mut avail, &mut total, &mut free) } == 0 {
+        return Err(std::io::Error::last_os_error().to_string());
+    }
+    let mut label = [0u16; 261];
+    let ok = unsafe {
+        GetVolumeInformationW(
+            wide(&root).as_ptr(),
+            label.as_mut_ptr(),
+            label.len() as u32,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            0,
+        )
+    } != 0;
+    let label = if ok {
+        String::from_utf16_lossy(&label[..label.iter().position(|&c| c == 0).unwrap_or(0)])
+    } else {
+        String::new()
+    };
+    let drive = root.to_string_lossy().trim_end_matches('\\').to_string();
+    let name = if label.is_empty() { format!("Local Disk ({drive})") } else { format!("{label} ({drive})") };
+    Ok(VolumeInfo { name, total, available: avail })
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn volume(p: &Path) -> Result<VolumeInfo, String> {
+    use std::os::unix::ffi::OsStrExt;
+    use std::os::unix::fs::MetadataExt;
+    let c = std::ffi::CString::new(p.as_os_str().as_bytes()).map_err(|e| e.to_string())?;
+    let mut st: libc::statvfs = unsafe { std::mem::zeroed() };
+    if unsafe { libc::statvfs(c.as_ptr(), &mut st) } != 0 {
+        return Err(std::io::Error::last_os_error().to_string());
+    }
+    let block = st.f_frsize as u64;
+    // Name it after its mount point ("/" → the machine's file system).
+    let dev = std::fs::metadata(p).map_err(|e| e.to_string())?.dev();
+    let mut mount = p.to_path_buf();
+    while let Some(parent) = mount.parent() {
+        if std::fs::metadata(parent).ok().map(|m| m.dev()) != Some(dev) {
+            break;
+        }
+        mount = parent.to_path_buf();
+    }
+    let name = match mount.file_name() {
+        Some(n) => n.to_string_lossy().into_owned(),
+        None => "File System".into(),
+    };
+    Ok(VolumeInfo { name, total: st.f_blocks as u64 * block, available: st.f_bavail as u64 * block })
+}
+
 /// First `max` bytes of a local file as (lossy) UTF-8, for the text preview.
 #[tauri::command]
 pub async fn read_local_text(path: String, max: u64) -> Result<String, String> {
@@ -200,6 +323,12 @@ mod tests {
         let l = read_listing(path, true).unwrap();
         assert_eq!(l.entries.len(), 3);
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn volume_of_the_temp_dir_is_sane() {
+        let v = volume(&std::env::temp_dir()).unwrap();
+        assert!(v.total > 0 && v.available <= v.total, "{v:?}");
     }
 
     #[tokio::test]

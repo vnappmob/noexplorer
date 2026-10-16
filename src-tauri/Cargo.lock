@@ -3016,6 +3016,7 @@ dependencies = [
  "libc",
  "mime_guess",
  "notify",
+ "objc2",
  "objc2-foundation",
  "serde",
  "serde_json",

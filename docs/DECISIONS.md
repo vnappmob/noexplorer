@@ -395,8 +395,10 @@ a revisit after 0.13 s. A whole home folder (1.3 M files) takes about 6 s in the
 Memory is about 100 bytes per indexed folder. Linux only follows changes at a root's top level.
 Remote (S3) folder sizes stay manual (Σ): listing a prefix costs requests.
 
-**Amendment (0.4.2).** The share of the folder is a pill meter beside the size, not an underline,
-and lower bounds no longer get a "≥" prefix (the tooltip explains them).
+**Amendment (0.4.2).** No per-row bars. A storage bar under the local pane puts the current
+folder in context: this folder, other used space and available space on its disk
+(`volume_info`; on macOS `NSURLVolumeAvailableCapacityForImportantUsageKey`, the figure System
+Settings shows). Lower bounds no longer get a "≥" prefix (a tooltip explains them).
 
 <a id="adr-023"></a>
 

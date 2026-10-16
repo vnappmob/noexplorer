@@ -67,6 +67,7 @@ Every command returns `Result<T, String>`, and the error string is shown to the 
 | `local_size` | `path` | `SizeInfo` | local | Recursive walk; symlinks are not followed (single folder; the local pane uses `folder_sizes`) |
 | `folder_sizes` | `path, dirs[], auto` | `DirSizes` | sizes | Sets the focus folder, answers `dirs` + `path` from the index, starts a background scan if needed (`auto` = polite rules; false = Σ, scans everything). More arrives as `"dir-sizes"` |
 | `stop_sizes` | – | – | sizes | Clears the focus and cancels the running scan (auto sizes turned off) |
+| `volume_info` | `path` | `VolumeInfo {name, total, available}` | local | The disk under `path`, for the storage bar. macOS: NSURL volume resource values (available = "important usage", as System Settings shows); Windows: `GetDiskFreeSpaceExW`; Linux: `statvfs` |
 | `trash_local` | `paths[]` | count | trash | Moves local items to the OS Trash / Recycle Bin. Refuses `/`, home and its parents |
 | `list` | `bucket, prefix` | `Entry[]` | remote | One folder level. Folders have `dir: true` and a key ending in `/` |
 | `presign` | `bucket, key, secs, inline` | URL | remote | `secs` is clamped to 60 s–7 d. `inline` forces Content-Type/Disposition for preview |
@@ -161,9 +162,9 @@ form means "keep the saved one".
 Local pane (ADR-022): after every listing, `paneHooks.listed` → `sizes.ts::requestSizes` →
 `folder_sizes(path, dirs, auto: true)` (when Settings → General → auto sizes is on). Known
 totals come back at once. The rest stream as `"dir-sizes"` into the rows (`Item.calc`,
-`Item.partial` → a tooltip) and the path-bar total. The Size column then shows a pill meter
-(`.meter`, width `--pct` = the row's share of the folder; the pane gets `has-meters`, which widens
-the column). Rows are redrawn in place (`Pane.repaintRows`), and
+`Item.partial` → a tooltip) and the path-bar total. The storage bar under the pane
+(`footer.disk`, `sizes.ts::drawDisk`) shows the folder's total against its disk from
+`volume_info`: this folder / other used / available. Rows are redrawn in place (`Pane.repaintRows`), and
 re-sorted only when the scan ends if sorted by size. `relist` re-lists the folder (live view).
 Σ on the local pane is `folder_sizes(auto: false)`: a full scan including skipped folders.
 Remote pane: Σ calls `remote_size` for the selected folders (or the current one) as before.
@@ -220,7 +221,7 @@ split (%) in localStorage. It applies them as `<html data-theme>`, the `--fs` CS
 | `pane.ts` | `Pane` class: `cwd`, `entries` → `view` (filter + sort), `selected`, `load/go/up/render/repaintRows/paint/selectIndex`, virtualized rows (ADR-021), size bars. Calls `paneHooks.openFile` for files and `paneHooks.listed` after each listing |
 | `panes.ts` | `local`, `remote`, `active`, `setActive`, `switchTo` |
 | `actions.ts` | `transfer`, `openItem`, `copyLink`, `deleteRemote`, `trashLocal`, `mkdir`, `calcSize`, `paneAction(pane, name)` |
-| `sizes.ts` | Local folder sizes: `requestSizes`, `stopSizes`, the `"dir-sizes"` listener (rows, bars, path-bar total, live re-list) |
+| `sizes.ts` | Local folder sizes: `requestSizes`, `stopSizes`, the `"dir-sizes"` listener (rows, path-bar total, live re-list), and the storage bar (`drawDisk`) |
 | `dnd.ts` | Mouse-event drag between panes (`armDrag` on mousedown, threshold 5 px, ghost label, drop-target highlight) and OS drops |
 | `preview.ts` | Modal state `pv`, `openPreview`, `previewStep`, `closePreview` |
 | `jobs.ts` | `"job"` listener, speed smoothing, the activity card (#activity) with the expandable transfer list, and the transfer beam (#beam) from source to destination |

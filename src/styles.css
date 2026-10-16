@@ -573,7 +573,7 @@ body.resizing * {
 .cols,
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--size-col, 7em) 10em;
+  grid-template-columns: minmax(0, 1fr) 7em 10em;
   gap: 12px;
   padding: 0 14px;
   align-items: center;
@@ -678,34 +678,84 @@ body.resizing * {
   color: var(--accent);
 }
 /* ncdu-style share of the folder: a thin bar under the size, growing from the right */
-/* share of the folder: a pill meter left of the size (pane.ts rowHtml); the column widens for it */
-.pane.has-meters {
-  --size-col: calc(5.5em + 66px);
-}
-.row .size.bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between; /* meters line up in one column, sizes stay right-aligned */
-  gap: 10px;
-}
-.meter {
+/* storage bar under the local pane (sizes.ts drawDisk), like macOS System Settings → Storage */
+.disk {
   flex: none;
-  width: 54px;
-  height: 6px;
-  border-radius: 99px;
-  background: color-mix(in srgb, var(--fg) 9%, transparent);
+  position: relative;
+  z-index: 1;
+  margin: 0 12px 12px;
+  padding: 10px 12px 9px;
+  border-radius: 12px;
+  background: var(--bg2);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.disk-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+  white-space: nowrap;
+}
+.disk-head b {
+  color: var(--fg);
+  font-weight: 600;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
-.meter b {
-  display: block;
+.disk-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--fg) 9%, transparent);
+}
+.disk-bar .seg {
   height: 100%;
-  width: var(--pct);
-  min-width: 3px;
-  border-radius: inherit;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, #7dd3fc), var(--accent));
+  flex: none;
+  transition: width 0.35s ease;
+  box-shadow: 2px 0 0 var(--bg2); /* the thin gap between segments */
 }
-.row.sel .meter {
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
+.seg.here,
+.dot.here {
+  background: var(--accent);
+}
+.seg.here.pending {
+  width: 6% !important;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--accent) 0 6px,
+    color-mix(in srgb, var(--accent) 55%, transparent) 6px 12px
+  );
+  background-size: 34px 100%;
+  animation: stripes 0.8s linear infinite;
+}
+.seg.other,
+.dot.other {
+  background: color-mix(in srgb, var(--fg) 32%, transparent);
+}
+.dot.free {
+  background: color-mix(in srgb, var(--fg) 12%, transparent);
+}
+.disk-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 7px;
+}
+.disk-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.pane.has-disk .mark {
+  bottom: calc(28px + 4.6em + 22px);
 }
 .pane.scanning .calc-size .i {
   animation: spin 1.2s linear infinite;
@@ -1187,6 +1237,7 @@ body.dragging * {
   .beam-spark,
   .running .bar2 i,
   .crumb.target,
+  .seg.here.pending,
   .pane.scanning .calc-size .i {
     animation: none !important;
   }

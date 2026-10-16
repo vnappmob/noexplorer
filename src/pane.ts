@@ -58,8 +58,6 @@ export class Pane {
   private rowsEl: HTMLElement | null = null;
   private rowH = 0;
   private win: [number, number] = [0, 0];
-  /** Denominator of the size meters (sum of the listed sizes), 0 = no meters. */
-  private barTotal = 0;
   /** Local: the automatic size scan of this folder finished; folders still without a size were
    * skipped (other disk, private folder not opened yet) and show "—". Set by sizes.ts. */
   sizesSettled = false;
@@ -263,16 +261,11 @@ export class Pane {
   private rowHtml(i: number) {
     const e = this.view[i];
     const known = !e.dir || e.calc;
-    // Meter: this row's share of the folder (shown once folder sizes are known).
-    const pct = this.barTotal && known ? (e.size / this.barTotal) * 100 : -1;
-    const bar = pct >= 0 ? ` style="--pct:${pct.toFixed(1)}%"` : "";
-    const meter =
-      pct >= 0 ? `<i class="meter" title="${pct < 1 ? "<1" : Math.round(pct)}% of this folder"><b></b></i>` : "";
     const skipped = !known && this.sizesSettled;
     const size = known ? fmtSize(e.size) : skipped ? "—" : "";
     return `<div class="row${this.selected.has(e.key) ? " sel" : ""}" data-i="${i}"${e.dir ? ` data-dir="${esc(e.key)}"` : ""}>
       <span class="name"><span class="ico${e.dir ? " dir" : ""}">${icon(e.dir ? "folder" : FILE_ICON[kindOf(e.name)])}</span><span>${esc(e.name)}</span></span>
-      <span class="size${e.calc ? " calc" : ""}${bar ? " bar" : ""}"${bar}${skipped ? ' title="Not scanned automatically (another disk, or a private folder you haven’t opened yet). Click Σ to scan it."' : e.partial ? ' title="Some folders inside were skipped. Click Σ to include them."' : ""}>${meter}${meter ? `<span>${size}</span>` : size}</span>
+      <span class="size${e.calc ? " calc" : ""}"${skipped ? ' title="Not scanned automatically (another disk, or a private folder you haven’t opened yet). Click Σ to scan it."' : e.partial ? ' title="Some folders inside were skipped. Click Σ to include them."' : ""}>${size}</span>
       <span class="date">${fmtDate(e.modified)}</span>
     </div>`;
   }
@@ -289,8 +282,6 @@ export class Pane {
       force = true;
     }
     const h = this.rowH;
-    this.barTotal = this.view.some((e) => e.dir && e.calc) ? this.view.reduce((s, e) => s + e.size, 0) : 0;
-    this.el.classList.toggle("has-meters", this.barTotal > 0);
     const top = this.list.scrollTop - box.offsetTop;
     const first = Math.max(0, Math.floor(top / h));
     const end = Math.min(n, Math.ceil((top + this.list.clientHeight) / h));

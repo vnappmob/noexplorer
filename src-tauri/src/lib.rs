@@ -94,6 +94,7 @@ pub fn run() {
             transfer::open_object,
             local::list_local,
             local::local_size,
+            local::volume_info,
             sizes::folder_sizes,
             sizes::stop_sizes,
             trash::trash_local,
