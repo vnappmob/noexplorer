@@ -41,7 +41,7 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   popover.ts         Dropdown menus anchored to a chip/button (account, bucket, this computer)
   palette.ts         ⌘K command palette + path editing (⌘L)
   updater.ts         Auto-update: check, banner, install + relaunch
-  sizes.ts           Local folder sizes: request, apply "dir-sizes", size bars, live re-list
+  sizes.ts           Local folder sizes: request, apply "dir-sizes", live re-list, storage bar
   menu.ts            Right-click menu      keyboard.ts  All shortcuts
   types.ts           Types mirrored from Rust     util.ts / files.ts / state.ts  helpers and global state
 index.html           All markup (panes, dialogs, preview)      src/styles.css  All styles (light and dark)
@@ -51,7 +51,7 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   remote.rs          S3 commands: list, presign, read_text, mkdir, delete
   transfer.rs        upload / download / open_object engine (multipart, concurrency)
   jobs.rs            Background Job + "job" progress events + cancel
-  local.rs           Local filesystem commands for the left pane
+  local.rs           Local filesystem commands for the left pane (+ volume_info for the storage bar)
   scan.rs            Parallel folder-size scanner (macOS getattrlistbulk fast path)
   sizes.rs           Live size index: background scans, watchers, "dir-sizes" events
   trash.rs           Move to Trash (macOS / Windows / freedesktop), no extra crates
@@ -63,6 +63,7 @@ site/                Static website → Cloudflare Workers static assets (config
 assets/icon.svg      Icon source → icon.png (render 1024px), then `npx tauri icon assets/icon.png`
 scripts/dev-s3.sh    Local S3 server in Docker for dev and tests
 scripts/bump-version.sh   Sets the version in every place it lives
+scripts/clean-build.sh    Keeps src-tauri/target ≤ 12 GB and ≥ 60 GB free, tiered cleaning (CLAUDE.md storage policy)
 .github/workflows/   ci.yml · release.yml (signed builds → draft release) (website deploys via Cloudflare Workers Builds, not Actions)
 docs/                ARCHITECTURE · DECISIONS (ADRs) · DEVELOPMENT · RELEASING · ROADMAP
 ```
@@ -80,6 +81,7 @@ docs/                ARCHITECTURE · DECISIONS (ADRs) · DEVELOPMENT · RELEASIN
 | Rust tests (unit) | `cd src-tauri && cargo test` |
 | Rust tests (including the S3 round-trip) | `NOEXPLORER_TEST_ENDPOINT=http://localhost:8333 NOEXPLORER_TEST_KEY=devkey NOEXPLORER_TEST_SECRET=devsecret123 cargo test` |
 | Release build | `npm run tauri build` |
+| Keep build output within limits | `npm run clean:build` (tiered; deps are kept). Agents: see the storage policy in `CLAUDE.md` |
 | Preview / deploy the website | `npm run site` (local, wrangler dev) · Cloudflare deploys automatically on push to `main` |
 | Cut a release | `./scripts/bump-version.sh X.Y.Z`, then follow [docs/RELEASING.md](docs/RELEASING.md) |
 

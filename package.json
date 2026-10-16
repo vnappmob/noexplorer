@@ -9,6 +9,7 @@
     "check": "tsc --noEmit && prettier --check src",
     "fmt": "prettier --write src && cd src-tauri && cargo fmt",
     "tauri": "tauri",
+    "clean:build": "bash scripts/clean-build.sh",
     "site": "wrangler dev",
     "site:deploy": "wrangler deploy"
   },
