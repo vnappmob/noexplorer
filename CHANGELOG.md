@@ -5,6 +5,9 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- The VNAppMob link in Settings → About (and on the website) now opens github.com/vnappmob instead of a domain that doesn't resolve.
+
 ## [0.4.0] - 2026-10-16
 
 ### Security
