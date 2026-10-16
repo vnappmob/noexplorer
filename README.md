@@ -62,7 +62,7 @@ and you're done.
 - **Auto-updates**: new versions install in place with one click.
 - **Σ Size** for any folder, local or remote. A path bar always shows where you are.
 - Copy a 7-day share link, create folders, delete from S3, follow progress (with cancel)
-  for every transfer. Theme and text size settings, resizable panes. About 10 MB on macOS.
+  for every transfer. Theme and text size settings, resizable panes. About 13 MB on macOS.
 
 ## Install
 
