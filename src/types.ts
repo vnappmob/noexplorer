@@ -46,6 +46,20 @@ export type Item = {
   partial?: boolean;
 };
 
+/** `compare::Diff` — result of `compare` (Compare dialog). */
+export type Diff = {
+  local_files: number;
+  remote_files: number;
+  only_local: { rel: string; size: number }[];
+  only_remote: { rel: string; size: number }[];
+  changed: { rel: string; local_size: number; remote_size: number; reason: "size" | "content" }[];
+  junk: { rel: string; size: number }[];
+  symlinks: { rel: string; size: number }[];
+  same_verified: number;
+  same_size: number;
+  errors: string[];
+};
+
 /** `local::VolumeInfo` — the disk under the local pane's folder (storage bar). */
 export type VolumeInfo = { name: string; total: number; available: number };
 

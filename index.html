@@ -260,6 +260,30 @@
       </section>
     </dialog>
 
+    <dialog id="compare" aria-label="Compare folders">
+      <header class="cmp-head">
+        <b>Compare folders</b>
+        <span class="spacer"></span>
+        <label class="check"><input type="checkbox" id="cmp-verify" checked /> Verify contents (checksums)</label>
+        <button type="button" id="cmp-run">Compare again</button>
+        <button type="button" class="ib" id="cmp-close" aria-label="Close"><span data-icon="x"></span></button>
+      </header>
+      <p id="cmp-where" class="cmp-where"></p>
+      <div id="cmp-progress" class="cmp-progress" hidden>
+        <span id="cmp-progress-text"></span>
+        <div class="cmp-track"><i id="cmp-progress-bar"></i></div>
+        <button type="button" id="cmp-cancel">Cancel</button>
+      </div>
+      <p id="cmp-verdict" class="cmp-verdict"></p>
+      <nav id="cmp-tabs" class="cmp-tabs"></nav>
+      <div id="cmp-list" class="cmp-list"></div>
+      <footer class="buttons cmp-foot">
+        <button type="button" id="cmp-down">Download</button>
+        <span class="spacer"></span>
+        <button type="button" id="cmp-up" class="primary">Upload</button>
+      </footer>
+    </dialog>
+
     <dialog id="ask">
       <form method="dialog" class="ask-form">
         <b id="ask-title"></b>

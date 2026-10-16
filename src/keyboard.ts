@@ -10,8 +10,7 @@ import { $ } from "./util";
 function onKey(ev: KeyboardEvent) {
   const mod = ev.metaKey || ev.ctrlKey;
   const inInput = ev.target instanceof Element && ev.target.matches("input, select, textarea");
-  if ($<HTMLDialogElement>("settings").open || $<HTMLDialogElement>("ask").open || $<HTMLDialogElement>("palette").open)
-    return;
+  if (["settings", "ask", "palette", "compare"].some((id) => $<HTMLDialogElement>(id).open)) return;
 
   // Preview open: it owns the keyboard.
   if (pv) {

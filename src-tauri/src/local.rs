@@ -120,6 +120,7 @@ fn read_listing(path: Option<String>, hidden: bool) -> Result<LocalListing, Stri
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| d.as_millis() as i64),
             dir: md.is_dir(),
+            hash: None,
         });
     }
     let mut crumbs: Vec<Crumb> =

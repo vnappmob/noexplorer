@@ -28,6 +28,10 @@ pub struct Entry {
     /// Unix millis.
     pub modified: Option<i64>,
     pub dir: bool,
+    /// Content hash the server reports, as `algo:value` (`etag:…` S3, `sha1:…` Box/Nextcloud,
+    /// `md5:…`). Backend-only: used by Compare (`compare.rs`).
+    #[serde(skip)]
+    pub hash: Option<String>,
 }
 
 /// A top-level container (an S3 bucket). Mirrors `BucketInfo` in `src/types.ts`.
@@ -69,6 +73,16 @@ impl Remote {
             Remote::S3(s) => s.containers().await,
             Remote::Dav(d) => d.containers().await,
             Remote::Box(b) => b.containers().await,
+        }
+    }
+
+    /// Every file below `prefix` (no folders or folder markers), with server hashes where the
+    /// provider has them (for Compare).
+    pub async fn list_files(&self, container: &str, prefix: &str) -> Result<Vec<Entry>, String> {
+        match self {
+            Remote::S3(s) => s.list_files(container, prefix).await,
+            Remote::Dav(d) => walk_files(prefix, |dir| async move { d.list(container, &dir).await }).await,
+            Remote::Box(b) => walk_files(prefix, |dir| async move { b.list(container, &dir).await }).await,
         }
     }
 
@@ -166,4 +180,29 @@ impl Remote {
             Remote::Box(b) => b.download_file(container, key, path, job).await,
         }
     }
+}
+
+/// Walks folders level by level (a few at a time) and returns the files.
+async fn walk_files<F, Fut>(prefix: &str, list: F) -> Result<Vec<Entry>, String>
+where
+    F: Fn(String) -> Fut,
+    Fut: std::future::Future<Output = Result<Vec<Entry>, String>>,
+{
+    use futures::StreamExt;
+    let mut out = vec![];
+    let mut level = vec![prefix.to_string()];
+    while !level.is_empty() {
+        let lists: Vec<Result<Vec<Entry>, String>> =
+            futures::stream::iter(level.drain(..).map(&list)).buffer_unordered(4).collect().await;
+        for l in lists {
+            for e in l? {
+                if e.dir {
+                    level.push(e.key);
+                } else {
+                    out.push(e);
+                }
+            }
+        }
+    }
+    Ok(out)
 }

@@ -17,7 +17,7 @@ use crate::util::{file_name, job_label, safe_rel, unique_path};
 pub const FILE_CONCURRENCY: usize = 6;
 
 /// Junk files never uploaded from folders.
-const SKIP_NAMES: [&str; 3] = [".DS_Store", "Thumbs.db", "desktop.ini"];
+pub const SKIP_NAMES: [&str; 3] = [".DS_Store", "Thumbs.db", "desktop.ini"];
 
 /// Temp folder for "Open with default app" downloads; wiped at startup.
 pub fn temp_root() -> PathBuf {
@@ -95,9 +95,112 @@ pub async fn upload(
     Ok(id)
 }
 
+/// Uploads files given relative to a local `root` into `prefix` + the same relative path
+/// (Compare → "Upload missing/changed"). Returns the job id.
+#[tauri::command]
+pub async fn upload_rel(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    account: Option<String>,
+    bucket: String,
+    prefix: String,
+    root: String,
+    rels: Vec<String>,
+) -> Result<String, String> {
+    let c = state.remote(account.as_deref())?;
+    let label = job_label(rels.iter().map(|r| file_name(r)).collect());
+    let job = Job::new(&app, "up", label, c.account(), &bucket, &prefix);
+    let id = job.id.clone();
+    let j = job.clone();
+    job.spawn(app, async move {
+        let root = PathBuf::from(root);
+        let files: Vec<(PathBuf, String, u64)> = rels
+            .iter()
+            .filter_map(|rel| {
+                let path = root.join(safe_rel(rel));
+                let size = std::fs::metadata(&path).ok().filter(|m| m.is_file())?.len();
+                Some((path, format!("{prefix}{}", rel.trim_start_matches('/')), size))
+            })
+            .collect();
+        j.files_total.store(files.len() as u64, Ordering::Relaxed);
+        j.bytes_total.store(files.iter().map(|f| f.2).sum(), Ordering::Relaxed);
+        stream::iter(files)
+            .for_each_concurrent(FILE_CONCURRENCY, |(path, key, size)| {
+                let (c, j, bucket) = (c.clone(), j.clone(), bucket.clone());
+                async move {
+                    if j.cancelled() {
+                        return;
+                    }
+                    match c.upload_file(&bucket, &key, &path, size, &j).await {
+                        Ok(()) => {
+                            j.files_done.fetch_add(1, Ordering::Relaxed);
+                        }
+                        Err(e) if !j.cancelled() => j.fail(&file_name(&key), e),
+                        Err(_) => {}
+                    }
+                }
+            })
+            .await;
+    });
+    Ok(id)
+}
+
+/// Downloads remote files `prefix` + rel into local `root` + rel (Compare → "Download missing").
+/// Relative paths come from the server, so they go through `safe_rel`; an existing local file is
+/// never overwritten (it gets ` (n)`, ADR-006). Returns the job id.
+#[tauri::command]
+pub async fn download_rel(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    account: Option<String>,
+    bucket: String,
+    prefix: String,
+    root: String,
+    items: Vec<DlItem>,
+) -> Result<String, String> {
+    let c = state.remote(account.as_deref())?;
+    let label = job_label(items.iter().map(|i| file_name(&i.key)).collect());
+    let job = Job::new(&app, "down", label, c.account(), &bucket, &prefix);
+    *job.local_dir.lock().unwrap() = Some(root.clone());
+    *job.dest.lock().unwrap() = Some(root.clone());
+    let id = job.id.clone();
+    let j = job.clone();
+    job.spawn(app, async move {
+        let root = PathBuf::from(root);
+        let files: Vec<(String, u64, PathBuf)> = items
+            .into_iter()
+            .map(|it| {
+                let path = unique_path(root.join(safe_rel(&it.key)));
+                (format!("{prefix}{}", it.key.trim_start_matches('/')), it.size, path)
+            })
+            .collect();
+        j.files_total.store(files.len() as u64, Ordering::Relaxed);
+        j.bytes_total.store(files.iter().map(|f| f.1).sum(), Ordering::Relaxed);
+        stream::iter(files)
+            .for_each_concurrent(FILE_CONCURRENCY, |(key, _, path)| {
+                let (c, j, bucket) = (c.clone(), j.clone(), bucket.clone());
+                async move {
+                    if j.cancelled() {
+                        return;
+                    }
+                    match c.download_file(&bucket, &key, &path, &j).await {
+                        Ok(()) => {
+                            j.files_done.fetch_add(1, Ordering::Relaxed);
+                        }
+                        Err(e) if !j.cancelled() => j.fail(&file_name(&key), e),
+                        Err(_) => {}
+                    }
+                }
+            })
+            .await;
+    });
+    Ok(id)
+}
+
 #[derive(Deserialize)]
 pub struct DlItem {
-    /// Object key; a key ending in `/` downloads the whole folder.
+    /// Object key; a key ending in `/` downloads the whole folder. For `download_rel`: the path
+    /// relative to its `prefix`.
     key: String,
     size: u64,
 }

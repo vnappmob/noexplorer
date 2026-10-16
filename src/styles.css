@@ -1379,6 +1379,146 @@ dialog::backdrop {
   gap: 10px;
 }
 
+/* Compare dialog (compare.ts) */
+#compare {
+  width: min(760px, 94vw);
+  max-height: 86vh;
+  display: none;
+  flex-direction: column;
+}
+#compare[open] {
+  display: flex;
+}
+.cmp-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg2);
+  border-radius: 12px 12px 0 0;
+}
+.cmp-head .check {
+  font-size: var(--fs-sm);
+  color: var(--fg2);
+}
+.cmp-where {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 16px 0;
+  font-size: var(--fs-sm);
+  color: var(--fg2);
+  min-width: 0;
+}
+.cmp-where span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmp-where b {
+  color: var(--muted);
+}
+.cmp-where .i {
+  flex: none;
+  width: 1.1em;
+  height: 1.1em;
+  color: var(--muted);
+}
+.cmp-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 16px 0;
+  font-size: var(--fs-sm);
+  color: var(--fg2);
+}
+.cmp-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--fg) 9%, transparent);
+  overflow: hidden;
+}
+.cmp-track i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+  transition: width 0.25s;
+}
+.cmp-verdict {
+  margin: 10px 16px 0;
+  line-height: 1.5;
+}
+.cmp-verdict .ok {
+  color: var(--ok);
+}
+.cmp-verdict .warn {
+  color: var(--bucket-ink);
+}
+.cmp-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 16px 6px;
+}
+.cmp-tabs button {
+  border: 1px solid var(--line);
+  background: var(--bg);
+  border-radius: 99px;
+  padding: 4px 12px;
+  font-size: var(--fs-sm);
+  color: var(--fg2);
+}
+.cmp-tabs button.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.cmp-tabs em {
+  font-style: normal;
+  font-family: var(--mono);
+  margin-left: 4px;
+}
+.cmp-list {
+  flex: 1;
+  min-height: 120px;
+  overflow: auto;
+  margin: 0 10px;
+  border-top: 1px solid var(--line);
+}
+.cmp-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+  font-size: var(--fs-sm);
+}
+.cmp-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+.cmp-row small {
+  flex: none;
+  color: var(--muted);
+}
+.cmp-more {
+  padding: 12px 6px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.cmp-more.err {
+  color: var(--danger);
+}
+.cmp-foot {
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+}
+
 /* settings: tabs (Accounts | Appearance) */
 #settings {
   width: min(760px, 94vw);

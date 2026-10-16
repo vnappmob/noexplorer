@@ -187,8 +187,9 @@ impl BoxCom {
         let mut out = vec![];
         let mut offset = 0u64;
         loop {
-            let url = self
-                .api(&format!("folders/{id}/items?fields=id,type,name,size,modified_at&limit=1000&offset={offset}"));
+            let url = self.api(&format!(
+                "folders/{id}/items?fields=id,type,name,size,modified_at,sha1&limit=1000&offset={offset}"
+            ));
             let v = self.json(|h| h.get(&url)).await?;
             let entries = v["entries"].as_array().cloned().unwrap_or_default();
             let mut ids = self.ids.lock().unwrap();
@@ -209,6 +210,10 @@ impl BoxCom {
                     size: if dir { 0 } else { e["size"].as_u64().unwrap_or(0) },
                     modified: e["modified_at"].as_str().and_then(parse_rfc3339),
                     dir,
+                    hash: e["sha1"]
+                        .as_str()
+                        .filter(|s| !s.is_empty())
+                        .map(|s| format!("sha1:{}", s.to_ascii_lowercase())),
                 });
             }
             drop(ids);

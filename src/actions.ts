@@ -2,6 +2,7 @@
 // `paneAction` maps the context-menu / palette action names to these.
 
 import { invoke } from "@tauri-apps/api/core";
+import { openCompare } from "./compare";
 import { requestSizes } from "./sizes";
 import { ask } from "@tauri-apps/plugin-dialog";
 import type { Pane } from "./pane";
@@ -176,6 +177,7 @@ export function paneAction(p: Pane, act: string) {
     reveal: () => invoke("reveal", { path: one ? one.key : p.cwd }).catch(fail),
     delete: () => (p.isRemote ? deleteRemote(sel) : trashLocal(sel)),
     size: () => calcSize(p),
+    compare: () => openCompare(),
     mkdir: () => mkdir(p),
     refresh: () => p.load(true),
     hidden: () => {

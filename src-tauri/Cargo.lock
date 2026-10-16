@@ -3015,6 +3015,7 @@ dependencies = [
  "futures",
  "keyring",
  "libc",
+ "md-5",
  "mime_guess",
  "notify",
  "objc2",

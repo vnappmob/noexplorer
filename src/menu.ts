@@ -26,6 +26,8 @@ export function showMenu(p: Pane, x: number, y: number, above = false) {
   if (one && p.isRemote && !one.dir) items.push(["link", "Copy 7-day link", "link"]);
   if (one) items.push(["copy-path", "Copy path", "copy"]);
   items.push(["size", sel.some((e) => e.dir) ? "Calculate folder size" : "Size of this folder", "sigma"]);
+  if (app.bucket)
+    items.push(["compare", p.isRemote ? "Compare with this computer…" : "Compare with remote…", "compare"]);
   if (sel.length) items.push("-", ["delete", p.isRemote ? `Delete from ${remoteName()}` : TRASH_LABEL, "trash"]);
   items.push("-", ["mkdir", "New folder", "folderPlus"], ["refresh", "Refresh", "refresh"]);
   if (!p.isRemote) items.push(["hidden", app.showHidden ? "Hide hidden files" : "Show hidden files", "eye"]);

@@ -20,6 +20,7 @@
 
 mod autostart;
 mod box_api;
+mod compare;
 mod config;
 mod jobs;
 mod local;
@@ -110,6 +111,9 @@ pub fn run() {
             webdav::nextcloud_login,
             webdav::cancel_login,
             box_api::box_login,
+            compare::compare,
+            transfer::upload_rel,
+            transfer::download_rel,
             sizes::stop_sizes,
             trash::trash_local,
             local::read_local_text,

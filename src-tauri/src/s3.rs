@@ -33,7 +33,7 @@ use crate::util::{err, file_name, is_text_like};
 pub const MULTIPART_THRESHOLD: u64 = 16 * 1024 * 1024;
 pub const MIN_PART_SIZE: u64 = 8 * 1024 * 1024;
 /// S3 allows 10 000 parts; stay well below so huge files still fit.
-const MAX_PARTS: u64 = 9_000;
+pub(crate) const MAX_PARTS: u64 = 9_000;
 pub const PART_CONCURRENCY: usize = 4;
 
 pub fn make_client(p: &Profile) -> Client {
@@ -158,7 +158,14 @@ impl S3 {
             let page = page.map_err(err)?;
             for p in page.common_prefixes() {
                 if let Some(k) = p.prefix() {
-                    out.push(Entry { key: k.into(), name: file_name(k), size: 0, modified: None, dir: true });
+                    out.push(Entry {
+                        key: k.into(),
+                        name: file_name(k),
+                        size: 0,
+                        modified: None,
+                        dir: true,
+                        hash: None,
+                    });
                 }
             }
             for o in page.contents() {
@@ -172,6 +179,32 @@ impl S3 {
                     size: o.size().unwrap_or(0).max(0) as u64,
                     modified: o.last_modified().and_then(|d| d.to_millis().ok()),
                     dir: false,
+                    hash: o.e_tag().map(|t| format!("etag:{}", t.trim_matches('"'))),
+                });
+            }
+        }
+        Ok(out)
+    }
+
+    /// Every file under `prefix` (recursive, folder markers left out), with its ETag.
+    pub async fn list_files(&self, bucket: &str, prefix: &str) -> Result<Vec<Entry>, String> {
+        let c = self.client_for(bucket).await;
+        let mut out = vec![];
+        let mut pages = c.list_objects_v2().bucket(bucket).prefix(prefix).into_paginator().send();
+        while let Some(page) = pages.next().await {
+            let page = page.map_err(err)?;
+            for o in page.contents() {
+                let Some(k) = o.key() else { continue };
+                if k.ends_with('/') {
+                    continue;
+                }
+                out.push(Entry {
+                    key: k.into(),
+                    name: file_name(k),
+                    size: o.size().unwrap_or(0).max(0) as u64,
+                    modified: o.last_modified().and_then(|d| d.to_millis().ok()),
+                    dir: false,
+                    hash: o.e_tag().map(|t| format!("etag:{}", t.trim_matches('"'))),
                 });
             }
         }

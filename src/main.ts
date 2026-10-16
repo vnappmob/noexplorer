@@ -11,6 +11,7 @@ import { setupMenu, showMenu } from "./menu";
 import { copyPath, editPath, setupPalette } from "./palette";
 import { openMenu, setupPopover } from "./popover";
 import { requestSizes, setupSizes } from "./sizes";
+import { setupCompare } from "./compare";
 import { paneHooks, type Pane } from "./pane";
 import { local, remote, setActive } from "./panes";
 import { closePreview, openPreview, pv, pvItem } from "./preview";
@@ -144,6 +145,7 @@ async function main() {
   setupPopover();
   setupPalette();
   setupSizes();
+  setupCompare();
   setupMenu();
   setupSettings();
   setupKeyboard();

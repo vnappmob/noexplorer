@@ -130,7 +130,11 @@ impl Dav {
 
     /// PROPFIND `key` with `depth`, returning entries (the folder itself included, key as-is).
     async fn propfind(&self, key: &str, depth: &str) -> Result<Vec<Entry>, String> {
-        let body = r#"<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getcontentlength/><d:getlastmodified/></d:prop></d:propfind>"#;
+        let body = if self.nextcloud {
+            r#"<?xml version="1.0"?><d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns"><d:prop><d:resourcetype/><d:getcontentlength/><d:getlastmodified/><oc:checksums/></d:prop></d:propfind>"#
+        } else {
+            r#"<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getcontentlength/><d:getlastmodified/></d:prop></d:propfind>"#
+        };
         let r = self
             .req(method("PROPFIND"), &self.url(key))
             .header("Depth", depth)
@@ -147,7 +151,8 @@ impl Dav {
                 let rel = path.strip_prefix(&self.root_path)?.trim_start_matches('/');
                 let key =
                     if p.dir && !rel.is_empty() && !rel.ends_with('/') { format!("{rel}/") } else { rel.to_string() };
-                Some(Entry { name: file_name(&key), key, size: p.size, modified: p.modified, dir: p.dir })
+                let hash = checksum(&p.checksums);
+                Some(Entry { name: file_name(&key), key, size: p.size, modified: p.modified, dir: p.dir, hash })
             })
             .collect())
     }
@@ -648,6 +653,18 @@ struct Prop {
     dir: bool,
     size: u64,
     modified: Option<i64>,
+    /// Nextcloud `oc:checksums`, e.g. `SHA1:… MD5:…` (only when a client sent them).
+    checksums: String,
+}
+
+/// The best hash in Nextcloud's checksum list, as `sha1:…` / `md5:…`.
+fn checksum(list: &str) -> Option<String> {
+    let parts: Vec<(String, String)> = list
+        .split_whitespace()
+        .filter_map(|c| c.split_once(':'))
+        .map(|(a, v)| (a.to_ascii_lowercase(), v.to_ascii_lowercase()))
+        .collect();
+    ["sha1", "md5"].iter().find_map(|want| parts.iter().find(|(a, _)| a == want).map(|(a, v)| format!("{a}:{v}")))
 }
 
 /// Reads a `207 Multi-Status` body (any namespace prefixes).
@@ -694,6 +711,10 @@ fn parse_multistatus(xml: &str) -> Vec<Prop> {
                         "href" if field == "href" => p.href = text.clone(),
                         "getcontentlength" => p.size = text.trim().parse().unwrap_or(0),
                         "getlastmodified" => p.modified = parse_http_date(text.trim()),
+                        "checksum" => {
+                            p.checksums.push(' ');
+                            p.checksums.push_str(text.trim());
+                        }
                         _ => {}
                     }
                 }

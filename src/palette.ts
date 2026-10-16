@@ -5,6 +5,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { calcSize, deleteRemote, mkdir, paneAction, remoteName, transfer, trashLocal, TRASH_LABEL } from "./actions";
 import { describeAccount } from "./providers";
+import { openCompare } from "./compare";
 import { setTextSize, setTheme, appearance } from "./appearance";
 import { icon } from "./icons";
 import type { Pane } from "./pane";
@@ -38,6 +39,7 @@ function build(): Entry[] {
   cmd("New folder", "folderPlus", () => mkdir(active));
   cmd("Refresh", "refresh", () => active.load(true), "⌘R");
   cmd("Folder size (Σ)", "sigma", () => calcSize(active));
+  if (app.bucket) cmd("Compare this computer ⇄ remote (find differences, checksums)", "compare", openCompare);
   cmd("Go to path…", "pencil", () => editPath(active), "⌘L");
   cmd("Copy current path", "copy", () => copyPath(active));
   cmd(app.showHidden ? "Hide hidden files" : "Show hidden files", "eye", () => paneAction(local, "hidden"));
