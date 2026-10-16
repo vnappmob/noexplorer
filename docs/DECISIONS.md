@@ -309,5 +309,7 @@ Linux keep their native title bar above `#topbar`. Animations stop under
 keyboard access is implemented there.
 **Amendment (v0.3.1).** The floating selection bar is gone: it was noisy and easy to click by
 accident, and the right-click menu already has every action. The selection count and size show in
-the column header instead. The watermark is now the last element of the list (in flow), so it sits
-under the rows and scrolls into view at the end of a long list instead of being hidden.
+the column header instead.
+**Amendment (v0.3.2).** The watermark is a fixed background at the bottom of the pane, behind the
+transparent list (`.mark` z-index 0, `.list` z-index 1). Rows scroll over it, so it is always
+visible. (0.3.1 stacked it after the last row, which still hid it in long folders.)

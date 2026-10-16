@@ -300,12 +300,16 @@ body.resizing * {
   z-index: 6;
 }
 
-/* watermarks: a computer under the local list, clouds under the remote one. They are the list's
-   last child (pane.ts render), so they stack below the rows and scroll with them. */
+/* watermarks: a computer under the local list, clouds under the remote one. A fixed background
+   at the bottom of the pane (pane.ts constructor); the transparent .list (z-index 1) scrolls over it. */
 .mark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 28px;
+  z-index: 0;
   display: flex;
   justify-content: center;
-  padding: 40px 0 24px;
   pointer-events: none;
   color: var(--mark);
   opacity: var(--mark-opacity, 1);

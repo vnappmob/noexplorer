@@ -5,6 +5,9 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- The computer and cloud watermarks are now a fixed background at the bottom of each pane: file rows scroll over them, so they stay visible in long folders.
+
 ## [0.3.1] - 2026-10-16
 
 ### Changed

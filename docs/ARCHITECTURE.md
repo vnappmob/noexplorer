@@ -162,8 +162,9 @@ header rows. Row 1 (`.src`) is the source: the "This computer" chip and Places m
 account chip › bucket chip. Row 2 (`.pathbar`) is the path: up, clickable crumbs (empty space
 or ⌘L switches to typing a path), copy, Σ. The column header shows the item count, or the selection count and size.
 Transfers show in the activity card, plus the beam: an SVG arc over `#panes`, computed from the
-real element rects on every job tick and resize. The watermark (`.mark`) is appended as the last child of `.list`
-by `Pane.render()`, so it stacks under the rows and scrolls with them.
+real element rects on every job tick and resize. The watermark (`.mark`) is added once by the `Pane` constructor
+as an absolutely positioned background at the bottom of the pane; the transparent `.list` scrolls
+over it.
 
 **Appearance**
 `appearance.ts` stores theme (`system`/`light`/`dark`), text size (13/14/16/18 px) and the pane

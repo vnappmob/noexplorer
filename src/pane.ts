@@ -53,6 +53,13 @@ export class Pane {
     this.list = this.q(".list");
     this.sortBy = (store.get(`${kind}.sortBy`) as SortBy) || "name";
     this.sortDir = store.get(`${kind}.sortDir`) === "desc" ? -1 : 1;
+    // Watermark: a fixed background behind the rows (the list is transparent and sits above it),
+    // so it stays visible however long the list is or wherever it's scrolled.
+    const mark = this.isRemote ? "markCloud" : "markComputer";
+    this.el.insertAdjacentHTML(
+      "beforeend",
+      `<div class="mark mark-${kind}" aria-hidden="true"><span>${icon(mark)}</span></div>`,
+    );
   }
 
   q<T extends HTMLElement = HTMLElement>(sel: string) {
@@ -222,12 +229,6 @@ export class Pane {
         )
         .join("");
     }
-    // Watermark stacked under the last row (scrolls with the list, so a long list never hides it).
-    const mark = this.isRemote ? "markCloud" : "markComputer";
-    this.list.insertAdjacentHTML(
-      "beforeend",
-      `<div class="mark mark-${this.kind}" aria-hidden="true"><span>${icon(mark)}</span></div>`,
-    );
     this.updateStatus();
   }
 
