@@ -161,7 +161,7 @@ mod freedesktop {
     fn topdir(p: &Path, dev: u64) -> PathBuf {
         let mut top = p.to_path_buf();
         while let Some(parent) = top.parent() {
-            if std::fs::metadata(parent).map(|m| m.dev()) != Ok(dev) {
+            if std::fs::metadata(parent).ok().map(|m| m.dev()) != Some(dev) {
                 break;
             }
             top = parent.to_path_buf();

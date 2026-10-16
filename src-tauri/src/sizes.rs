@@ -121,16 +121,18 @@ fn protected() -> Vec<PathBuf> {
 
 /// An automatic scan may run here: same volume as the home folder (no external or network disks).
 fn auto_allowed(path: &Path) -> bool {
-    let Some(home) = dirs::home_dir() else { return false };
-    #[cfg(windows)]
-    {
-        let drive = |p: &Path| p.components().next().map(|c| c.as_os_str().to_ascii_lowercase());
-        drive(path) == drive(&home)
-    }
-    #[cfg(not(windows))]
-    {
-        scan::dev_of(path).is_some() && scan::dev_of(path) == scan::dev_of(&home)
-    }
+    dirs::home_dir().is_some_and(|home| same_volume(path, &home))
+}
+
+#[cfg(windows)]
+fn same_volume(a: &Path, b: &Path) -> bool {
+    let drive = |p: &Path| p.components().next().map(|c| c.as_os_str().to_ascii_lowercase());
+    drive(a) == drive(b)
+}
+
+#[cfg(not(windows))]
+fn same_volume(a: &Path, b: &Path) -> bool {
+    scan::dev_of(a).is_some() && scan::dev_of(a) == scan::dev_of(b)
 }
 
 /// Drops the macOS privacy-prompt risk: lower thread priority for scans.
