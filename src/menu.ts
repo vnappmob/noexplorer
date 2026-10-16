@@ -3,11 +3,14 @@
 import { paneAction, remoteName, TRASH_LABEL } from "./actions";
 import { icon } from "./icons";
 import type { Pane } from "./pane";
-import { local, remote } from "./panes";
+import { local, MAX_VIEWS, remote, remotes } from "./panes";
 import { app } from "./state";
 import { $, esc } from "./util";
 
 type Item = [action: string, label: string, iconName: string];
+
+/** The pane the open menu belongs to (any of the remote views, or local). */
+let menuPane: Pane = local;
 
 /** Opens the menu at (x, y); `above` = grow upward from y (used by the bottom selection bar). */
 export function showMenu(p: Pane, x: number, y: number, above = false) {
@@ -26,11 +29,16 @@ export function showMenu(p: Pane, x: number, y: number, above = false) {
   if (one && p.isRemote && !one.dir) items.push(["link", "Copy 7-day link", "link"]);
   if (one) items.push(["copy-path", "Copy path", "copy"]);
   items.push(["size", sel.some((e) => e.dir) ? "Calculate folder size" : "Size of this folder", "sigma"]);
-  if (app.bucket)
+  if (remote.bucket)
     items.push(["compare", p.isRemote ? "Compare with this computer…" : "Compare with remote…", "compare"]);
-  if (sel.length) items.push("-", ["delete", p.isRemote ? `Delete from ${remoteName()}` : TRASH_LABEL, "trash"]);
+  if (sel.length) items.push("-", ["delete", p.isRemote ? `Delete from ${remoteName(p)}` : TRASH_LABEL, "trash"]);
   items.push("-", ["mkdir", "New folder", "folderPlus"], ["refresh", "Refresh", "refresh"]);
   if (!p.isRemote) items.push(["hidden", app.showHidden ? "Hide hidden files" : "Show hidden files", "eye"]);
+  if (p.isRemote) {
+    items.push("-");
+    if (remotes.length < MAX_VIEWS) items.push(["split", "Split view: another account below", "split"]);
+    if (remotes.length > 1) items.push(["close-view", "Close this view", "x"]);
+  }
 
   const m = $("ctx");
   m.innerHTML = items
@@ -40,7 +48,7 @@ export function showMenu(p: Pane, x: number, y: number, above = false) {
         : `<div data-a="${it[0]}"${it[0] === "delete" ? ' class="danger"' : ""}>${icon(it[2])}<span>${esc(it[1])}</span></div>`,
     )
     .join("");
-  m.dataset.pane = p.kind;
+  menuPane = p;
   m.hidden = false;
   const r = m.getBoundingClientRect();
   m.style.left = `${Math.max(4, Math.min(x, innerWidth - r.width - 4))}px`;
@@ -56,6 +64,6 @@ export function setupMenu() {
   $("ctx").addEventListener("click", (ev) => {
     const a = (ev.target as HTMLElement).closest<HTMLElement>("[data-a]")?.dataset.a;
     $("ctx").hidden = true;
-    if (a) paneAction($("ctx").dataset.pane === "remote" ? remote : local, a);
+    if (a) paneAction(menuPane, a);
   });
 }

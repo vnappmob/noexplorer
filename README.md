@@ -56,7 +56,8 @@ and you're done.
   Contents are checked by checksum without downloading, system junk (`.DS_Store`…) is explained,
   and one click uploads or downloads the difference.
 - **Multiple accounts**: switch between servers from the remote pane header, or straight from
-  the menu bar / tray.
+  the menu bar / tray. **Split the remote side** to show up to 3 accounts at once, and drag
+  between them to copy from one cloud to another.
 - **Runs in the background**: close the window and NoExplorer stays in the menu bar / tray,
   showing transfer progress there and notifying you when transfers finish.
 - **Auto-updates**: new versions install in place with one click.
@@ -111,7 +112,7 @@ config folder (readable only by your user).
 
 | Key | Action |
 |---|---|
-| `Tab` / `←` `→` | Switch pane |
+| `Tab` / `←` `→` | Switch pane (Tab also cycles through split remote views) |
 | `↑` `↓` (+`Shift`) | Move or extend the selection |
 | `Enter` | Open a folder. Remote file: preview. Local file: open in its default app |
 | `Space` | Quick look (inside it, `←` `→` go to the previous or next file) |
@@ -120,6 +121,7 @@ config folder (readable only by your user).
 | `⌘⌫` / `Delete` | Delete from S3 (asks first) · on this computer: Move to Trash |
 | `⌘K` | Command palette: commands, accounts, buckets, places, files |
 | `⌘L` | Type a path |
+| `⌘\` · `⌘W` | Split the remote side (another account below) · close the focused remote view |
 | `⌘R` · `⌘F` · `⌘,` | Refresh · Filter · Settings |
 
 ## Limitations

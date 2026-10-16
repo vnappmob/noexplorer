@@ -4,8 +4,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { kindOf } from "./files";
 import { icon } from "./icons";
-import { activeProfile, app, profileKey } from "./state";
-import type { Crumb, Item, LocalListing, SortBy } from "./types";
+import { app } from "./state";
+import type { BucketInfo, Crumb, Item, LocalListing, Profile, SortBy } from "./types";
 import { $, esc, fail, fmtDate, fmtSize, plural, store } from "./util";
 
 /** Row icon per file kind (files.ts `kindOf`). */
@@ -25,6 +25,10 @@ const OVERSCAN = 15;
 export const paneHooks = {
   /** Enter / double-click on a file. */
   openFile: (_p: Pane, _e: Item): void => {},
+  /** A remote view was created (bind its DOM events and pickers: main.ts). */
+  created: (_p: Pane): void => {},
+  /** A remote view changed account, bucket or folder (persist the layout). */
+  moved: (_p: Pane): void => {},
   /** After every listing (entries are fresh objects, so computed sizes must be re-applied). */
   listed: (_p: Pane): void => {},
 };
@@ -62,8 +66,17 @@ export class Pane {
    * skipped (other disk, private folder not opened yet) and show "—". Set by sizes.ts. */
   sizesSettled = false;
 
-  constructor(readonly kind: "local" | "remote") {
-    this.el = $(`pane-${kind}`);
+  /** Remote views only: the account (profile id) and container this view shows (ADR-029). */
+  account = "";
+  bucket = "";
+  /** Containers of `account` (the bucket picker). */
+  buckets: BucketInfo[] = [];
+
+  constructor(
+    readonly kind: "local" | "remote",
+    el: HTMLElement,
+  ) {
+    this.el = el;
     this.list = this.q(".list");
     this.sortBy = (store.get(`${kind}.sortBy`) as SortBy) || "name";
     this.sortDir = store.get(`${kind}.sortDir`) === "desc" ? -1 : 1;
@@ -89,6 +102,16 @@ export class Pane {
 
   get isRemote() {
     return this.kind === "remote";
+  }
+
+  /** Remote views: this view's account, or null when it has none (or it was removed). */
+  profile(): Profile | null {
+    return app.settings.profiles.find((p) => p.id === this.account) ?? null;
+  }
+
+  /** `account` + `bucket` for backend commands about this view. */
+  where() {
+    return { account: this.account || null, bucket: this.bucket };
   }
 
   /** Re-lists `cwd`. `keepSelection` keeps still-existing selected rows (used after refreshes). */
@@ -120,24 +143,23 @@ export class Pane {
   }
 
   private async loadRemote(seq: number) {
-    store.set(profileKey("bucket"), app.bucket);
-    store.set(profileKey("prefix"), this.cwd);
-    const kind = activeProfile()?.kind ?? "s3";
+    paneHooks.moved(this);
+    const kind = this.profile()?.kind ?? "s3";
     this.q(".scheme").textContent =
       kind === "s3" ? "s3://" : kind === "nextcloud" ? "nextcloud://" : kind === "box" ? "box://" : "dav://";
-    this.crumbs = [{ name: app.bucket || "—", path: "" }];
+    this.crumbs = [{ name: this.bucket || "—", path: "" }];
     let acc = "";
     for (const p of this.cwd.split("/").filter(Boolean)) {
       acc += p + "/";
       this.crumbs.push({ name: p, path: acc });
     }
     this.renderCrumbs();
-    if (!app.bucket) {
+    if (!this.bucket) {
       this.entries = [];
       return;
     }
     this.q(".count").textContent = "· loading…";
-    const list = await invoke<Item[]>("list", { bucket: app.bucket, prefix: this.cwd });
+    const list = await invoke<Item[]>("list", { ...this.where(), prefix: this.cwd });
     if (seq === this.seq) this.entries = list;
   }
 
@@ -165,13 +187,13 @@ export class Pane {
   /** Full location of `cwd`: an absolute local path, `s3://bucket/prefix`, or a WebDAV URL. */
   fullPath() {
     if (!this.isRemote) return this.cwd;
-    const p = activeProfile();
-    if (!app.bucket || !p) return "";
+    const p = this.profile();
+    if (!this.bucket || !p) return "";
     const base = p.endpoint.replace(/\/+$/, "");
     if (p.kind === "nextcloud") return `${base}/remote.php/dav/files/${encodeURIComponent(p.access_key)}/${this.cwd}`;
     if (p.kind === "webdav") return `${base}/${this.cwd}`;
     if (p.kind === "box") return `box://${this.cwd}`;
-    return `s3://${app.bucket}/${this.cwd}`;
+    return `s3://${this.bucket}/${this.cwd}`;
   }
 
   go(path: string, keepSelection = false) {
@@ -243,7 +265,7 @@ export class Pane {
     });
 
     this.rowsEl = null;
-    if (this.isRemote && !activeProfile()) {
+    if (this.isRemote && !this.profile()) {
       this.list.innerHTML = `<div class="empty"><b>No remote account yet</b>Click the account button above to add S3, Nextcloud or WebDAV storage.</div>`;
     } else if (!this.view.length) {
       const hint = this.isRemote

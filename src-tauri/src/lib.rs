@@ -114,6 +114,7 @@ pub fn run() {
             compare::compare,
             transfer::upload_rel,
             transfer::download_rel,
+            transfer::copy_remote,
             sizes::stop_sizes,
             trash::trash_local,
             local::read_local_text,

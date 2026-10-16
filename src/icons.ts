@@ -21,6 +21,7 @@ export const ICONS: Record<string, string> = {
   copy: svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>'),
   sigma: svg('<path d="M18 5H6l6 7-6 7h12"/>'),
   compare: svg('<path d="M4 8h13l-3-3M20 16H7l3 3"/>'),
+  split: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/>'),
   sliders: svg(
     '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
   ),

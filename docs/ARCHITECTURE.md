@@ -82,6 +82,7 @@ means the active account (ADR-025).
 | `box_login` | `client_id, client_secret, id?, name` | `Settings` | box_api | Opens Box's authorize page, waits on `127.0.0.1:53682/callback`, exchanges the code, saves the account (client secret + refresh token in the keychain) |
 | `compare` | `id, account?, bucket, prefix, local, verify` | `Diff` | compare | Local folder vs remote folder; emits `"compare-progress"`; `cancel(id)` stops it |
 | `upload_rel` | `account?, bucket, prefix, root, rels[]` | job id | transfer | Uploads `root/rel` to `prefix + rel` (Compare → Upload) |
+| `copy_remote` | `srcAccount?, srcBucket, srcPrefix, items[{key,size}], dstAccount?, dstBucket, dstPrefix` | job id | transfer | Remote → remote (split views, ADR-029). Same S3 account: server-side CopyObject (≤ 5 GB); otherwise relayed through a temp file per object |
 | `download_rel` | `account?, bucket, prefix, root, items[{key: rel, size}]` | job id | transfer | Downloads `prefix + rel` to `root/rel` (`safe_rel`, never overwrites) |
 | `trash_local` | `paths[]` | count | trash | Moves local items to the OS Trash / Recycle Bin. Refuses `/`, home and its parents |
 | `list` | `bucket, prefix` | `Entry[]` | remote | One folder level. Folders have `dir: true` and a key ending in `/` |
@@ -106,8 +107,9 @@ The TS mirror is `JobEvent` in `src/types.ts`.
 
 ```jsonc
 {
-  "id": "uuid", "kind": "up" | "down", "label": "a.txt, b.txt +3 more",
-  "account": "profile-id", "bucket": "demo", "prefix": "backups/",   // remote side
+  "id": "uuid", "kind": "up" | "down" | "copy", "label": "a.txt, b.txt +3 more",
+  "account": "profile-id", "bucket": "demo", "prefix": "backups/",   // remote side (copy: the destination)
+  "src_account": null, "src_bucket": null,         // copy: the source view (for the beam)
   "files_done": 3, "files_total": 5, "bytes_done": 123, "bytes_total": 456,
   "status": "running" | "done" | "error" | "cancelled",
   "error": null | "2 errors. First: x.bin: …",     // per-file failures don't stop the job
@@ -225,6 +227,14 @@ is as tall as all rows, and `Pane.drawRows` keeps only the rows near the viewpor
 as an absolutely positioned background at the bottom of the pane; the transparent `.list` scrolls
 over it.
 
+**Split remote views (v0.4.4, ADR-029)**
+`#remotes` stacks 1–3 remote `Pane`s cloned from `<template id="remote-tpl">`, separated by
+`.hsplit` handles (heights are flex-grow ratios). Each view owns `account`, `bucket` and
+`buckets`; every backend call passes `view.where()` (`{account, bucket}`), so nothing reads a
+global account or bucket. `panes.remote` is an ES live binding to the view that last had focus:
+local → remote actions (F5, OS drops onto the left pane's target, Compare) go there. A job
+refreshes every view showing its destination, and the beam finds its ends by account + bucket.
+
 **Appearance**
 `appearance.ts` stores theme (`system`/`light`/`dark`), text size (13/14/16/18 px) and the pane
 split (%) in localStorage. It applies them as `<html data-theme>`, the `--fs` CSS variable and
@@ -237,7 +247,7 @@ split (%) in localStorage. It applies them as `<html data-theme>`, the `--fs` CS
 |---|---|
 | `main.ts` | Boot sequence and per-pane DOM bindings (row selection, dblclick, crumbs, sort headers, footer buttons) |
 | `pane.ts` | `Pane` class: `cwd`, `entries` → `view` (filter + sort), `selected`, `load/go/up/render/repaintRows/paint/selectIndex`, virtualized rows (ADR-021), size bars. Calls `paneHooks.openFile` for files and `paneHooks.listed` after each listing |
-| `panes.ts` | `local`, `remote`, `active`, `setActive`, `switchTo` |
+| `panes.ts` | `local`, the remote views `remotes[]` (cloned from `#remote-tpl`), `remote` (live binding to the last-focused view), `active`, `addView/closeView`, the `.hsplit` handles, saved layout (`"views"` in localStorage), `setActive`, `switchTo`, `cyclePane` |
 | `actions.ts` | `transfer`, `openItem`, `copyLink`, `deleteRemote`, `trashLocal`, `mkdir`, `calcSize`, `paneAction(pane, name)` |
 | `sizes.ts` | Local folder sizes: `requestSizes`, `stopSizes`, the `"dir-sizes"` listener (rows, path-bar total, live re-list), and the storage bar (`drawDisk`) |
 | `dnd.ts` | Mouse-event drag between panes (`armDrag` on mousedown, threshold 5 px, ghost label, drop-target highlight) and OS drops |

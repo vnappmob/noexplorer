@@ -11,8 +11,8 @@
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { transfer } from "./actions";
 import type { Pane } from "./pane";
-import { local, remote } from "./panes";
-import { activeProfile, app } from "./state";
+import { local, paneOf } from "./panes";
+import { activeProfile } from "./state";
 import type { Item } from "./types";
 import { $, plural } from "./util";
 
@@ -22,7 +22,8 @@ function dropTargetAt(x: number, y: number): DropTarget | null {
   const el = document.elementFromPoint(x, y);
   const paneEl = el?.closest<HTMLElement>(".pane");
   if (!paneEl) return null;
-  const pane = paneEl === local.el ? local : remote;
+  const pane = paneOf(paneEl);
+  if (!pane) return null;
   const row = el!.closest<HTMLElement>(".row[data-dir]");
   if (row) return { pane, dir: row.dataset.dir!, el: row };
   const crumb = el!.closest<HTMLElement>(".crumb[data-p]");
@@ -94,7 +95,7 @@ function setupInternalDrag() {
     if (!drag) return;
     const d = drag;
     endDrag();
-    if (d.active && d.target) transfer(d.from, d.items, d.target.dir);
+    if (d.active && d.target) transfer(d.from, d.items, d.target.dir, d.target.pane);
     else if (!d.active && d.collapseTo >= 0) d.from.selectIndex(d.collapseTo);
   });
   window.addEventListener("blur", endDrag);
@@ -114,7 +115,7 @@ async function setupOsDrop() {
     // Positions are physical pixels; elementFromPoint wants CSS pixels.
     const dpr = window.devicePixelRatio || 1;
     const t = dropTargetAt(p.position.x / dpr, p.position.y / dpr);
-    const ok = !!t?.pane.isRemote && !!activeProfile() && !!app.bucket;
+    const ok = !!t?.pane.isRemote && !!t.pane.profile() && !!t.pane.bucket;
     if (p.type === "drop") {
       overlay.hidden = true;
       highlight(null);
@@ -123,13 +124,14 @@ async function setupOsDrop() {
           local,
           p.paths.map((path) => ({ key: path, name: "", size: 0, modified: null, dir: false })),
           t!.dir,
+          t!.pane,
         );
       return;
     }
     // enter / over
     highlight(ok ? t : null);
     $("drop-text").textContent = ok
-      ? `Drop to upload to ${app.bucket}/${t!.dir}`
+      ? `Drop to upload to ${t!.pane.profile()!.name} · ${t!.pane.bucket}/${t!.dir}`
       : activeProfile()
         ? "Drop on the remote pane (right) to upload"
         : "Add a remote account first";

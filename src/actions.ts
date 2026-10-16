@@ -6,30 +6,41 @@ import { openCompare } from "./compare";
 import { requestSizes } from "./sizes";
 import { ask } from "@tauri-apps/plugin-dialog";
 import type { Pane } from "./pane";
-import { local, remote } from "./panes";
+import { closeView, local, remote } from "./panes";
+import { splitView } from "./settings";
 import { openPreview } from "./preview";
-import { activeProfile, app } from "./state";
+import { app } from "./state";
 import type { Item, SizeInfo } from "./types";
 import { askText, fail, fmtSize, plural, store, toast } from "./util";
 
 /**
- * Copies `items` from `from` to the other pane: local → upload, remote → download.
- * `targetDir` is a remote prefix or local path; defaults to the other pane's current folder.
+ * Copies `items` from `from` to `to`: local → remote uploads, remote → local downloads, and
+ * remote → another remote view copies between accounts (server-side when possible). `to` defaults
+ * to the other side (the focused remote view for local items); `targetDir` to its current folder.
  * Progress arrives later through `"job"` events (jobs.ts).
  */
-export async function transfer(from: Pane, items: Item[], targetDir?: string) {
+export async function transfer(from: Pane, items: Item[], targetDir?: string, to?: Pane) {
   if (!items.length) return;
-  if (!activeProfile() || !app.bucket) return toast("Add a remote account first", true);
+  const dest = to ?? (from.isRemote ? local : remote);
+  if (from === dest) return;
+  for (const v of [from, dest])
+    if (v.isRemote && (!v.profile() || !v.bucket)) return toast("Add a remote account first", true);
+  const list = items.map((e) => ({ key: e.key, size: e.size }));
   try {
-    if (from === local) {
-      await invoke("upload", { bucket: app.bucket, prefix: targetDir ?? remote.cwd, paths: items.map((e) => e.key) });
-    } else {
-      await invoke("download", {
-        bucket: app.bucket,
-        prefix: remote.cwd,
-        items: items.map((e) => ({ key: e.key, size: e.size })),
-        dest: targetDir ?? local.cwd,
+    if (from.isRemote && dest.isRemote) {
+      await invoke("copy_remote", {
+        srcAccount: from.account || null,
+        srcBucket: from.bucket,
+        srcPrefix: from.cwd,
+        items: list,
+        dstAccount: dest.account || null,
+        dstBucket: dest.bucket,
+        dstPrefix: targetDir ?? dest.cwd,
       });
+    } else if (dest.isRemote) {
+      await invoke("upload", { ...dest.where(), prefix: targetDir ?? dest.cwd, paths: items.map((e) => e.key) });
+    } else {
+      await invoke("download", { ...from.where(), prefix: from.cwd, items: list, dest: targetDir ?? local.cwd });
     }
   } catch (e) {
     fail(e);
@@ -41,7 +52,7 @@ export async function openItem(p: Pane, e: Item) {
   try {
     if (p.isRemote) {
       toast(`Opening ${e.name}…`);
-      await invoke("open_object", { bucket: app.bucket, key: e.key });
+      await invoke("open_object", { ...p.where(), key: e.key });
     } else {
       await invoke("open_local", { path: e.key });
     }
@@ -50,9 +61,9 @@ export async function openItem(p: Pane, e: Item) {
   }
 }
 
-export async function copyLink(e: Item) {
+export async function copyLink(p: Pane, e: Item) {
   try {
-    const url = await invoke<string>("presign", { bucket: app.bucket, key: e.key, secs: 7 * 24 * 3600, inline: false });
+    const url = await invoke<string>("presign", { ...p.where(), key: e.key, secs: 7 * 24 * 3600, inline: false });
     await navigator.clipboard.writeText(url);
     toast("Link copied (expires in 7 days)");
   } catch (err) {
@@ -60,8 +71,8 @@ export async function copyLink(e: Item) {
   }
 }
 
-/** The remote account's name, for labels ("Upload to Home NAS"). */
-export const remoteName = () => activeProfile()?.name || "the remote";
+/** A remote view's account name, for labels ("Upload to Home NAS"). */
+export const remoteName = (v: Pane = remote) => v.profile()?.name || "the remote";
 
 /** "Move to Trash" / "Recycle Bin" on Windows: the label the OS uses. */
 export const TRASH_LABEL = navigator.userAgent.includes("Windows") ? "Delete (to Recycle Bin)" : "Move to Trash";
@@ -82,12 +93,12 @@ export async function trashLocal(list = local.selectedItems()) {
   if (next >= 0) local.selectIndex(Math.min(next, local.view.length - 1));
 }
 
-export async function deleteRemote(list = remote.selectedItems()) {
+export async function deleteRemote(v: Pane = remote, list = v.selectedItems()) {
   if (!list.length) return;
   const dirs = list.filter((e) => e.dir).length;
   const what = list.length === 1 ? `"${list[0].name}"` : plural(list.length, "item");
   const ok = await ask(
-    `Delete ${what} from ${remoteName()}?${dirs ? "\nFolders are deleted with everything inside them." : ""}`,
+    `Delete ${what} from ${remoteName(v)}?${dirs ? "\nFolders are deleted with everything inside them." : ""}`,
     {
       title: "Delete",
       kind: "warning",
@@ -97,19 +108,19 @@ export async function deleteRemote(list = remote.selectedItems()) {
   );
   if (!ok) return;
   try {
-    const n = await invoke<number>("delete", { bucket: app.bucket, keys: list.map((e) => e.key) });
+    const n = await invoke<number>("delete", { ...v.where(), keys: list.map((e) => e.key) });
     toast(`Deleted ${plural(n, "object")}`);
   } catch (e) {
     fail(e);
   }
-  remote.load();
+  v.load();
 }
 
 export async function mkdir(p: Pane) {
   const name = await askText("New folder name");
   if (!name?.trim()) return;
   try {
-    if (p.isRemote) await invoke("mkdir", { bucket: app.bucket, prefix: p.cwd, name });
+    if (p.isRemote) await invoke("mkdir", { ...p.where(), prefix: p.cwd, name });
     else await invoke("mkdir_local", { path: p.cwd, name });
     await p.load();
   } catch (e) {
@@ -119,7 +130,7 @@ export async function mkdir(p: Pane) {
 
 async function sizeOf(p: Pane, key: string) {
   return p.isRemote
-    ? invoke<SizeInfo>("remote_size", { bucket: app.bucket, prefix: key })
+    ? invoke<SizeInfo>("remote_size", { ...p.where(), prefix: key })
     : invoke<SizeInfo>("local_size", { path: key });
 }
 
@@ -170,14 +181,15 @@ export function paneAction(p: Pane, act: string) {
     preview: () => one && !one.dir && openPreview(p, one),
     open: () => one && !one.dir && openItem(p, one),
     "open-dir": () => one && p.go(one.key),
-    link: () => one && copyLink(one),
+    link: () => one && copyLink(p, one),
     "copy-path": () =>
-      one &&
-      navigator.clipboard.writeText(p.isRemote ? `${app.bucket}/${one.key}` : one.key).then(() => toast("Copied")),
+      one && navigator.clipboard.writeText(p.isRemote ? `${p.bucket}/${one.key}` : one.key).then(() => toast("Copied")),
     reveal: () => invoke("reveal", { path: one ? one.key : p.cwd }).catch(fail),
-    delete: () => (p.isRemote ? deleteRemote(sel) : trashLocal(sel)),
+    delete: () => (p.isRemote ? deleteRemote(p, sel) : trashLocal(sel)),
     size: () => calcSize(p),
     compare: () => openCompare(),
+    split: () => splitView(p),
+    "close-view": () => closeView(p),
     mkdir: () => mkdir(p),
     refresh: () => p.load(true),
     hidden: () => {

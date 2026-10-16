@@ -5,7 +5,6 @@ import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { ext, ICON, kindOf } from "./files";
 import type { Pane } from "./pane";
 import { active } from "./panes";
-import { app } from "./state";
 import type { Item } from "./types";
 import { $, esc, fmtDate, fmtSize } from "./util";
 
@@ -26,7 +25,7 @@ export async function openPreview(p: Pane, e: Item) {
   try {
     if (k === "text" || (k === "other" && e.size < 64 * 1024 && !ext(e.name))) {
       const txt = p.isRemote
-        ? await invoke<string>("read_text", { bucket: app.bucket, key: e.key, max: TEXT_MAX })
+        ? await invoke<string>("read_text", { ...p.where(), key: e.key, max: TEXT_MAX })
         : await invoke<string>("read_local_text", { path: e.key, max: TEXT_MAX });
       if (!same()) return;
       body.innerHTML = `<pre></pre>`;
@@ -36,7 +35,7 @@ export async function openPreview(p: Pane, e: Item) {
     }
     if (k === "image" || k === "video" || k === "audio" || k === "pdf") {
       const url = p.isRemote
-        ? await invoke<string>("presign", { bucket: app.bucket, key: e.key, secs: 3600, inline: true })
+        ? await invoke<string>("presign", { ...p.where(), key: e.key, secs: 3600, inline: true })
         : convertFileSrc(e.key);
       if (!same()) return;
       const u = esc(url);

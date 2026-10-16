@@ -85,7 +85,7 @@ export type LocalListing = { path: string; parent: string | null; crumbs: Crumb[
 /** `jobs::JobEvent` — payload of the `"job"` event. */
 export type JobEvent = {
   id: string;
-  kind: "up" | "down";
+  kind: "up" | "down" | "copy";
   label: string;
   /** Profile id of the remote account. */
   account: string;
@@ -99,6 +99,9 @@ export type JobEvent = {
   error: string | null;
   dest: string | null;
   local_dir: string | null;
+  /** Copy jobs: where the files come from. */
+  src_account: string | null;
+  src_bucket: string | null;
 };
 
 export type SortBy = "name" | "size" | "modified";

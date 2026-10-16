@@ -553,3 +553,31 @@ there are intact.
 **Consequences.** Tested on dev S3 (`compare_s3_roundtrip`: deleted, remote-only, same-size
 edit, size change, junk, a 20 MB multipart file verified). Hashing reads every compared byte
 once (twice for multipart files with two candidate part sizes).
+
+<a id="adr-029"></a>
+
+## ADR-029: Split remote views
+Accepted · 2026-10-16
+
+**Context.** People with several accounts (a NAS, AWS, Nextcloud) had to switch the single
+remote pane back and forth, and couldn't copy between two remotes without going through a
+local folder.
+**Decision.**
+- The right column holds 1–3 remote views stacked top/bottom (not tabs: both must be visible to
+  drag between them). Each is a full `Pane` cloned from `#remote-tpl` with its own account,
+  bucket and folder. The global `app.bucket` and "active profile as current client" were
+  removed; every command takes the view's `account` (already possible since ADR-025). The
+  account picked in a view still becomes the default for new windows and the tray.
+- `panes.remote` stays as the target for local → remote actions and means "the remote view that
+  last had focus", marked with an accent bar when several are open.
+- Remote → remote drops call `copy_remote`. Same S3 account: `CopyObject` on the server (single
+  call, so ≤ 5 GB; bigger files fall back to the relay). Anything else: download each object to
+  a temp file under the app temp dir, upload it, delete it. The job counts bytes twice (down +
+  up) so the progress bar is honest.
+- The layout is per device (localStorage `"views"`), like the pane split. Views on a deleted
+  account fall back to the default account.
+**Consequences.** Copies between providers use local disk for one file at a time and are as slow
+as download + upload. A direct stream (pipe the GET body into the PUT) is a later optimisation;
+it needs a size-aware streaming upload for each provider. Tested in the dev app against
+SeaweedFS + Nextcloud (split, drag S3 → Nextcloud folder, close, reload restores views) and by
+`s3_roundtrip` (server-side copy of a key with spaces, Unicode and `#`).

@@ -5,7 +5,7 @@ import { calcSize, mkdir, openItem, transfer } from "./actions";
 import { applyAppearance, setupSplitter } from "./appearance";
 import { setupDnd, armDrag } from "./dnd";
 import { hydrateIcons } from "./icons";
-import { setupJobs } from "./jobs";
+import { setupJobs, watchView } from "./jobs";
 import { setupKeyboard } from "./keyboard";
 import { setupMenu, showMenu } from "./menu";
 import { copyPath, editPath, setupPalette } from "./palette";
@@ -13,9 +13,9 @@ import { openMenu, setupPopover } from "./popover";
 import { requestSizes, setupSizes } from "./sizes";
 import { setupCompare } from "./compare";
 import { paneHooks, type Pane } from "./pane";
-import { local, remote, setActive } from "./panes";
+import { closeView, local, setActive } from "./panes";
 import { closePreview, openPreview, pv, pvItem } from "./preview";
-import { initSettings, setupSettings } from "./settings";
+import { bindPickers, initSettings, setupSettings, splitView } from "./settings";
 import { setupUpdater } from "./updater";
 import type { SortBy } from "./types";
 import { $, fail, store } from "./util";
@@ -23,6 +23,14 @@ import { $, fail, store } from "./util";
 // Remote files preview on Enter; local files open in their default app.
 paneHooks.openFile = (p, e) => (p.isRemote ? openPreview(p, e) : openItem(p, e));
 paneHooks.listed = (p) => !p.isRemote && requestSizes();
+// Each remote view (ADR-029): DOM events, its account/bucket chips, split/close buttons.
+paneHooks.created = (p) => {
+  bindPane(p);
+  bindPickers(p);
+  watchView(p);
+  p.q(".split-btn").onclick = () => splitView(p);
+  p.q(".close-view").onclick = () => closeView(p);
+};
 
 function bindPane(p: Pane) {
   p.el.addEventListener("mousedown", () => setActive(p));
@@ -139,7 +147,6 @@ async function main() {
   if (/Mac/.test(navigator.userAgent)) document.body.classList.add("mac"); // room for the traffic lights
   hydrateIcons();
   bindPane(local);
-  bindPane(remote);
   $("places-chip").onclick = openPlacesMenu;
   bindPreview();
   setupPopover();

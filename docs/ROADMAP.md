@@ -31,10 +31,11 @@ One patch release per step, released only when the maintainer approves.
    an in-memory mock). Original plan — REST API with **bring-your-own OAuth app** (Custom App, user authentication). Users
    paste the Client ID and secret; sign-in is PKCE through the system browser with a loopback
    redirect. A path↔ID cache (Box is ID-based) and chunked upload over 50 MB.
-3. **Split remote views**: the right column holds 1–3 views stacked top/bottom, each with its own
+3. ✅ **Split remote views** (ADR-029): the right column holds 1–3 views stacked top/bottom, each with its own
    account, bucket and folder (⌘\ split, ⌘W close, Tab cycles). Dragging between views copies
-   server-side on the same S3 account and streams directly between different accounts or
-   providers (no temp files), with progress in the activity card.
+   server-side on the same S3 account (≤ 5 GB) and relays file by file through a temp file
+   between different accounts or providers, with progress in the activity card. Later: stream
+   without the temp file, and server-side copy within one Nextcloud/Box account.
 
 Not planned: Google Drive (dropped by the maintainer on 2026-10-16), and exposing sync-client
 folders (iCloud Drive, `~/Library/CloudStorage`) as Places. iCloud Drive has no public API for

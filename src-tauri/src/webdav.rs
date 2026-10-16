@@ -72,7 +72,7 @@ pub(crate) fn enc(seg: &str) -> String {
 }
 
 /// `a b/c` → `a%20b/c` (keeps the slashes, including a trailing one).
-fn enc_path(key: &str) -> String {
+pub(crate) fn enc_path(key: &str) -> String {
     key.split('/').map(enc).collect::<Vec<_>>().join("/")
 }
 

@@ -5,6 +5,20 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Split remote views.** The right side can show up to 3 accounts stacked top and bottom, each
+  with its own account, bucket and folder. Use the split button, ⌘\ or the palette; ⌘W or ✕
+  closes a view. Drag the handle between views to resize them; double-click it to even them
+  out. The layout is remembered.
+- **Copy between accounts.** Drag files from one remote view to another (S3 → Nextcloud, Box →
+  S3, …). Within one S3 account the copy happens on the server (files up to 5 GB); otherwise
+  each file is relayed through a temp file and deleted after. Progress shows in the activity card.
+
+### Changed
+- Tab cycles through the local pane and every remote view. F5 from the local pane uploads to
+  the remote view you used last (it has an accent bar when several are open).
+- Narrow pane headers hide secondary buttons and columns instead of squashing the chips.
+
 ## [0.4.3] - 2026-10-16
 
 ### Added

@@ -197,6 +197,91 @@ pub async fn download_rel(
     Ok(id)
 }
 
+/// Copies remote files/folders from one view's account to another's (drag between remote views).
+/// Same S3 account: server-side copy. Otherwise each file is relayed through a temp file (downloaded,
+/// uploaded, deleted), so any provider pair works. Paths below `src_prefix` are kept under
+/// `dst_prefix`. Returns the job id.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn copy_remote(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    src_account: Option<String>,
+    src_bucket: String,
+    src_prefix: String,
+    items: Vec<DlItem>,
+    dst_account: Option<String>,
+    dst_bucket: String,
+    dst_prefix: String,
+) -> Result<String, String> {
+    let src = state.remote(src_account.as_deref())?;
+    let dst = state.remote(dst_account.as_deref())?;
+    let same = src.account() == dst.account();
+    let label = job_label(items.iter().map(|i| file_name(&i.key)).collect());
+    let job = Job::new(&app, "copy", label, dst.account(), &dst_bucket, &dst_prefix);
+    *job.src.lock().unwrap() = Some((src.account().to_string(), src_bucket.clone()));
+    let id = job.id.clone();
+    let j = job.clone();
+    job.spawn(app, async move {
+        // Expand folders; keep each file's path relative to the source folder.
+        let mut files: Vec<(String, u64, String)> = vec![];
+        for it in items {
+            let rel = it.key.strip_prefix(&src_prefix).unwrap_or(&it.key).to_string();
+            if it.key.ends_with('/') {
+                match src.list_all(&src_bucket, &it.key).await {
+                    Ok(objs) => files.extend(objs.into_iter().filter(|(k, _)| !k.ends_with('/')).map(|(k, size)| {
+                        let r = k.strip_prefix(&src_prefix).unwrap_or(&k).to_string();
+                        (k, size, format!("{dst_prefix}{r}"))
+                    })),
+                    Err(e) => j.fail(&rel, e),
+                }
+            } else {
+                files.push((it.key, it.size, format!("{dst_prefix}{rel}")));
+            }
+        }
+        j.files_total.store(files.len() as u64, Ordering::Relaxed);
+        // Relayed bytes count twice (down, then up); server-side copies once, at the end.
+        let weight = if same { 1 } else { 2 };
+        j.bytes_total.store(files.iter().map(|f| f.1 * weight).sum(), Ordering::Relaxed);
+        let tmp_root = temp_root().join(format!("copy-{}", uuid::Uuid::new_v4()));
+        stream::iter(files)
+            .for_each_concurrent(FILE_CONCURRENCY, |(key, size, dst_key)| {
+                let (src, dst, j, sb, db, tmp_root) =
+                    (src.clone(), dst.clone(), j.clone(), src_bucket.clone(), dst_bucket.clone(), tmp_root.clone());
+                async move {
+                    if j.cancelled() {
+                        return;
+                    }
+                    let res: Result<(), String> = async {
+                        if same && src.copy_within((&sb, &key), (&db, &dst_key), size).await? {
+                            j.bytes_done.fetch_add(size, Ordering::Relaxed);
+                            return Ok(());
+                        }
+                        let tmp = tmp_root.join(uuid::Uuid::new_v4().to_string());
+                        let r = async {
+                            src.download_file(&sb, &key, &tmp, &j).await?;
+                            dst.upload_file(&db, &dst_key, &tmp, size, &j).await
+                        }
+                        .await;
+                        let _ = tokio::fs::remove_file(&tmp).await;
+                        r
+                    }
+                    .await;
+                    match res {
+                        Ok(()) => {
+                            j.files_done.fetch_add(1, Ordering::Relaxed);
+                        }
+                        Err(e) if !j.cancelled() => j.fail(&file_name(&key), e),
+                        Err(_) => {}
+                    }
+                }
+            })
+            .await;
+        let _ = tokio::fs::remove_dir_all(&tmp_root).await;
+    });
+    Ok(id)
+}
+
 #[derive(Deserialize)]
 pub struct DlItem {
     /// Object key; a key ending in `/` downloads the whole folder. For `download_rel`: the path
@@ -370,10 +455,15 @@ mod tests {
         let url = c.link(bucket, "rt/folder/sub/hello.txt", 60, false).await.unwrap();
         assert!(url.contains("/noexplorer-test/rt/folder/sub/hello.txt"), "path-style expected");
         assert_eq!(c.read_head(bucket, "rt/folder/sub/hello.txt", 3).await.unwrap(), b"xin");
+        // Server-side copy, with a key that needs encoding.
+        assert!(
+            c.copy_within((bucket, "rt/folder/sub/hello.txt"), (bucket, "rt/copy/xin chào #1.txt"), 9).await.unwrap()
+        );
+        assert_eq!(c.read_head(bucket, "rt/copy/xin chào #1.txt", 3).await.unwrap(), b"xin");
         let listed = c.list(bucket, "rt/folder/").await.unwrap();
         assert!(listed.iter().any(|e| e.dir && e.key == "rt/folder/sub/"));
 
-        assert_eq!(c.delete(bucket, vec!["rt/".into()]).await.unwrap(), all.len() + 1);
+        assert_eq!(c.delete(bucket, vec!["rt/".into()]).await.unwrap(), all.len() + 2);
         assert!(c.list_all(bucket, "rt/").await.unwrap().is_empty());
         std::fs::remove_dir_all(dir).unwrap();
     }

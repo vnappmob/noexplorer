@@ -9,9 +9,9 @@ import { openCompare } from "./compare";
 import { setTextSize, setTheme, appearance } from "./appearance";
 import { icon } from "./icons";
 import type { Pane } from "./pane";
-import { active, local, remote, switchTo } from "./panes";
-import { addAccount, openSettings, selectBucket, switchProfile } from "./settings";
-import { activeProfile, app } from "./state";
+import { active, closeView, local, MAX_VIEWS, remote, remotes, switchTo } from "./panes";
+import { addAccount, openSettings, selectBucket, splitView, switchProfile } from "./settings";
+import { app } from "./state";
 import { checkForUpdates } from "./updater";
 import { $, esc, fail, toast } from "./util";
 
@@ -39,10 +39,12 @@ function build(): Entry[] {
   cmd("New folder", "folderPlus", () => mkdir(active));
   cmd("Refresh", "refresh", () => active.load(true), "⌘R");
   cmd("Folder size (Σ)", "sigma", () => calcSize(active));
-  if (app.bucket) cmd("Compare this computer ⇄ remote (find differences, checksums)", "compare", openCompare);
+  if (remote.bucket) cmd("Compare this computer ⇄ remote (find differences, checksums)", "compare", openCompare);
   cmd("Go to path…", "pencil", () => editPath(active), "⌘L");
   cmd("Copy current path", "copy", () => copyPath(active));
   cmd(app.showHidden ? "Hide hidden files" : "Show hidden files", "eye", () => paneAction(local, "hidden"));
+  if (remotes.length < MAX_VIEWS) cmd("Split view: another account below", "split", () => splitView(remote), "⌘\\");
+  if (remotes.length > 1) cmd("Close this remote view", "x", () => closeView(remote), "⌘W");
   cmd("Settings", "sliders", () => openSettings(), "⌘,");
   cmd("Add account (S3, Nextcloud, WebDAV)", "plus", addAccount);
   cmd("Check for updates", "update", () => checkForUpdates(true));
@@ -53,7 +55,7 @@ function build(): Entry[] {
   if (size < 18) cmd("Larger text", "plus", () => setTextSize(String(size < 14 ? 14 : size < 16 ? 16 : 18)));
   if (size > 13) cmd("Smaller text", "sigma", () => setTextSize(String(size > 16 ? 16 : size > 14 ? 14 : 13)));
 
-  const current = activeProfile()?.id;
+  const current = remote.account;
   for (const p of app.settings.profiles)
     if (p.id !== current)
       out.push({
@@ -63,14 +65,14 @@ function build(): Entry[] {
         icon: "cloud",
         run: () => switchProfile(p.id),
       });
-  for (const b of app.buckets)
-    if (b.name !== app.bucket)
+  for (const b of remote.buckets)
+    if (b.name !== remote.bucket)
       out.push({
         group: "Buckets",
         label: b.name,
         sub: b.region ?? undefined,
         icon: "bucket",
-        run: () => selectBucket(b.name),
+        run: () => selectBucket(remote, b.name),
       });
   for (const r of local.roots)
     out.push({
@@ -80,10 +82,10 @@ function build(): Entry[] {
       icon: "drive",
       run: () => (switchTo(local), local.go(r.path)),
     });
-  for (const p of [local, remote]) {
+  for (const p of [local, ...remotes]) {
     for (const e of p.entries) {
       out.push({
-        group: p.isRemote ? `In ${app.bucket}` : "On this computer",
+        group: p.isRemote ? `In ${p.profile()?.name ?? ""} · ${p.bucket}` : "On this computer",
         label: e.name,
         icon: e.dir ? "folder" : "doc",
         run: () => (e.dir ? (switchTo(p), p.go(e.key)) : reveal(p, e.key)),
@@ -127,7 +129,7 @@ export function editPath(p: Pane) {
     if (p.isRemote) {
       // Accept "s3://bucket/a/b", "bucket/a/b" (current bucket) or "a/b".
       v = v.replace(/^s3:\/\//, "");
-      if (app.bucket && (v === app.bucket || v.startsWith(app.bucket + "/"))) v = v.slice(app.bucket.length + 1);
+      if (p.bucket && (v === p.bucket || v.startsWith(p.bucket + "/"))) v = v.slice(p.bucket.length + 1);
       v = v.replace(/^\/+/, "");
       if (v && !v.endsWith("/")) v += "/";
       p.go(v);

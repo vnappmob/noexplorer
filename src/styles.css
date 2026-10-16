@@ -265,6 +265,51 @@ body:not(.mac) .tl-space {
 .pane.active {
   border-color: var(--line2);
 }
+/* remote views stacked top/bottom (panes.ts, ADR-029); flex-grow is each view's share */
+.remotes {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.remotes > .pane {
+  flex: 1 1 0;
+  min-height: 140px;
+}
+.hsplit {
+  flex: none;
+  height: 10px;
+  position: relative;
+  cursor: row-resize;
+}
+.hsplit::before {
+  content: "";
+  position: absolute;
+  left: 30%;
+  right: 30%;
+  top: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+.hsplit:hover::before,
+body.resizing-v .hsplit::before {
+  background: var(--accent);
+}
+body.resizing-v,
+body.resizing-v * {
+  cursor: row-resize !important;
+}
+/* With several views, the one local → remote actions go to (F5, drops from the left pane). */
+.remotes > .pane.current {
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    var(--shadow);
+}
+.split-btn:disabled {
+  opacity: 0.35;
+}
 .splitter {
   position: relative;
   z-index: 5;
@@ -631,6 +676,12 @@ body.resizing * {
   .chip-sub {
     display: none;
   }
+  /* Room for the account/bucket chips: these are also in the ⋯ menu (and ⌘R, ⌘\\). */
+  .src .mkdir-btn,
+  .src .refresh,
+  .src .split-btn {
+    display: none;
+  }
 }
 .list {
   position: relative;
@@ -818,7 +869,7 @@ body.resizing * {
 }
 
 /* the activity card floats over the bottom-right of the remote pane: leave room to scroll past it */
-body.has-activity #pane-remote .list {
+body.has-activity .remotes > .pane:last-child .list {
   padding-bottom: 96px;
 }
 

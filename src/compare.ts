@@ -9,7 +9,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { icon } from "./icons";
 import { local, remote } from "./panes";
-import { activeProfile, app } from "./state";
+import type { Pane } from "./pane";
 import type { Diff } from "./types";
 import { $, esc, fail, fmtSize, toast } from "./util";
 
@@ -17,7 +17,7 @@ type Tab = "only_local" | "only_remote" | "changed" | "junk" | "symlinks";
 const MAX_ROWS = 2000;
 
 const dlg = () => $<HTMLDialogElement>("compare");
-let target: { root: string; prefix: string } | null = null;
+let target: { root: string; prefix: string; view: Pane } | null = null;
 let diff: Diff | null = null;
 let tab: Tab = "only_local";
 let runId = "";
@@ -25,15 +25,16 @@ let runId = "";
 const n = (k: number, one: string, many = `${one}s`) => `${k.toLocaleString()} ${k === 1 ? one : many}`;
 
 /** Local root and remote prefix to compare, from the selections/current folders. */
-function pickTarget(): { root: string; prefix: string } | null {
-  if (!activeProfile() || !app.bucket) return (toast("Add a remote account first", true), null);
+function pickTarget(): { root: string; prefix: string; view: Pane } | null {
+  if (!remote.profile() || !remote.bucket) return (toast("Add a remote account first", true), null);
   const sep = local.cwd.includes("\\") ? "\\" : "/";
   const join = (dir: string, name: string) => (dir.endsWith(sep) ? dir + name : dir + sep + name);
   const ld = local.selectedItems().filter((e) => e.dir);
   const rd = remote.selectedItems().filter((e) => e.dir);
-  if (ld.length === 1) return { root: ld[0].key, prefix: `${remote.cwd}${ld[0].name}/` };
-  if (rd.length === 1) return { root: join(local.cwd, rd[0].name), prefix: rd[0].key };
-  return { root: local.cwd, prefix: remote.cwd };
+  const view = remote;
+  if (ld.length === 1) return { root: ld[0].key, prefix: `${remote.cwd}${ld[0].name}/`, view };
+  if (rd.length === 1) return { root: join(local.cwd, rd[0].name), prefix: rd[0].key, view };
+  return { root: local.cwd, prefix: remote.cwd, view };
 }
 
 export function openCompare() {
@@ -42,7 +43,7 @@ export function openCompare() {
   diff = null;
   const where = `${target.prefix || "/"}`;
   $("cmp-where").innerHTML =
-    `${icon("drive")}<span title="${esc(target.root)}">${esc(target.root)}</span><b>⇄</b>${icon("cloud")}<span>${esc(activeProfile()!.name)} · ${esc(app.bucket)}/${esc(where)}</span>`;
+    `${icon("drive")}<span title="${esc(target.root)}">${esc(target.root)}</span><b>⇄</b>${icon("cloud")}<span>${esc(target.view.profile()!.name)} · ${esc(target.view.bucket)}/${esc(where)}</span>`;
   render();
   if (!dlg().open) dlg().showModal();
   run();
@@ -64,7 +65,7 @@ async function run() {
     });
     diff = await invoke<Diff>("compare", {
       id,
-      bucket: app.bucket,
+      ...target.view.where(),
       prefix: target.prefix,
       local: target.root,
       verify,
@@ -173,7 +174,7 @@ async function uploadDiff() {
   if (!diff || !target) return;
   const rels = [...diff.only_local.map((f) => f.rel), ...diff.changed.map((c) => c.rel)];
   try {
-    await invoke("upload_rel", { bucket: app.bucket, prefix: target.prefix, root: target.root, rels });
+    await invoke("upload_rel", { ...target.view.where(), prefix: target.prefix, root: target.root, rels });
     dlg().close();
   } catch (e) {
     fail(e);
@@ -184,7 +185,7 @@ async function downloadDiff() {
   if (!diff || !target) return;
   const items = diff.only_remote.map((f) => ({ key: f.rel, size: f.size }));
   try {
-    await invoke("download_rel", { bucket: app.bucket, prefix: target.prefix, root: target.root, items });
+    await invoke("download_rel", { ...target.view.where(), prefix: target.prefix, root: target.root, items });
     dlg().close();
   } catch (e) {
     fail(e);

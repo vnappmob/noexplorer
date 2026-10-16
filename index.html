@@ -63,31 +63,8 @@
 
       <div class="splitter" title="Drag to resize · double-click to reset"></div>
 
-      <!-- REMOTE -->
-      <section class="pane" id="pane-remote" data-pane="remote" aria-label="Remote storage">
-        <header class="src">
-          <button class="chip" id="profile-chip" aria-haspopup="menu"><span class="chip-ico acct-ico" data-icon="cloud"></span><span class="chip-label" id="profile-label">Add account</span><span class="chip-sub" id="profile-sub"></span><span class="chev" data-icon="chevDown"></span></button>
-          <span class="sep-chev" data-icon="chevRight"></span>
-          <button class="chip" id="bucket-chip" aria-haspopup="menu"><span class="chip-ico bucket-ico" data-icon="bucket"></span><span class="chip-label" id="bucket-label">—</span><span class="chev" data-icon="chevDown"></span></button>
-          <span class="grow"></span>
-          <input class="filter" type="search" placeholder="Filter…" spellcheck="false" aria-label="Filter this folder" hidden />
-          <button class="ib filter-btn" title="Filter (⌘F)" aria-label="Filter"><span data-icon="search"></span></button>
-          <button class="ib mkdir-btn" title="New folder" aria-label="New folder"><span data-icon="folderPlus"></span></button>
-          <button class="ib refresh" title="Refresh (⌘R)" aria-label="Refresh"><span data-icon="refresh"></span></button>
-          <button class="ib more-btn" title="More" aria-label="More actions"><span data-icon="more"></span></button>
-        </header>
-        <nav class="pathbar" aria-label="Path">
-          <button class="ib up" title="Up one folder (⌫)" aria-label="Up one folder"><span data-icon="arrowUp"></span></button>
-          <span class="scheme">s3://</span><div class="crumbs" title="Click empty space to type a path (⌘L)"></div>
-          <input class="path-input" spellcheck="false" autocomplete="off" aria-label="Go to path" hidden />
-          <button class="ib copy-path" title="Copy path" aria-label="Copy path"><span data-icon="copy"></span></button>
-          <button class="sum calc-size" title="Total size of this folder (or the selected folders)"><span data-icon="sigma"></span><span class="dirsize">Size</span></button>
-        </nav>
-        <div class="cols">
-          <span data-sort="name">Name <em class="count"></em></span><span data-sort="size">Size</span><span data-sort="modified">Modified</span>
-        </div>
-        <div class="list" tabindex="0"></div>
-      </section>
+      <!-- REMOTE VIEWS: 1–3 panes stacked top/bottom, cloned from #remote-tpl (panes.ts) -->
+      <div class="remotes" id="remotes"></div>
 
       <svg id="beam" aria-hidden="true"><path class="beam-base" /><path class="beam-glow" /><path class="beam-core" /><path class="beam-spark" /></svg>
     </div>
@@ -104,6 +81,35 @@
     </section>
 
     <div id="popover" class="menu" role="menu" hidden></div>
+
+    <template id="remote-tpl">
+      <section class="pane remote" data-pane="remote" aria-label="Remote storage">
+        <header class="src">
+          <button class="chip profile-chip" aria-haspopup="menu"><span class="chip-ico acct-ico" data-icon="cloud"></span><span class="chip-label profile-label">Add account</span><span class="chip-sub profile-sub"></span><span class="chev" data-icon="chevDown"></span></button>
+          <span class="sep-chev" data-icon="chevRight"></span>
+          <button class="chip bucket-chip" aria-haspopup="menu"><span class="chip-ico bucket-ico" data-icon="bucket"></span><span class="chip-label bucket-label">—</span><span class="chev" data-icon="chevDown"></span></button>
+          <span class="grow"></span>
+          <input class="filter" type="search" placeholder="Filter…" spellcheck="false" aria-label="Filter this folder" hidden />
+          <button class="ib filter-btn" title="Filter (⌘F)" aria-label="Filter"><span data-icon="search"></span></button>
+          <button class="ib mkdir-btn" title="New folder" aria-label="New folder"><span data-icon="folderPlus"></span></button>
+          <button class="ib refresh" title="Refresh (⌘R)" aria-label="Refresh"><span data-icon="refresh"></span></button>
+          <button class="ib more-btn" title="More" aria-label="More actions"><span data-icon="more"></span></button>
+          <button class="ib split-btn" title="Split view: another account below (⌘\)" aria-label="Split view"><span data-icon="split"></span></button>
+          <button class="ib close-view" title="Close this view (⌘W)" aria-label="Close this view" hidden><span data-icon="x"></span></button>
+        </header>
+        <nav class="pathbar" aria-label="Path">
+          <button class="ib up" title="Up one folder (⌫)" aria-label="Up one folder"><span data-icon="arrowUp"></span></button>
+          <span class="scheme">s3://</span><div class="crumbs" title="Click empty space to type a path (⌘L)"></div>
+          <input class="path-input" spellcheck="false" autocomplete="off" aria-label="Go to path" hidden />
+          <button class="ib copy-path" title="Copy path" aria-label="Copy path"><span data-icon="copy"></span></button>
+          <button class="sum calc-size" title="Total size of this folder (or the selected folders)"><span data-icon="sigma"></span><span class="dirsize">Size</span></button>
+        </nav>
+        <div class="cols">
+          <span data-sort="name">Name <em class="count"></em></span><span data-sort="size">Size</span><span data-sort="modified">Modified</span>
+        </div>
+        <div class="list" tabindex="0"></div>
+      </section>
+    </template>
 
     <dialog id="palette" aria-label="Command palette">
       <div class="pal-input"><span data-icon="search"></span><input id="pal-q" placeholder="Search files, buckets, commands…" spellcheck="false" autocomplete="off" /><kbd>esc</kbd></div>

@@ -1,9 +1,9 @@
 // Global keyboard shortcuts. The full table is in README.md — update both together.
 
 import { deleteRemote, openItem, transfer, trashLocal } from "./actions";
-import { active, local, remote, switchTo } from "./panes";
+import { active, closeView, cyclePane, local, remote, remotes, switchTo } from "./panes";
 import { closePreview, openPreview, previewStep, pv, pvItem } from "./preview";
-import { openSettings } from "./settings";
+import { openSettings, splitView } from "./settings";
 import { editPath, openPalette } from "./palette";
 import { $ } from "./util";
 
@@ -29,7 +29,10 @@ function onKey(ev: KeyboardEvent) {
   if (mod && ev.key === "k") return (ev.preventDefault(), openPalette());
   if (mod && ev.key === "l") return (ev.preventDefault(), editPath(active));
   if (mod && ev.key === "f") return (ev.preventDefault(), active.toggleFilter(true));
-  if (ev.key === "Tab" && !inInput) return (ev.preventDefault(), switchTo(active.other));
+  if (ev.key === "Tab" && !inInput) return (ev.preventDefault(), cyclePane(ev.shiftKey));
+  // Remote views (ADR-029): ⌘\ splits the focused view, ⌘W closes it (never the last one).
+  if (mod && ev.key === "\\") return (ev.preventDefault(), splitView(remote));
+  if (mod && ev.key.toLowerCase() === "w" && remotes.length > 1) return (ev.preventDefault(), closeView(remote));
   if (inInput) {
     if (ev.key === "Escape" || ev.key === "ArrowDown") {
       (ev.target as HTMLElement).blur();
@@ -70,7 +73,7 @@ function onKey(ev: KeyboardEvent) {
       if (sel.length === 1 && !sel[0].dir) openPreview(p, sel[0]);
       break;
     case (ev.key === "Backspace" && mod) || ev.key === "Delete":
-      if (p.isRemote) deleteRemote();
+      if (p.isRemote) deleteRemote(p);
       else trashLocal();
       break;
     case ev.key === "Backspace":

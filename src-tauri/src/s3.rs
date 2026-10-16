@@ -278,6 +278,21 @@ impl S3 {
         Ok((r.body.collect().await.map_err(err)?.into_bytes().to_vec(), total))
     }
 
+    /// Server-side copy inside this account (no bytes through this computer). S3 allows up to
+    /// 5 GB per CopyObject; bigger files are copied by the caller through a relay.
+    pub async fn copy_within(
+        &self,
+        src_bucket: &str,
+        src_key: &str,
+        dst_bucket: &str,
+        dst_key: &str,
+    ) -> Result<(), String> {
+        let c = self.client_for(dst_bucket).await;
+        let source = format!("{src_bucket}/{}", crate::webdav::enc_path(src_key));
+        c.copy_object().bucket(dst_bucket).key(dst_key).copy_source(source).send().await.map_err(err)?;
+        Ok(())
+    }
+
     /// Creates an empty `prefix/name/` marker object so the folder shows up while empty.
     pub async fn mkdir(&self, bucket: &str, prefix: &str, name: &str) -> Result<(), String> {
         let c = self.client_for(bucket).await;

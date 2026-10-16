@@ -140,6 +140,17 @@ impl Remote {
         }
     }
 
+    /// Copies a file inside this account without downloading it, when the provider can.
+    /// `Ok(false)` = not supported here (the caller relays the bytes instead).
+    pub async fn copy_within(&self, src: (&str, &str), dst: (&str, &str), size: u64) -> Result<bool, String> {
+        match self {
+            Remote::S3(s) if size <= 5 * 1024 * 1024 * 1024 => {
+                s.copy_within(src.0, src.1, dst.0, dst.1).await.map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
     pub async fn mkdir(&self, container: &str, prefix: &str, name: &str) -> Result<(), String> {
         match self {
             Remote::S3(s) => s.mkdir(container, prefix, name).await,

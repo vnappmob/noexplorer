@@ -37,6 +37,8 @@ pub struct Job {
     pub dest: Mutex<Option<String>>,
     /// Local folder a download writes into; the UI refreshes the left pane when it matches.
     pub local_dir: Mutex<Option<String>>,
+    /// Copy jobs (`kind = "copy"`): where the files come from (`account`/`bucket` are the target).
+    pub src: Mutex<Option<(String, String)>>,
 }
 
 /// Payload of the `"job"` event. Mirrors `JobEvent` in `src/types.ts`.
@@ -56,6 +58,9 @@ pub struct JobEvent {
     error: Option<String>,
     dest: Option<String>,
     local_dir: Option<String>,
+    /// Copy jobs: source account and bucket.
+    src_account: Option<String>,
+    src_bucket: Option<String>,
 }
 
 impl Job {
@@ -76,6 +81,7 @@ impl Job {
             cancel: Arc::new(AtomicBool::new(false)),
             dest: Mutex::new(None),
             local_dir: Mutex::new(None),
+            src: Mutex::new(None),
         }
     }
 
@@ -121,8 +127,14 @@ impl Job {
         if !s.general.notify || focused || status == "cancelled" {
             return;
         }
-        let (verb, files) =
-            (if self.kind == "up" { "Uploaded" } else { "Downloaded" }, self.files_done.load(Ordering::Relaxed));
+        let (verb, files) = (
+            match self.kind {
+                "up" => "Uploaded",
+                "copy" => "Copied",
+                _ => "Downloaded",
+            },
+            self.files_done.load(Ordering::Relaxed),
+        );
         let (title, body) = match status {
             "done" => (
                 format!("{verb} {}", self.label),
@@ -160,6 +172,8 @@ impl Job {
             },
             dest: self.dest.lock().unwrap().clone(),
             local_dir: self.local_dir.lock().unwrap().clone(),
+            src_account: self.src.lock().unwrap().as_ref().map(|s| s.0.clone()),
+            src_bucket: self.src.lock().unwrap().as_ref().map(|s| s.1.clone()),
         }
     }
 

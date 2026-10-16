@@ -7,14 +7,15 @@ import { listen } from "@tauri-apps/api/event";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { appearance, setTextSize, setTheme, type Theme } from "./appearance";
-import { remote, switchTo } from "./panes";
+import { addView, MAX_VIEWS, remote, remotes, savedViews, saveViews, switchTo } from "./panes";
+import type { Pane } from "./pane";
 import { describeAccount, guessProvider, isS3, PRESETS, type ProviderId } from "./providers";
-import { activeProfile, app, profileKey } from "./state";
+import { activeProfile, app } from "./state";
 import { openMenu, type MenuItem } from "./popover";
 import type { BucketInfo, General, Profile, Settings } from "./types";
 import { requestSizes, stopSizes } from "./sizes";
 import { checkForUpdates } from "./updater";
-import { $, esc, fail, plural, store } from "./util";
+import { $, esc, fail, plural } from "./util";
 
 const dialog = () => $<HTMLDialogElement>("settings");
 const form = () => $<HTMLFormElement>("acct-form");
@@ -172,7 +173,7 @@ async function saveAccount(ev: Event) {
   if (!(await testAccount())) return;
   try {
     const s = await invoke<Settings>("save_profile", { profile: readForm() });
-    await applySettings(s);
+    await applySettings(s, s.active);
     dialog().close();
   } catch (e) {
     setMsg(`✗ ${e}`, "err");
@@ -195,7 +196,7 @@ async function boxSignIn() {
       id: editing || null,
       name: input("name").value,
     });
-    await applySettings(s);
+    await applySettings(s, s.active);
     dialog().close();
   } catch (e) {
     setMsg(`✗ ${e}`, "err");
@@ -216,7 +217,7 @@ async function nextcloudSignIn() {
   setMsg("Approve NoExplorer in the browser window that just opened…");
   try {
     const s = await invoke<Settings>("nextcloud_login", { server, id: editing || null, name: input("name").value });
-    await applySettings(s);
+    await applySettings(s, s.active);
     dialog().close();
   } catch (e) {
     setMsg(`✗ ${e}`, "err");
@@ -291,32 +292,41 @@ function syncAppearanceControls() {
   check("size", appearance.size);
 }
 
-// ---------- account + bucket pickers (remote pane header) ----------
+// ---------- account + bucket pickers (each remote view's header) ----------
 
-/** Updates the two chips in the remote pane header from the current state. */
-function renderPickers() {
-  const p = activeProfile();
-  $("profile-label").textContent = p ? p.name : "Add account";
-  $("profile-sub").textContent = p && describeAccount(p) !== p.name ? describeAccount(p) : "";
-  $("bucket-label").textContent = app.bucket || (p ? "No bucket" : "—");
-  // WebDAV/Nextcloud have a single container ("Files"): no bucket picker to show.
+/** Updates a remote view's two chips. */
+export function renderPickers(v: Pane) {
+  const p = v.profile();
+  v.q(".profile-label").textContent = p ? p.name : "Add account";
+  v.q(".profile-sub").textContent = p && describeAccount(p) !== p.name ? describeAccount(p) : "";
+  v.q(".bucket-label").textContent = v.bucket || (p ? "No bucket" : "—");
+  // WebDAV/Nextcloud/Box have a single container: no bucket picker to show.
   const buckets = !!p && isS3(p);
-  $("bucket-chip").hidden = !buckets;
-  $("bucket-chip").previousElementSibling!.toggleAttribute("hidden", !buckets); // the › between the chips
+  const chip = v.q(".bucket-chip");
+  chip.hidden = !buckets;
+  chip.previousElementSibling!.toggleAttribute("hidden", !buckets); // the › between the chips
 }
 
-export async function switchProfile(id: string) {
+/** Shows account `id` in view `v`. It also becomes the default account (tray ✓, new views). */
+export async function setViewAccount(v: Pane, id: string) {
+  v.account = id;
+  v.bucket = "";
+  v.cwd = "";
   try {
-    await applySettings(await invoke<Settings>("set_active_profile", { id }));
+    app.settings = await invoke<Settings>("set_active_profile", { id });
   } catch (e) {
     fail(e);
   }
+  await loadBuckets(v, true);
 }
 
-export function selectBucket(name: string) {
-  app.bucket = name;
-  renderPickers();
-  remote.go("");
+/** Palette / tray: show `id` in the focused remote view. */
+export const switchProfile = (id: string) => setViewAccount(remote, id);
+
+export function selectBucket(v: Pane, name: string) {
+  v.bucket = name;
+  renderPickers(v);
+  v.go("");
 }
 
 export function addAccount() {
@@ -324,8 +334,7 @@ export function addAccount() {
   editAccount(null);
 }
 
-export function openProfileMenu(anchor = $("profile-chip")) {
-  const active = activeProfile()?.id;
+export function openProfileMenu(v: Pane, anchor = v.q(".profile-chip")) {
   const items: MenuItem[] = [{ header: "Accounts" }];
   for (const p of app.settings.profiles) {
     items.push({
@@ -333,8 +342,8 @@ export function openProfileMenu(anchor = $("profile-chip")) {
       sub: describeAccount(p),
       icon: "cloud",
       iconClass: "acct-ico",
-      checked: p.id === active,
-      run: () => p.id !== active && switchProfile(p.id),
+      checked: p.id === v.account,
+      run: () => p.id !== v.account && setViewAccount(v, p.id),
     });
   }
   if (app.settings.profiles.length) items.push({ sep: true });
@@ -343,65 +352,90 @@ export function openProfileMenu(anchor = $("profile-chip")) {
   openMenu(anchor, items, { width: 300 });
 }
 
-export function openBucketMenu(anchor = $("bucket-chip")) {
-  const items: MenuItem[] = app.buckets.map((b) => ({
+export function openBucketMenu(v: Pane, anchor = v.q(".bucket-chip")) {
+  const items: MenuItem[] = v.buckets.map((b) => ({
     label: b.name,
     icon: "bucket",
     iconClass: "bucket-ico",
     badge: b.region ?? undefined,
-    checked: b.name === app.bucket,
-    run: () => b.name !== app.bucket && selectBucket(b.name),
+    checked: b.name === v.bucket,
+    run: () => b.name !== v.bucket && selectBucket(v, b.name),
   }));
   if (!items.length) items.push({ header: "No buckets visible with this key" });
-  openMenu(anchor, items, { width: 300, search: app.buckets.length > 6 ? "Find bucket…" : undefined });
+  openMenu(anchor, items, { width: 300, search: v.buckets.length > 6 ? "Find bucket…" : undefined });
 }
 
-/** Adopts settings returned by the backend and reloads the remote pane. */
-export async function applySettings(s: Settings) {
-  const switched = s.active !== app.settings.active;
+/** Wires a new remote view's chips (called through `paneHooks.created`). */
+export function bindPickers(v: Pane) {
+  v.q(".profile-chip").onclick = () => (app.settings.profiles.length ? openProfileMenu(v) : addAccount());
+  v.q(".bucket-chip").onclick = () => openBucketMenu(v);
+}
+
+/**
+ * Adopts settings returned by the backend and reloads the views. `show` = an account that was
+ * just added or signed in: the focused view switches to it.
+ */
+export async function applySettings(s: Settings, show?: string) {
   app.settings = s;
-  renderPickers();
+  if (show) {
+    remote.account = show;
+    remote.bucket = "";
+    remote.cwd = "";
+  }
+  // Views on a removed account fall back to the default account.
+  for (const v of remotes) if (!v.profile()) v.account = s.active;
   if (dialog().open) renderAccountList();
-  await loadBuckets(switched);
+  await Promise.all(remotes.map((v) => loadBuckets(v)));
 }
 
-/** Fills the bucket picker and restores this account's last bucket + prefix when possible. */
-export async function loadBuckets(resetScroll = false) {
-  const p = activeProfile();
+/** Fills a view's bucket picker, keeps its bucket (or the account's default), and lists it. */
+export async function loadBuckets(v: Pane, resetScroll = false) {
+  const p = v.profile();
   let buckets: BucketInfo[] = [];
   if (p) {
     try {
-      buckets = await invoke<BucketInfo[]>("list_buckets");
+      buckets = await invoke<BucketInfo[]>("list_buckets", { account: v.account });
     } catch (e) {
       fail(e);
     }
   }
   const names = buckets.map((b) => b.name);
-  const last = store.get(profileKey("bucket"));
-  const wanted = p?.bucket ?? "";
-  app.buckets = buckets;
-  app.bucket = names.includes(last ?? "") ? last! : names.includes(wanted) ? wanted : (names[0] ?? "");
-  renderPickers();
-  remote.cwd = app.bucket && app.bucket === last ? (store.get(profileKey("prefix")) ?? "") : "";
-  if (resetScroll) remote.list.scrollTop = 0;
-  await remote.load();
+  const keep = names.includes(v.bucket);
+  v.buckets = buckets;
+  v.bucket = keep ? v.bucket : names.includes(p?.bucket ?? "") ? p!.bucket : (names[0] ?? "");
+  if (!keep) v.cwd = "";
+  renderPickers(v);
+  if (resetScroll) v.list.scrollTop = 0;
+  await v.load();
 }
 
+/** Boot: settings, then the saved views (or one view on the default account). */
 export async function initSettings() {
   app.settings = await invoke<Settings>("get_settings");
-  renderPickers();
-  if (app.settings.profiles.length) await loadBuckets();
+  const saved = savedViews().filter((v) => app.settings.profiles.some((p) => p.id === v.account));
+  const views = saved.length ? saved : [{ account: app.settings.active, bucket: "", prefix: "" }];
+  for (const v of views) addView(v);
+  if (app.settings.profiles.length) await Promise.all(remotes.map((v) => loadBuckets(v)));
   else {
-    remote.render();
+    remotes.forEach((v) => (renderPickers(v), v.render()));
     openSettings(); // first run
   }
+}
+
+/** ⌘\ / the split button: a new view below `after`, on the same account. */
+export async function splitView(after: Pane = remote) {
+  if (remotes.length >= MAX_VIEWS) return;
+  const v = addView({ account: after.account || app.settings.active, bucket: after.bucket, prefix: "" }, after);
+  switchTo(v);
+  await loadBuckets(v);
+  saveViews();
 }
 
 export function setupSettings() {
   // Tray menu → open the window on that account (tray.rs).
   listen<string>("tray-open-account", async (ev) => {
     if (dialog().open) dialog().close();
-    if (activeProfile()?.id !== ev.payload) await switchProfile(ev.payload);
+    if (remote.account !== ev.payload) await switchProfile(ev.payload);
     switchTo(remote);
   });
   listen("tray-add-account", addAccount);
@@ -435,6 +469,4 @@ export function setupSettings() {
   $("ap-size").addEventListener("change", (ev) => setTextSize((ev.target as HTMLInputElement).value));
 
   $("btn-settings").onclick = () => openSettings();
-  $("profile-chip").onclick = () => (activeProfile() ? openProfileMenu() : addAccount());
-  $("bucket-chip").onclick = () => openBucketMenu();
 }

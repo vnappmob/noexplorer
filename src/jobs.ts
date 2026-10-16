@@ -6,9 +6,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { icon } from "./icons";
-import { local, remote } from "./panes";
+import { local, remote, remotes } from "./panes";
 import type { Pane } from "./pane";
-import { app } from "./state";
 import type { JobEvent } from "./types";
 import { $, esc, fail, fmtSize, plural, toast } from "./util";
 
@@ -133,10 +132,15 @@ function renderBeam() {
     return;
   }
   const j = running[running.length - 1]; // most recent
-  const from = j.kind === "up" ? local : remote;
-  const to = from.other;
+  // Remote side of the job: the view showing its account + bucket (else the focused one).
+  const view = (account: string, bucket: string) =>
+    remotes.find((v) => v.account === account && v.bucket === bucket) ?? remote;
+  const target = view(j.account, j.bucket);
+  const from = j.kind === "up" ? local : j.kind === "copy" ? view(j.src_account ?? "", j.src_bucket ?? "") : target;
+  const to = j.kind === "down" ? local : target;
+  if (from === to) return void beam.classList.remove("on");
   const box = $("panes").getBoundingClientRect();
-  const s = anchorFrom(from, from.list.getBoundingClientRect(), j.kind === "up" ? "right" : "left");
+  const s = anchorFrom(from, from.list.getBoundingClientRect(), from.isRemote ? "left" : "right");
   const e = anchorTo(to);
   const [sx, sy, ex, ey] = [s.x - box.left, s.y - box.top, e.x - box.left, e.y - box.top];
   const dx = (ex - sx) * 0.5;
@@ -180,11 +184,20 @@ function onJob(ev: JobEvent) {
   });
   if (ev.status !== "running") {
     // Refresh whichever pane is showing the destination.
-    if (ev.kind === "up" && ev.bucket === app.bucket && ev.prefix.startsWith(remote.cwd)) remote.load(true);
+    // Refresh whichever views are showing the destination.
+    if (ev.kind !== "down")
+      for (const v of remotes)
+        if (v.account === ev.account && v.bucket === ev.bucket && ev.prefix.startsWith(v.cwd)) v.load(true);
     if (ev.kind === "down" && ev.local_dir?.startsWith(local.cwd)) local.load(true);
-    if (ev.status === "done") toast(`${ev.kind === "up" ? "Uploaded" : "Downloaded"}: ${ev.label}`);
+    const verb = ev.kind === "up" ? "Uploaded" : ev.kind === "copy" ? "Copied" : "Downloaded";
+    if (ev.status === "done") toast(`${verb}: ${ev.label}`);
   }
   scheduleRender();
+}
+
+/** A new remote view: keep the beam on its rows while it scrolls. */
+export function watchView(v: Pane) {
+  v.list.addEventListener("scroll", scheduleRender, { passive: true });
 }
 
 export async function setupJobs() {
@@ -208,6 +221,5 @@ export async function setupJobs() {
   });
   window.addEventListener("resize", scheduleRender);
   local.list.addEventListener("scroll", scheduleRender, { passive: true });
-  remote.list.addEventListener("scroll", scheduleRender, { passive: true });
   await listen<JobEvent>("job", (e) => onJob(e.payload));
 }

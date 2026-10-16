@@ -29,7 +29,7 @@ TypeScript UI. The UI is in English. License: MIT.
 src/                 Frontend (TypeScript, no framework). Entry: main.ts
   main.ts            Wires DOM events to modules and boots the app
   pane.ts            Pane class: listing, sort, filter, selection, rendering (shared by both panes)
-  panes.ts           The `local` + `remote` instances and the active pane
+  panes.ts           `local`, the 1–3 remote views (`remotes`, split top/bottom), `remote` = last-focused view, the active pane
   actions.ts         transfer / open / link / delete / mkdir + paneAction() dispatcher
   dnd.ts             Drag between panes (mouse events) + drops from the OS (Tauri event)
   preview.ts         Quick-look modal
@@ -183,6 +183,7 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **Compare must never call a file "verified" without reproducing the server's hash.** Unknown multipart part sizes and KMS ETags count as "same size".
 - **`quick-xml` 0.42 gives names as `&str`, and entities arrive as separate `GeneralRef` events** (`parse_multistatus` handles both).
 - **File lists are virtualized** ([ADR-021](docs/DECISIONS.md#adr-021)). Only rows near the viewport exist as `.row` elements. Read rows from `pane.view` / `pane.selected`, scroll with `selectIndex`, and keep every row the same height.
+- **There is no global account or bucket any more** ([ADR-029](docs/DECISIONS.md#adr-029)). Each remote view has its own; pass `view.where()` to every remote command. `remote` from `panes.ts` is a *live* binding to the last-focused view: read it at call time, never cache it in a module-level const.
 - **Dev builds keep their secrets under the `com.vnappmob.noexplorer.dev` keychain service.** macOS may ask for keychain access after a rebuild (ad-hoc signature); release builds don't.
 - **Tauri drop positions are physical pixels.** Divide by `devicePixelRatio` before calling `elementFromPoint`.
 - **The website deploys from Cloudflare, not GitHub Actions.** Workers Builds watches the repo. Build logs live in the Cloudflare dashboard (Workers & Pages → `noexplorer-site` → Deployments), not under Actions.
