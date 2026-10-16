@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-10-16
+
 ### Added
 - **Split remote views.** The right side can show up to 3 accounts stacked top and bottom, each
   with its own account, bucket and folder. Use the split button, ⌘\ or the palette; ⌘W or ✕
