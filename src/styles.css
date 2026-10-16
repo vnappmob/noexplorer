@@ -374,6 +374,7 @@ body.resizing * {
   font-weight: 500;
   min-width: 0;
   max-width: 46%;
+  overflow: hidden;
 }
 .chip[aria-expanded="true"] {
   border-color: var(--accent);
@@ -404,12 +405,16 @@ body.resizing * {
 .chip-label {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 3ch;
 }
 .chip-sub {
   color: var(--muted);
   font-weight: 400;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 100; /* gives way before the name does */
 }
 .chip-sub:empty {
   display: none;
@@ -610,6 +615,23 @@ body.resizing * {
 .row .size {
   text-align: right;
 }
+/* Narrow panes keep the name readable: drop the Modified column (and squeeze Size). */
+.pane {
+  container-type: inline-size;
+}
+@container (max-width: 560px) {
+  .cols,
+  .row {
+    grid-template-columns: minmax(0, 1fr) 6.5em;
+  }
+  .cols span:nth-child(3),
+  .row .date {
+    display: none;
+  }
+  .chip-sub {
+    display: none;
+  }
+}
 .list {
   position: relative;
   z-index: 1;
@@ -678,6 +700,19 @@ body.resizing * {
   color: var(--accent);
 }
 /* ncdu-style share of the folder: a thin bar under the size, growing from the right */
+/* Nextcloud sign-in row in the account form (settings.ts nextcloudSignIn) */
+.signin {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 2px 0 6px;
+}
+.signin small {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
 /* storage bar under the local pane (sizes.ts drawDisk), like macOS System Settings → Storage */
 .disk {
   flex: none;

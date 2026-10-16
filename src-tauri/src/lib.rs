@@ -23,6 +23,7 @@ mod config;
 mod jobs;
 mod local;
 mod provider;
+mod proxy;
 mod remote;
 mod s3;
 mod scan;
@@ -33,6 +34,7 @@ mod transfer;
 mod trash;
 mod tray;
 mod util;
+mod webdav;
 
 use tauri::{Manager, WindowEvent};
 
@@ -49,6 +51,11 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
+        // Previews of providers without presigned URLs (WebDAV) stream through nxr:// (proxy.rs).
+        .register_asynchronous_uri_scheme_protocol("nxr", |ctx, request, responder| {
+            let app = ctx.app_handle().clone();
+            tauri::async_runtime::spawn(async move { responder.respond(proxy::handle(app, request).await) });
+        })
         .manage(state::AppState::default())
         .setup(|app| {
             let settings = config::load_settings(app.handle());
@@ -98,6 +105,8 @@ pub fn run() {
             local::local_size,
             local::volume_info,
             sizes::folder_sizes,
+            webdav::nextcloud_login,
+            webdav::cancel_login,
             sizes::stop_sizes,
             trash::trash_local,
             local::read_local_text,

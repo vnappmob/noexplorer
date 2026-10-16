@@ -228,6 +228,23 @@ impl S3 {
         Ok(r.body.collect().await.map_err(err)?.into_bytes().to_vec())
     }
 
+    /// Bytes `start..=end` (open-ended: at most `cap`) and the object's total size.
+    pub async fn read_range(
+        &self,
+        bucket: &str,
+        key: &str,
+        start: u64,
+        end: Option<u64>,
+        cap: u64,
+    ) -> Result<(Vec<u8>, Option<u64>), String> {
+        let c = self.client_for(bucket).await;
+        let last = end.unwrap_or(start + cap - 1).min(start + cap - 1);
+        let r =
+            c.get_object().bucket(bucket).key(key).range(format!("bytes={start}-{last}")).send().await.map_err(err)?;
+        let total = r.content_range().and_then(|s| s.rsplit('/').next()).and_then(|n| n.parse().ok());
+        Ok((r.body.collect().await.map_err(err)?.into_bytes().to_vec(), total))
+    }
+
     /// Creates an empty `prefix/name/` marker object so the folder shows up while empty.
     pub async fn mkdir(&self, bucket: &str, prefix: &str, name: &str) -> Result<(), String> {
         let c = self.client_for(bucket).await;

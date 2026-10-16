@@ -8,7 +8,7 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { appearance, setTextSize, setTheme, type Theme } from "./appearance";
 import { remote, switchTo } from "./panes";
-import { describeAccount, guessProvider, PRESETS, type ProviderId } from "./providers";
+import { describeAccount, guessProvider, isS3, PRESETS, type ProviderId } from "./providers";
 import { activeProfile, app, profileKey } from "./state";
 import { openMenu, type MenuItem } from "./popover";
 import type { BucketInfo, General, Profile, Settings } from "./types";
@@ -77,6 +77,8 @@ function editAccount(p: Profile | null) {
   const provider = p ? guessProvider(p) : "custom";
   $<HTMLSelectElement>("acct-provider").value = provider;
   applyPreset(provider, false);
+  // Nextcloud can sign in through the browser instead: no password to type.
+  secret.required = !p && provider !== "nextcloud";
   $<HTMLButtonElement>("acct-delete").hidden = !p;
   setMsg("");
   renderAccountList();
@@ -89,13 +91,22 @@ const input = (name: string) => form().elements.namedItem(name) as HTMLInputElem
  * fields that belong to another provider and set the provider's defaults. */
 function applyPreset(id: ProviderId, fill: boolean) {
   const pr = PRESETS[id];
+  const s3 = pr.kind === "s3";
   $("acct-hint").textContent = pr.hint;
   const endpoint = input("endpoint");
   endpoint.placeholder = pr.endpointPlaceholder;
   endpoint.required = pr.endpointRequired;
   input("region").placeholder = pr.regionPlaceholder;
+  form()
+    .querySelectorAll<HTMLElement>(".s3-only")
+    .forEach((el) => (el.hidden = !s3));
+  $("acct-signin").hidden = pr.kind !== "nextcloud";
+  $("lbl-endpoint").textContent = s3 ? "Endpoint" : pr.kind === "nextcloud" ? "Server address" : "WebDAV URL";
+  $("lbl-access").textContent = s3 ? "Access key" : "User name";
+  $("lbl-secret").textContent = s3 ? "Secret key" : pr.kind === "nextcloud" ? "App password" : "Password";
+  input("access_key").required = pr.kind !== "nextcloud";
   if (!fill) return;
-  if (guessProvider({ endpoint: endpoint.value }) !== id) endpoint.value = "";
+  if (guessProvider({ endpoint: endpoint.value }) !== id || !s3) endpoint.value = "";
   input("region").value = pr.region;
   input("path_style").checked = pr.pathStyle;
   (pr.endpointRequired ? endpoint : input("access_key")).focus();
@@ -106,6 +117,7 @@ function readForm(): Profile {
   const v = (k: string) => String(f.get(k) ?? "").trim();
   return {
     id: editing,
+    kind: PRESETS[$<HTMLSelectElement>("acct-provider").value as ProviderId].kind,
     name: v("name"),
     endpoint: v("endpoint"),
     region: v("region"),
@@ -127,7 +139,11 @@ async function testAccount(): Promise<boolean> {
   setMsg("Testing…");
   try {
     const b = await invoke<string[]>("test_profile", { profile: readForm() });
-    setMsg(`✓ Connected · ${plural(b.length, "bucket")}: ${b.slice(0, 8).join(", ")}${b.length > 8 ? "…" : ""}`, "ok");
+    const what =
+      readForm().kind === "s3"
+        ? `${plural(b.length, "bucket")}: ${b.slice(0, 8).join(", ")}${b.length > 8 ? "…" : ""}`
+        : "files are reachable";
+    setMsg(`✓ Connected · ${what}`, "ok");
     return true;
   } catch (e) {
     setMsg(`✗ ${e}`, "err");
@@ -145,6 +161,27 @@ async function saveAccount(ev: Event) {
     dialog().close();
   } catch (e) {
     setMsg(`✗ ${e}`, "err");
+  }
+}
+
+/** Nextcloud Login Flow v2: the browser approves, the backend saves the account (and its app
+ * password, straight into the keychain). */
+async function nextcloudSignIn() {
+  const server = input("endpoint").value.trim();
+  if (!server) return (setMsg("Enter your Nextcloud address first.", "err"), input("endpoint").focus());
+  const btn = $<HTMLButtonElement>("acct-nc-login");
+  btn.disabled = true;
+  $("acct-nc-cancel").hidden = false;
+  setMsg("Approve NoExplorer in the browser window that just opened…");
+  try {
+    const s = await invoke<Settings>("nextcloud_login", { server, id: editing || null, name: input("name").value });
+    await applySettings(s);
+    dialog().close();
+  } catch (e) {
+    setMsg(`✗ ${e}`, "err");
+  } finally {
+    btn.disabled = false;
+    $("acct-nc-cancel").hidden = true;
   }
 }
 
@@ -221,8 +258,10 @@ function renderPickers() {
   $("profile-label").textContent = p ? p.name : "Add account";
   $("profile-sub").textContent = p && describeAccount(p) !== p.name ? describeAccount(p) : "";
   $("bucket-label").textContent = app.bucket || (p ? "No bucket" : "—");
-  $("bucket-chip").hidden = !p;
-  $("bucket-chip").previousElementSibling!.toggleAttribute("hidden", !p); // the › between the chips
+  // WebDAV/Nextcloud have a single container ("Files"): no bucket picker to show.
+  const buckets = !!p && isS3(p);
+  $("bucket-chip").hidden = !buckets;
+  $("bucket-chip").previousElementSibling!.toggleAttribute("hidden", !buckets); // the › between the chips
 }
 
 export async function switchProfile(id: string) {
@@ -327,6 +366,8 @@ export function setupSettings() {
   listen("tray-add-account", addAccount);
   form().addEventListener("submit", saveAccount);
   $("acct-test").onclick = testAccount;
+  $("acct-nc-login").onclick = nextcloudSignIn;
+  $("acct-nc-cancel").onclick = () => invoke("cancel_login");
   $("acct-delete").onclick = deleteAccount;
   $("acct-add").onclick = () => editAccount(null);
   $<HTMLSelectElement>("acct-provider").addEventListener("change", (ev) =>

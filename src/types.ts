@@ -2,7 +2,7 @@
 // referenced in each comment.
 
 /** `config::ProviderKind` — which provider an account uses. */
-export type ProviderKind = "s3";
+export type ProviderKind = "s3" | "nextcloud" | "webdav";
 
 /** `config::Profile` — one remote account. */
 export type Profile = {
@@ -33,7 +33,7 @@ export type BucketInfo = { name: string; region: string | null };
 /** `remote::SizeInfo` — result of `remote_size` / `local_size`. */
 export type SizeInfo = { bytes: number; files: number };
 
-/** `provider::Entry` — a row in either pane. `key` is the S3 key (remote) or absolute path (local). */
+/** `provider::Entry` — a row in either pane. `key` is the remote key/path (remote) or absolute path (local). */
 export type Item = {
   key: string;
   name: string;

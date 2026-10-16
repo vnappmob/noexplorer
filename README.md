@@ -49,8 +49,10 @@ and you're done.
   files means **Move to Trash** (recoverable).
 - **Self-hosted friendly**: path-style requests are on by default, and the connection test
   works even when the key can't list buckets.
-- **Multiple accounts**: switch between servers from the S3 pane header, or straight from the
-  menu bar / tray.
+- **S3, Nextcloud and WebDAV**: AWS, R2, B2, Wasabi, MinIO… plus Nextcloud/ownCloud (sign in
+  through the browser) and any WebDAV server or NAS. Previews and transfers work the same way.
+- **Multiple accounts**: switch between servers from the remote pane header, or straight from
+  the menu bar / tray.
 - **Runs in the background**: close the window and NoExplorer stays in the menu bar / tray,
   showing transfer progress there and notifying you when transfers finish.
 - **Auto-updates**: new versions install in place with one click.
@@ -75,7 +77,14 @@ Download the installer for your OS from the
 ## Connect
 
 The first time you launch the app it opens **Settings → Accounts**. Add as many accounts as
-you like, then switch between them from the picker in the S3 pane header:
+you like, then switch between them from the picker in the remote pane header.
+
+**Nextcloud / ownCloud:** pick *Nextcloud*, enter your server address and click **Sign in with
+Nextcloud…**. Approve in the browser and you're done (NoExplorer gets its own app password, kept
+in your system keychain). **WebDAV / NAS:** pick *WebDAV* and enter the folder URL, user name and
+password.
+
+**S3 and compatible services:**
 
 | Field | Example |
 |---|---|

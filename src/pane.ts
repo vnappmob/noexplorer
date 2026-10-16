@@ -122,6 +122,8 @@ export class Pane {
   private async loadRemote(seq: number) {
     store.set(profileKey("bucket"), app.bucket);
     store.set(profileKey("prefix"), this.cwd);
+    const kind = activeProfile()?.kind ?? "s3";
+    this.q(".scheme").textContent = kind === "s3" ? "s3://" : kind === "nextcloud" ? "nextcloud://" : "dav://";
     this.crumbs = [{ name: app.bucket || "—", path: "" }];
     let acc = "";
     for (const p of this.cwd.split("/").filter(Boolean)) {
@@ -159,9 +161,15 @@ export class Pane {
     this.renderCrumbs();
   }
 
-  /** Full location of `cwd`: an absolute local path, or `s3://bucket/prefix`. */
+  /** Full location of `cwd`: an absolute local path, `s3://bucket/prefix`, or a WebDAV URL. */
   fullPath() {
-    return this.isRemote ? (app.bucket ? `s3://${app.bucket}/${this.cwd}` : "") : this.cwd;
+    if (!this.isRemote) return this.cwd;
+    const p = activeProfile();
+    if (!app.bucket || !p) return "";
+    const base = p.endpoint.replace(/\/+$/, "");
+    if (p.kind === "nextcloud") return `${base}/remote.php/dav/files/${encodeURIComponent(p.access_key)}/${this.cwd}`;
+    if (p.kind === "webdav") return `${base}/${this.cwd}`;
+    return `s3://${app.bucket}/${this.cwd}`;
   }
 
   go(path: string, keepSelection = false) {
@@ -234,7 +242,7 @@ export class Pane {
 
     this.rowsEl = null;
     if (this.isRemote && !activeProfile()) {
-      this.list.innerHTML = `<div class="empty"><b>No S3 account yet</b>Click the account button above to add one.</div>`;
+      this.list.innerHTML = `<div class="empty"><b>No remote account yet</b>Click the account button above to add S3, Nextcloud or WebDAV storage.</div>`;
     } else if (!this.view.length) {
       const hint = this.isRemote
         ? "Drag files here from the left pane or from Finder / Explorer to upload."

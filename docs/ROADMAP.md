@@ -17,12 +17,13 @@ Ground rules for everything below:
 
 One patch release per step, released only when the maintainer approves.
 
-0. **Provider abstraction + a client per account.** A `Provider` interface in Rust (list, stat, ranged
+0. ✅ **Provider abstraction + a client per account** (ADR-025). A `Provider` interface in Rust (list, stat, ranged
    read, streamed upload/download, mkdir, delete, rename/copy, share link, size, capability
    flags) with S3 as the first implementation. Every remote command takes the account (no single
    "active client" any more, which lifts ADR-014's limit). `Profile.kind` = `s3 | webdav | box`, and OAuth tokens live in the OS keychain like secret keys (ADR-020). Ships as a
    refactor with no UI change; the S3 round-trip test must pass unchanged.
-1. **Nextcloud / WebDAV**: our own small WebDAV client (PROPFIND, GET with Range, PUT, MKCOL,
+1. ✅ **Nextcloud / WebDAV** (ADR-026). Later: a Nextcloud job in CI (slow to start), and
+   Nextcloud `oc:size` for instant folder sizes. our own small WebDAV client (PROPFIND, GET with Range, PUT, MKCOL,
    MOVE, COPY, DELETE), Nextcloud chunked upload v2 for big files, and sign-in with **Login
    Flow v2** (browser approval, app password into the keychain). Also covers ownCloud, NAS WebDAV
    and any WebDAV server.

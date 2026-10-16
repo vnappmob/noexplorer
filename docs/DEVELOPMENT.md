@@ -49,8 +49,14 @@ cargo clippy --all-targets -- -D warnings
 NOEXPLORER_TEST_ENDPOINT=http://localhost:8333 NOEXPLORER_TEST_KEY=devkey NOEXPLORER_TEST_SECRET=devsecret123 cargo test
 ```
 
-Without the `NOEXPLORER_TEST_*` variables, `s3_roundtrip` is skipped and the other tests
-still run. On a fresh clone, run `npm run build` once before bare `cargo` commands:
+Nextcloud/WebDAV: `./scripts/dev-nextcloud.sh up && ./scripts/dev-nextcloud.sh seed`, then
+`NOEXPLORER_TEST_NEXTCLOUD=http://localhost:8080 NOEXPLORER_TEST_DAV_USER=dev NOEXPLORER_TEST_DAV_PASS='NoExplorer-dev-2026!' cargo test nextcloud_roundtrip`
+(lists, 40 MB chunked upload, download, ranges, shares, mkdir, delete). In the app, add a
+*Nextcloud* account with `http://localhost:8080` and the same user, or use **Sign in with
+Nextcloud…** and log in as `dev` in the browser.
+
+Without the `NOEXPLORER_TEST_*` variables, `s3_roundtrip` and `nextcloud_roundtrip` are
+skipped and the other tests still run. On a fresh clone, run `npm run build` once before bare `cargo` commands:
 `generate_context!()` embeds `../dist`.
 
 ### What the tests cover
@@ -79,6 +85,8 @@ Run against `dev-s3.sh` **and**, before a release, against a real MinIO.
 - [ ] Folder sizes: open a big folder; sizes and bars fill in while the Σ icon spins, the path bar shows the total. Create/delete a file in Finder: the size and the list update within ~1 s. Home shows "—" for Documents/Desktop/Downloads/Library until you open them (no macOS prompt); Σ scans them
 - [ ] ⌘⌫ on a local file/folder: it lands in the Trash (Finder "Put Back" works) and the next row is selected
 - [ ] Tray: lists the accounts (✓ on the active one); choosing another opens the window on it; with no account it offers "Add S3 Account…"
+- [ ] Nextcloud: **Sign in with Nextcloud…** opens the browser; after approving, the account appears and lists files. Space previews an image, a PDF and a video (seeking works). Upload a folder and a > 16 MB file, download them back, Copy link gives a `/s/…` share, delete
+- [ ] WebDAV (any server): list, preview, upload into a new sub-folder, download, delete
 - [ ] A folder with thousands of files (`for i in $(seq 3000); do : > f$i; done`): splitter drag, scrolling to the end and arrow-key selection stay smooth
 - [ ] Left pane: Places menu, breadcrumbs, ↑, filter, sorting, show hidden files
 - [ ] Drag a file and a folder left → right; drop on a folder row and on a breadcrumb

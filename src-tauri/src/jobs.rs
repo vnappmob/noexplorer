@@ -29,7 +29,8 @@ pub struct Job {
     pub files_total: AtomicU64,
     pub files_done: AtomicU64,
     pub bytes_total: AtomicU64,
-    pub bytes_done: AtomicU64,
+    /// Shared so streaming uploads (which must be `'static`) can count progress.
+    pub bytes_done: Arc<AtomicU64>,
     errors: Mutex<Vec<String>>,
     cancel: Arc<AtomicBool>,
     /// Path to reveal when the user clicks "Show" (downloads only).
@@ -70,7 +71,7 @@ impl Job {
             files_total: AtomicU64::new(0),
             files_done: AtomicU64::new(0),
             bytes_total: AtomicU64::new(0),
-            bytes_done: AtomicU64::new(0),
+            bytes_done: Arc::new(AtomicU64::new(0)),
             errors: Mutex::new(vec![]),
             cancel: Arc::new(AtomicBool::new(false)),
             dest: Mutex::new(None),
@@ -90,6 +91,11 @@ impl Job {
         let job = Job::untracked(kind, label, account, bucket, prefix);
         app.state::<AppState>().cancels.lock().unwrap().insert(job.id.clone(), job.cancel.clone());
         Arc::new(job)
+    }
+
+    /// Progress counter and cancel flag, for work that outlives a borrow of the job.
+    pub fn progress_handles(&self) -> (Arc<AtomicU64>, Arc<AtomicBool>) {
+        (self.bytes_done.clone(), self.cancel.clone())
     }
 
     pub fn cancelled(&self) -> bool {

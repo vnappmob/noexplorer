@@ -5,8 +5,8 @@
 //!   "active client": every command names its account, so several accounts can be open at once).
 //! - `Remote` is an enum with static dispatch (no `dyn`, no async-trait): adding a provider means
 //!   adding a variant and filling in each `match`.
-//! - Locations are `(container, key)`. S3: container = bucket. Folder keys end with `/`, and keys
-//!   are `/`-separated paths relative to the container.
+//! - Locations are `(container, key)`. S3: container = bucket; WebDAV: one container ("Files").
+//!   Folder keys end with `/`, and keys are `/`-separated paths relative to the container.
 
 use std::path::Path;
 
@@ -15,6 +15,7 @@ use serde::Serialize;
 use crate::config::{Profile, ProviderKind};
 use crate::jobs::Job;
 use crate::s3::S3;
+use crate::webdav::Dav;
 
 /// One row in a pane. Mirrors `Item` in `src/types.ts` (local entries use the same shape).
 #[derive(Serialize)]
@@ -38,12 +39,15 @@ pub struct BucketInfo {
 
 pub enum Remote {
     S3(S3),
+    /// Nextcloud and plain WebDAV (`webdav.rs`).
+    Dav(Dav),
 }
 
 impl Remote {
     pub fn new(p: &Profile) -> Remote {
         match p.kind {
             ProviderKind::S3 => Remote::S3(S3::new(p)),
+            ProviderKind::Nextcloud | ProviderKind::Webdav => Remote::Dav(Dav::new(p)),
         }
     }
 
@@ -51,12 +55,14 @@ impl Remote {
     pub fn account(&self) -> &str {
         match self {
             Remote::S3(s) => s.account(),
+            Remote::Dav(d) => d.account(),
         }
     }
 
     pub async fn containers(&self) -> Result<Vec<BucketInfo>, String> {
         match self {
             Remote::S3(s) => s.containers().await,
+            Remote::Dav(d) => d.containers().await,
         }
     }
 
@@ -64,6 +70,7 @@ impl Remote {
     pub async fn list(&self, container: &str, prefix: &str) -> Result<Vec<Entry>, String> {
         match self {
             Remote::S3(s) => s.list(container, prefix).await,
+            Remote::Dav(d) => d.list(container, prefix).await,
         }
     }
 
@@ -72,6 +79,7 @@ impl Remote {
     pub async fn list_all(&self, container: &str, prefix: &str) -> Result<Vec<(String, u64)>, String> {
         match self {
             Remote::S3(s) => s.list_all(container, prefix).await,
+            Remote::Dav(d) => d.list_all(container, prefix).await,
         }
     }
 
@@ -79,6 +87,7 @@ impl Remote {
     pub async fn link(&self, container: &str, key: &str, secs: u64, inline: bool) -> Result<String, String> {
         match self {
             Remote::S3(s) => s.link(container, key, secs, inline).await,
+            Remote::Dav(d) => d.link(container, key, secs, inline).await,
         }
     }
 
@@ -86,12 +95,30 @@ impl Remote {
     pub async fn read_head(&self, container: &str, key: &str, max: u64) -> Result<Vec<u8>, String> {
         match self {
             Remote::S3(s) => s.read_head(container, key, max).await,
+            Remote::Dav(d) => d.read_head(container, key, max).await,
+        }
+    }
+
+    /// Bytes `start..=end` (open-ended: at most `cap` bytes) and the file's total size, for the
+    /// preview proxy (`proxy.rs`).
+    pub async fn read_range(
+        &self,
+        container: &str,
+        key: &str,
+        start: u64,
+        end: Option<u64>,
+        cap: u64,
+    ) -> Result<(Vec<u8>, Option<u64>), String> {
+        match self {
+            Remote::S3(s) => s.read_range(container, key, start, end, cap).await,
+            Remote::Dav(d) => d.read_range(key, start, end, cap).await,
         }
     }
 
     pub async fn mkdir(&self, container: &str, prefix: &str, name: &str) -> Result<(), String> {
         match self {
             Remote::S3(s) => s.mkdir(container, prefix, name).await,
+            Remote::Dav(d) => d.mkdir(container, prefix, name).await,
         }
     }
 
@@ -99,6 +126,7 @@ impl Remote {
     pub async fn delete(&self, container: &str, keys: Vec<String>) -> Result<usize, String> {
         match self {
             Remote::S3(s) => s.delete(container, keys).await,
+            Remote::Dav(d) => d.delete(container, keys).await,
         }
     }
 
@@ -112,6 +140,7 @@ impl Remote {
     ) -> Result<(), String> {
         match self {
             Remote::S3(s) => s.upload_file(container, key, path, size, job).await,
+            Remote::Dav(d) => d.upload_file(container, key, path, size, job).await,
         }
     }
 
@@ -119,6 +148,7 @@ impl Remote {
     pub async fn download_file(&self, container: &str, key: &str, path: &Path, job: &Job) -> Result<(), String> {
         match self {
             Remote::S3(s) => s.download_file(container, key, path, job).await,
+            Remote::Dav(d) => d.download_file(container, key, path, job).await,
         }
     }
 }

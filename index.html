@@ -64,7 +64,7 @@
       <div class="splitter" title="Drag to resize · double-click to reset"></div>
 
       <!-- REMOTE -->
-      <section class="pane" id="pane-remote" data-pane="remote" aria-label="S3 bucket">
+      <section class="pane" id="pane-remote" data-pane="remote" aria-label="Remote storage">
         <header class="src">
           <button class="chip" id="profile-chip" aria-haspopup="menu"><span class="chip-ico acct-ico" data-icon="cloud"></span><span class="chip-label" id="profile-label">Add account</span><span class="chip-sub" id="profile-sub"></span><span class="chev" data-icon="chevDown"></span></button>
           <span class="sep-chev" data-icon="chevRight"></span>
@@ -154,21 +154,28 @@
                   <option value="b2">Backblaze B2</option>
                   <option value="wasabi">Wasabi</option>
                   <option value="do">DigitalOcean Spaces</option>
+                  <option value="nextcloud">Nextcloud / ownCloud</option>
+                  <option value="webdav">WebDAV (NAS, any server)</option>
                 </select>
               </label>
               <label>Name <input name="name" placeholder="e.g. Home NAS, Company MinIO" spellcheck="false" /></label>
             </div>
             <p id="acct-hint"></p>
-            <label>Endpoint
+            <label><span id="lbl-endpoint">Endpoint</span>
               <input name="endpoint" placeholder="https://s3.example.com or http://192.168.1.10:9000" required spellcheck="false" />
             </label>
-            <div class="row2">
+            <div id="acct-signin" class="signin" hidden>
+              <button type="button" id="acct-nc-login" class="primary">Sign in with Nextcloud…</button>
+              <button type="button" id="acct-nc-cancel" hidden>Cancel</button>
+              <small>Opens your browser. Or enter a user name and an app password below.</small>
+            </div>
+            <div class="row2 s3-only">
               <label>Region <input name="region" placeholder="us-east-1" spellcheck="false" /></label>
               <label>Default bucket <input name="bucket" placeholder="(optional)" spellcheck="false" /></label>
             </div>
-            <label>Access key <input name="access_key" required spellcheck="false" autocomplete="off" /></label>
-            <label>Secret key <input name="secret_key" type="password" required autocomplete="off" /></label>
-            <label class="check"><input type="checkbox" name="path_style" checked /> Path-style requests (recommended for MinIO / self-hosted)</label>
+            <label><span id="lbl-access">Access key</span> <input name="access_key" required spellcheck="false" autocomplete="off" /></label>
+            <label><span id="lbl-secret">Secret key</span> <input name="secret_key" type="password" required autocomplete="off" /></label>
+            <label class="check s3-only"><input type="checkbox" name="path_style" checked /> Path-style requests (recommended for MinIO / self-hosted)</label>
             <p id="acct-msg"></p>
             <div class="buttons">
               <button type="button" id="acct-delete" class="danger">Delete</button>
@@ -226,7 +233,7 @@
           <div>
             <h2>NoExplorer</h2>
             <p>Version <span id="about-version">–</span></p>
-            <p class="muted">No explorer needed: just drag it to your bucket.<br />A tiny dual-pane file manager for S3-compatible storage.</p>
+            <p class="muted">No explorer needed: just drag it to your bucket.<br />A tiny dual-pane file manager for S3, Nextcloud and WebDAV storage.</p>
           </div>
         </div>
         <div class="buttons">

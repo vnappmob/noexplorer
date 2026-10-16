@@ -1,6 +1,6 @@
 //! System tray / macOS menu-bar icon and background running.
 //!
-//! - The tray menu shows live transfer status (fed by `jobs.rs` via [`on_job`]), then the S3
+//! - The tray menu shows live transfer status (fed by `jobs.rs` via [`on_job`]), then the remote
 //!   accounts (fed by `config.rs` via [`set_accounts`]): choosing one opens the window on that
 //!   account (`"tray-open-account"`). Then Check for Updates / Quit. On macOS the overall % also
 //!   appears next to the icon.
@@ -55,7 +55,7 @@ impl Line {
     }
 }
 
-/// An S3 account in the menu: (id, name, active).
+/// A remote account in the menu: (id, name, active).
 type Account = (String, String, bool);
 
 #[derive(Default)]
@@ -144,12 +144,12 @@ fn build_menu(app: &AppHandle, lines: &[Line]) -> tauri::Result<Menu<Wry>> {
         .map(|l| MenuItem::with_id(app, format!("job:{}", l.id), l.text(), false, None::<&str>))
         .collect::<tauri::Result<_>>()?;
     let accounts = st.accounts.lock().unwrap().clone();
-    let header = MenuItem::with_id(app, "accounts", "S3 Accounts", false, None::<&str>)?;
+    let header = MenuItem::with_id(app, "accounts", "Accounts", false, None::<&str>)?;
     let account_items: Vec<CheckMenuItem<Wry>> = accounts
         .iter()
         .map(|(id, name, active)| CheckMenuItem::with_id(app, format!("acct:{id}"), name, true, *active, None::<&str>))
         .collect::<tauri::Result<_>>()?;
-    let add = MenuItem::with_id(app, "add-account", "Add S3 Account…", true, None::<&str>)?;
+    let add = MenuItem::with_id(app, "add-account", "Add Account…", true, None::<&str>)?;
     let updates = MenuItem::with_id(app, "updates", "Check for Updates…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit NoExplorer", true, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;

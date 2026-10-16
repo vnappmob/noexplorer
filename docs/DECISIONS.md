@@ -467,3 +467,35 @@ one S3 client for the active profile.
   `Profile.kind` (default `s3`) selects the provider.
 **Consequences.** No UI change yet; the S3 round-trip test passes unchanged. A new provider is a
 new variant plus its file. Transfers stay generic: `transfer.rs` only schedules files.
+
+<a id="adr-026"></a>
+
+## ADR-026: Nextcloud and WebDAV through our own small client, previews through `nxr://`
+Accepted · 2026-10-16
+
+**Context.** The maintainer wants Nextcloud (and NAS/WebDAV) accounts next to S3, without
+sync-client folders. WebDAV has no presigned URLs, so `<img>`/`<video>` can't reach files that
+need an auth header.
+**Decision.**
+- `webdav.rs` is a `Remote` variant (`ProviderKind::Nextcloud | Webdav`). It is a small client
+  on the `reqwest`/`rustls` (ring)/`quick-xml`/`percent-encoding` builds already in the tree, so
+  no new compile units, and it doesn't use a WebDAV crate. It covers PROPFIND Depth 1 (recursive
+  listings walk level by level, 6 at a time, because Depth: infinity is often disabled), GET with
+  Range, PUT (streamed, counting progress), MKCOL (parents created as needed), DELETE and MOVE.
+  It uses Basic auth with the user name and an (app) password.
+- Nextcloud extras: the root is `<server>/remote.php/dav/files/<user>/`; files over 16 MB use
+  chunked upload v2 (MKCOL session → numbered PUTs → MOVE `.file`, session deleted on
+  failure); "Copy link" creates an expiring public share through the OCS API.
+- Sign-in uses **Login Flow v2** (`nextcloud_login`): the browser approves, the app polls,
+  and the returned app password goes straight to the keychain (ADR-020). It never reaches the
+  UI. Typing a user name and an app password also works.
+- Previews use a custom scheme `nxr://localhost/<account>/<container>/<key>`
+  (`http://nxr.localhost/…` on Windows), served by `proxy.rs` through `Remote::read_range`.
+  Range requests are honored (video seeks; ranged answers are capped at 8 MB, whole files at
+  512 MB). CORS headers are set because the page's origin differs. `Content-Length` is left to
+  the webview, since a duplicate stops AVFoundation from playing media.
+- WebDAV accounts have one container, "Files", and the UI hides the bucket picker for them.
+**Consequences.** Tested end to end against Nextcloud 31 in Docker
+(`scripts/dev-nextcloud.sh`): listing, 40 MB chunked upload, upload into new folders,
+byte-exact download, ranged reads, shares, mkdir, delete, and in-app previews (image, video seek,
+PDF). Plain WebDAV can't make share links. Listing a very large tree is one PROPFIND per folder.

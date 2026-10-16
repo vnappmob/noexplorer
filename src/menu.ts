@@ -1,6 +1,6 @@
 // Right-click / "⋯" menu. Items are action names handled by `paneAction` (actions.ts).
 
-import { paneAction, TRASH_LABEL } from "./actions";
+import { paneAction, remoteName, TRASH_LABEL } from "./actions";
 import { icon } from "./icons";
 import type { Pane } from "./pane";
 import { local, remote } from "./panes";
@@ -17,7 +17,7 @@ export function showMenu(p: Pane, x: number, y: number, above = false) {
   if (sel.length)
     items.push([
       "transfer",
-      p.isRemote ? "Download to this computer" : "Upload to S3",
+      p.isRemote ? "Download to this computer" : `Upload to ${remoteName()}`,
       p.isRemote ? "arrowLeft" : "arrowRight",
     ]);
   if (one?.dir) items.push(["open-dir", "Open folder", "folder"]);
@@ -26,7 +26,7 @@ export function showMenu(p: Pane, x: number, y: number, above = false) {
   if (one && p.isRemote && !one.dir) items.push(["link", "Copy 7-day link", "link"]);
   if (one) items.push(["copy-path", "Copy path", "copy"]);
   items.push(["size", sel.some((e) => e.dir) ? "Calculate folder size" : "Size of this folder", "sigma"]);
-  if (sel.length) items.push("-", ["delete", p.isRemote ? "Delete from S3" : TRASH_LABEL, "trash"]);
+  if (sel.length) items.push("-", ["delete", p.isRemote ? `Delete from ${remoteName()}` : TRASH_LABEL, "trash"]);
   items.push("-", ["mkdir", "New folder", "folderPlus"], ["refresh", "Refresh", "refresh"]);
   if (!p.isRemote) items.push(["hidden", app.showHidden ? "Hide hidden files" : "Show hidden files", "eye"]);
 

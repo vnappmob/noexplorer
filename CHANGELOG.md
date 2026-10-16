@@ -5,6 +5,13 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Nextcloud and WebDAV accounts.** Pick *Nextcloud* in Settings → Accounts and click **Sign in with Nextcloud…**: you approve in the browser, and NoExplorer gets its own app password (kept in your system keychain). Or use *WebDAV* for any WebDAV server or NAS. Browse, preview (images, PDF, video with seeking), upload (big files in chunks), download, create folders, delete, and Copy link (a public share that expires, on Nextcloud).
+
+### Changed
+- Narrow panes keep file names readable: the Modified column hides and account details shorten.
+- Menus and prompts name the account ("Upload to Home NAS", "Delete from R2") instead of saying "S3"; the tray lists "Accounts".
+
 ## [0.4.2] - 2026-10-16
 
 ### Changed

@@ -49,6 +49,8 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   config.rs          Accounts: Profile (kind = provider)/Settings (config.json, v1→v2 migration), endpoint/region helpers
   provider.rs        `enum Remote`: one interface for all providers (ADR-025); Entry/BucketInfo
   s3.rs              S3 provider: client (path-style, checksums, per-bucket region), list, multipart, downloads
+  webdav.rs          Nextcloud/WebDAV provider: own small client, chunked upload v2, shares, Login Flow v2
+  proxy.rs           nxr:// scheme: streams remote files to previews (Range, CORS) when there's no presigned URL
   secrets.rs         Secret keys in the OS credential store (Keychain / Credential Manager / Secret Service)
   remote.rs          Browsing commands (thin wrappers over Remote): buckets, list, presign, read_text, mkdir, delete
   transfer.rs        upload / download / open_object jobs (file concurrency; per-file work is the provider's)
@@ -64,6 +66,7 @@ src-tauri/tauri.conf.json   Window, bundle and security settings (version comes 
 site/                Static website → Cloudflare Workers static assets (config: wrangler.jsonc)
 assets/icon.svg      Icon source → icon.png (render 1024px), then `npx tauri icon assets/icon.png`
 scripts/dev-s3.sh    Local S3 server in Docker for dev and tests
+scripts/dev-nextcloud.sh  Local Nextcloud in Docker (user dev) for the WebDAV provider
 scripts/bump-version.sh   Sets the version in every place it lives
 scripts/clean-build.sh    Keeps src-tauri/target ≤ 12 GB and ≥ 60 GB free, tiered cleaning (CLAUDE.md storage policy)
 .github/workflows/   ci.yml · release.yml (signed builds → draft release) (website deploys via Cloudflare Workers Builds, not Actions)
@@ -77,6 +80,8 @@ docs/                ARCHITECTURE · DECISIONS (ADRs) · DEVELOPMENT · RELEASIN
 | Install | `npm install` |
 | Run the app (dev, hot reload) | `npm run tauri dev` (Vite on port **14321**) |
 | Local S3 for testing | `./scripts/dev-s3.sh up && ./scripts/dev-s3.sh seed` → endpoint `http://localhost:8333`, key `devkey` / `devsecret123` |
+| Local Nextcloud for testing | `./scripts/dev-nextcloud.sh up && ./scripts/dev-nextcloud.sh seed` → `http://localhost:8080`, user `dev` / `NoExplorer-dev-2026!` |
+| Nextcloud round-trip test | `NOEXPLORER_TEST_NEXTCLOUD=http://localhost:8080 NOEXPLORER_TEST_DAV_USER=dev NOEXPLORER_TEST_DAV_PASS='NoExplorer-dev-2026!' cargo test nextcloud_roundtrip` |
 | Frontend typecheck + format check | `npm run check` |
 | Format everything | `npm run fmt` |
 | Rust lint | `cd src-tauri && cargo clippy --all-targets -- -D warnings` |
@@ -168,6 +173,9 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **Run dev builds with `--config '{"identifier":"com.vnappmob.noexplorer.dev"}'` when NoExplorer is installed and running.** Otherwise single-instance hands every launch to the installed app, and both share one `config.json`.
 - **`"dir-sizes"` only carries the local pane's current folder** (`folder_sizes` sets the focus). To show sizes elsewhere, call `folder_sizes` for that folder. On Linux only a root's top level is watched (inotify limits).
 - **Benchmark the scanner:** `cd src-tauri && NOEXPLORER_BENCH_DIR=~/some/big/folder cargo test --release bench_scan -- --ignored --nocapture`. Compare with `du -sk -x` and `ncdu -x -t 8 -0 -o /dev/null` (warm cache; run twice).
+- **`reqwest` 0.13 hides `.form()` behind a feature**: `webdav.rs` builds form bodies itself (`FormExt::form_body`) so the shared reqwest build stays unchanged. Install the rustls ring provider before building a client (`webdav::http()` does).
+- **`nxr://` responses must not set `Content-Length`**: the webview adds it, and a duplicate makes macOS video stay at `readyState 0`. Keep the CORS headers too: `fetch()` from the app's origin preflights.
+- **`quick-xml` 0.42 gives names as `&str`, and entities arrive as separate `GeneralRef` events** (`parse_multistatus` handles both).
 - **File lists are virtualized** ([ADR-021](docs/DECISIONS.md#adr-021)). Only rows near the viewport exist as `.row` elements. Read rows from `pane.view` / `pane.selected`, scroll with `selectIndex`, and keep every row the same height.
 - **Dev builds keep their secrets under the `com.vnappmob.noexplorer.dev` keychain service.** macOS may ask for keychain access after a rebuild (ad-hoc signature); release builds don't.
 - **Tauri drop positions are physical pixels.** Divide by `devicePixelRatio` before calling `elementFromPoint`.

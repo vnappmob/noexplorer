@@ -131,8 +131,8 @@ async function setupOsDrop() {
     $("drop-text").textContent = ok
       ? `Drop to upload to ${app.bucket}/${t!.dir}`
       : activeProfile()
-        ? "Drop on the S3 pane (right) to upload"
-        : "Set up the S3 connection first";
+        ? "Drop on the remote pane (right) to upload"
+        : "Add a remote account first";
     overlay.hidden = false;
   });
 }

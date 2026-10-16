@@ -3,7 +3,8 @@
 // the current state; actions reuse the same functions as buttons and shortcuts.
 
 import { invoke } from "@tauri-apps/api/core";
-import { calcSize, deleteRemote, mkdir, paneAction, transfer, trashLocal, TRASH_LABEL } from "./actions";
+import { calcSize, deleteRemote, mkdir, paneAction, remoteName, transfer, trashLocal, TRASH_LABEL } from "./actions";
+import { describeAccount } from "./providers";
 import { setTextSize, setTheme, appearance } from "./appearance";
 import { icon } from "./icons";
 import type { Pane } from "./pane";
@@ -27,12 +28,12 @@ function build(): Entry[] {
     out.push({ group: "Commands", label, sub, icon: ic, run });
   const sel = active.selectedItems();
   if (local.selectedItems().length)
-    cmd("Upload selection to S3", "arrowRight", () => transfer(local, local.selectedItems()), "F5");
+    cmd(`Upload selection to ${remoteName()}`, "arrowRight", () => transfer(local, local.selectedItems()), "F5");
   if (remote.selectedItems().length)
     cmd("Download selection to this computer", "arrowLeft", () => transfer(remote, remote.selectedItems()), "F5");
   if (sel.length === 1 && !sel[0].dir)
     cmd(`Quick look “${sel[0].name}”`, "eye", () => paneAction(active, "preview"), "Space");
-  if (remote.selectedItems().length) cmd("Delete selection from S3", "trash", () => deleteRemote(), "⌘⌫");
+  if (remote.selectedItems().length) cmd(`Delete selection from ${remoteName()}`, "trash", () => deleteRemote(), "⌘⌫");
   if (local.selectedItems().length) cmd(TRASH_LABEL, "trash", () => trashLocal(), "⌘⌫");
   cmd("New folder", "folderPlus", () => mkdir(active));
   cmd("Refresh", "refresh", () => active.load(true), "⌘R");
@@ -41,7 +42,7 @@ function build(): Entry[] {
   cmd("Copy current path", "copy", () => copyPath(active));
   cmd(app.showHidden ? "Hide hidden files" : "Show hidden files", "eye", () => paneAction(local, "hidden"));
   cmd("Settings", "sliders", () => openSettings(), "⌘,");
-  cmd("Add S3 account", "plus", addAccount);
+  cmd("Add account (S3, Nextcloud, WebDAV)", "plus", addAccount);
   cmd("Check for updates", "update", () => checkForUpdates(true));
   const t = appearance.theme;
   for (const th of ["light", "dark", "system"] as const)
@@ -56,7 +57,7 @@ function build(): Entry[] {
       out.push({
         group: "Accounts",
         label: `Switch to ${p.name}`,
-        sub: p.endpoint || "AWS S3",
+        sub: describeAccount(p),
         icon: "cloud",
         run: () => switchProfile(p.id),
       });

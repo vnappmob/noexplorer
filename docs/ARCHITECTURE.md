@@ -37,6 +37,8 @@ This is the deep reference. For orientation, read [AGENTS.md](../AGENTS.md) firs
 | `config.rs` | Accounts | `Profile` (`kind` = provider), `Settings` (upsert/remove/active), `parse_settings` (v1→v2 migration), secrets in the keychain (ADR-020), `is_aws` / `region_from_endpoint` / `effective_region` (ADR-017) |
 | `provider.rs` | Provider interface | `enum Remote` (static dispatch, ADR-025): `containers`, `list`, `list_all`, `link`, `read_head`, `mkdir`, `delete`, `upload_file`, `download_file`; `Entry`, `BucketInfo` |
 | `s3.rs` | S3 provider | `make_client(_in)` (path-style, checksums), `detect_bucket_region`, `S3` (per-bucket region cache, `client_for`), multipart upload, streamed `.part` downloads, tuning constants |
+| `webdav.rs` | Nextcloud / WebDAV provider | `Dav` (own client: PROPFIND/GET Range/PUT/MKCOL/DELETE/MOVE), Nextcloud chunked upload v2 and OCS shares, `parse_multistatus`, Login Flow v2 (`nextcloud_login`, `cancel_login`), shared `http()` client (ADR-026) |
+| `proxy.rs` | Preview proxy | The `nxr://` scheme: streams `Remote::read_range` to the webview with Range + CORS for providers without presigned URLs |
 | `state.rs` | Shared state | `AppState { settings, remotes, cancels }`. **`remote(account)`** returns the cached `Arc<Remote>` for a profile id (active when `None`); `set_settings()` drops the clients of changed accounts only |
 | `jobs.rs` | Background jobs | `Job` (atomic counters, errors, cancel flag), `Job::spawn` (250 ms ticker + final event), `cancel` |
 | `remote.rs` | Browsing commands | Thin wrappers over `Remote`: `list_buckets`, `list`, `remote_size`, `presign`, `read_text`, `mkdir`, `delete` |
@@ -73,6 +75,8 @@ means the active account (ADR-025).
 | `folder_sizes` | `path, dirs[], auto` | `DirSizes` | sizes | Sets the focus folder, answers `dirs` + `path` from the index, starts a background scan if needed (`auto` = polite rules; false = Σ, scans everything). More arrives as `"dir-sizes"` |
 | `stop_sizes` | – | – | sizes | Clears the focus and cancels the running scan (auto sizes turned off) |
 | `volume_info` | `path` | `VolumeInfo {name, total, available}` | local | The disk under `path`, for the storage bar. macOS: NSURL volume resource values (available = "important usage", as System Settings shows); Windows: `GetDiskFreeSpaceExW`; Linux: `statvfs` |
+| `nextcloud_login` | `server, id?, name` | `Settings` | webdav | Login Flow v2: opens the browser, polls until approved (20 min), saves the account with its app password in the keychain, makes it active |
+| `cancel_login` | – | – | webdav | Stops a waiting `nextcloud_login` |
 | `trash_local` | `paths[]` | count | trash | Moves local items to the OS Trash / Recycle Bin. Refuses `/`, home and its parents |
 | `list` | `bucket, prefix` | `Entry[]` | remote | One folder level. Folders have `dir: true` and a key ending in `/` |
 | `presign` | `bucket, key, secs, inline` | URL | remote | `secs` is clamped to 60 s–7 d. `inline` forces Content-Type/Disposition for preview |
@@ -256,9 +260,11 @@ Imports go one way to avoid cycles: `main → (actions, dnd, keyboard, menu, set
 
 ## Security model
 
-- Credentials never leave the Rust side except inside the config file. The UI gets them back
-  only to pre-fill the Settings form.
-- The webview only loads local app assets, presigned S3 URLs and `asset://` local files.
+- Secrets (S3 secret keys, Nextcloud app passwords, WebDAV passwords) live in the OS keychain
+  (ADR-020) and never reach the UI: commands return redacted settings, and Nextcloud sign-in
+  stores the app password without passing it through the webview (ADR-026).
+- The webview only loads local app assets, presigned S3 URLs, `asset://` local files and
+  `nxr://` previews (remote files streamed by `proxy.rs` for WebDAV/Nextcloud, ADR-026).
   `csp` is `null` and the asset protocol scope is `**` so local preview works anywhere. That is
   acceptable because no third-party content is rendered as HTML: PDFs are forced to
   `application/pdf`, and text goes in through `textContent`. Tightening this is on the

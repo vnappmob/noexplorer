@@ -12,13 +12,13 @@ import type { Item, SizeInfo } from "./types";
 import { askText, fail, fmtSize, plural, store, toast } from "./util";
 
 /**
- * Copies `items` from `from` to the other pane: local → upload to S3, remote → download.
+ * Copies `items` from `from` to the other pane: local → upload, remote → download.
  * `targetDir` is a remote prefix or local path; defaults to the other pane's current folder.
  * Progress arrives later through `"job"` events (jobs.ts).
  */
 export async function transfer(from: Pane, items: Item[], targetDir?: string) {
   if (!items.length) return;
-  if (!activeProfile() || !app.bucket) return toast("Add an S3 account first", true);
+  if (!activeProfile() || !app.bucket) return toast("Add a remote account first", true);
   try {
     if (from === local) {
       await invoke("upload", { bucket: app.bucket, prefix: targetDir ?? remote.cwd, paths: items.map((e) => e.key) });
@@ -59,6 +59,9 @@ export async function copyLink(e: Item) {
   }
 }
 
+/** The remote account's name, for labels ("Upload to Home NAS"). */
+export const remoteName = () => activeProfile()?.name || "the remote";
+
 /** "Move to Trash" / "Recycle Bin" on Windows: the label the OS uses. */
 export const TRASH_LABEL = navigator.userAgent.includes("Windows") ? "Delete (to Recycle Bin)" : "Move to Trash";
 
@@ -82,12 +85,15 @@ export async function deleteRemote(list = remote.selectedItems()) {
   if (!list.length) return;
   const dirs = list.filter((e) => e.dir).length;
   const what = list.length === 1 ? `"${list[0].name}"` : plural(list.length, "item");
-  const ok = await ask(`Delete ${what} from S3?${dirs ? "\nFolders are deleted with everything inside them." : ""}`, {
-    title: "Delete",
-    kind: "warning",
-    okLabel: "Delete",
-    cancelLabel: "Cancel",
-  });
+  const ok = await ask(
+    `Delete ${what} from ${remoteName()}?${dirs ? "\nFolders are deleted with everything inside them." : ""}`,
+    {
+      title: "Delete",
+      kind: "warning",
+      okLabel: "Delete",
+      cancelLabel: "Cancel",
+    },
+  );
   if (!ok) return;
   try {
     const n = await invoke<number>("delete", { bucket: app.bucket, keys: list.map((e) => e.key) });

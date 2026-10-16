@@ -21,6 +21,10 @@ use crate::state::AppState;
 pub enum ProviderKind {
     #[default]
     S3,
+    /// Nextcloud / ownCloud: WebDAV under `remote.php/dav`, Login Flow v2, chunked upload, shares.
+    Nextcloud,
+    /// Any WebDAV server; `endpoint` is the full collection URL.
+    Webdav,
 }
 
 /// One remote account. Mirrors `Profile` in `src/types.ts`.
@@ -129,7 +133,7 @@ impl Settings {
 
 /// "minio.example.com" from "https://minio.example.com:9000/" — used when the user leaves Name empty.
 fn default_name(p: &Profile) -> String {
-    if is_aws(p) {
+    if p.kind == ProviderKind::S3 && is_aws(p) {
         return "AWS S3".into();
     }
     let host = endpoint_host(&p.endpoint);
@@ -315,6 +319,14 @@ pub fn save_profile(app: AppHandle, state: State<'_, AppState>, mut profile: Pro
     keep_secret(&s, &mut profile);
     s.active = s.upsert(profile);
     commit(&app, &state, s)
+}
+
+/// Saves an account that arrives with a fresh secret (e.g. from a sign-in flow) and makes it active.
+pub fn store_account(app: &AppHandle, state: &AppState, mut p: Profile) -> Result<Settings, String> {
+    let mut s = state.settings();
+    p.keychain = false; // a new secret: store it again
+    s.active = s.upsert(p);
+    commit(app, state, s)
 }
 
 #[tauri::command]
