@@ -17,11 +17,11 @@ TypeScript UI. The UI is in English. License: MIT.
 
 | | |
 |---|---|
-| Version | `0.3.2` released 2026-10-16 ([release](https://github.com/vnappmob/noexplorer/releases/tag/v0.3.2)): watermarks are a fixed background behind the rows. 0.3.1 removed the floating selection bar. 0.3.0 brought the UI redesign (ADR-019). Auto-update since 0.2.0; v0.1.0 users upgrade by hand once |
+| Version | `0.4.0` released 2026-10-16 ([release](https://github.com/vnappmob/noexplorer/releases/tag/v0.4.0)): secret keys in the OS keychain (ADR-020), virtualized file lists (ADR-021). Auto-update since 0.2.0; v0.1.0 users upgrade by hand once |
 | Last updated | 2026-10-16 |
 | Works and is verified | Dual-pane browse; drag both ways; drop files from the OS; multipart upload (tested with 2 GB); folder up/download; quick look (image/video/audio/pdf/text, local and remote); presigned links; delete; mkdir; transfer progress/cancel; **multiple S3 accounts** (picker + manager, v1 config migration); **Σ folder size** (remote and local) and full-path bar; **theme + text size**; **resizable split**; **auto-update** (signed, GitHub `latest.json`; real OTA 0.2.0 → 0.2.1 confirmed on macOS 2026-10-15); **tray + background running** (hide on close, live transfer rows, notifications, launch at login: macOS Login Items shows "NoExplorer", confirmed 2026-10-15 after re-registration; single instance); **Settings → General / About**; **v0.3 UI** (two-row pane headers with account/bucket dropdowns, path bar editing, activity card, transfer beam, ⌘K palette, watermarks, light/dark), checked in the app against SeaweedFS |
 | Tested on | macOS (Apple Silicon) against SeaweedFS, the maintainer's MinIO, and real AWS S3 (read-only: ap-southeast-1, dotted bucket names, cross-region detection). Windows and Linux are only checked for compilation in CI |
-| Next up | Confirm on the maintainer's Mac that Login Items still shows "NoExplorer" (the plist was restored after a dev build overwrote it; BTM couldn't be read while the screen was locked). Smoke-test the new UI and tray on Windows/Linux. See [docs/ROADMAP.md](docs/ROADMAP.md) |
+| Next up | Confirm on the maintainer's Mac that the OTA update to 0.4.0 moves the secret into Keychain without a prompt and the account still connects. Confirm on the maintainer's Mac that Login Items still shows "NoExplorer" (the plist was restored after a dev build overwrote it; BTM couldn't be read while the screen was locked). Smoke-test the new UI and tray on Windows/Linux. See [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 ## Map
 
