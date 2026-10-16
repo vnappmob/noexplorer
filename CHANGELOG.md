@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-10-16
+
 ### Added
 - **Compare folders** (⌘K → Compare, or right-click → Compare with remote…): after a backup, see what's missing on either side and what differs. **Verify** checks contents by checksum without downloading anything (S3 ETags, including multipart uploads; Box SHA-1; Nextcloud checksums). Count gaps are explained (system junk like `.DS_Store` that uploads skip on purpose, symlinks), and one click uploads or downloads the difference.
 - **Box (beta)**, with your own Box app: paste its Client ID and secret and sign in through the browser. Browse, preview, upload (big files in sessions, re-uploads become new versions), download, delete (to the Box trash), Copy link. See README → Connect for the 2-minute app setup.
