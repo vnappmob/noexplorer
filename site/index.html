@@ -9,7 +9,10 @@
       content="Your computer on the left, your storage on the right. Drag to back up, compare to be sure. Free and open source for macOS, Windows and Linux. Works with Amazon S3, R2, B2, Wasabi, MinIO, Nextcloud, WebDAV and Box."
     />
     <meta property="og:title" content="NoExplorer" />
-    <meta property="og:description" content="Your files and your storage, side by side. Drag to back up, compare to be sure." />
+    <meta
+      property="og:description"
+      content="Your files and your storage, side by side. Drag to back up, compare to be sure."
+    />
     <meta property="og:image" content="https://noexplorer.vnappmob.com/icon.png" />
     <meta name="theme-color" content="#0b0d12" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#fbfbfd" media="(prefers-color-scheme: light)" />
@@ -64,15 +67,28 @@
               </div>
               <div class="mpath">↑ · Users › kris › <b>Projects</b><span class="sum">Σ 18.4 GB</span></div>
               <div class="mcols"><span>Name</span><span>Size</span></div>
-              <div class="mrow"><span><i class="fi d"></i>photos-2026</span><em>12.1 GB</em></div>
-              <div class="mrow sel"><span><i class="fi d"></i>website</span><em>2.3 GB</em></div>
-              <div class="mrow"><span><i class="fi d"></i>invoices</span><em>840 MB</em></div>
-              <div class="mrow"><span><i class="fi"></i>dump.sql</span><em class="plain">48 MB</em></div>
-              <div class="mrow"><span><i class="fi"></i>cover.png</span><em class="plain">820 KB</em></div>
+              <div class="mrow">
+                <span><i class="fi d"></i>photos-2026</span><em>12.1 GB</em>
+              </div>
+              <div class="mrow sel">
+                <span><i class="fi d"></i>website</span><em>2.3 GB</em>
+              </div>
+              <div class="mrow">
+                <span><i class="fi d"></i>invoices</span><em>840 MB</em>
+              </div>
+              <div class="mrow">
+                <span><i class="fi"></i>dump.sql</span><em class="plain">48 MB</em>
+              </div>
+              <div class="mrow">
+                <span><i class="fi"></i>cover.png</span><em class="plain">820 KB</em>
+              </div>
               <div class="disk">
                 <div class="dhead"><b>Macintosh HD</b><span>129 GB available of 460 GB</span></div>
                 <div class="dbar"><i class="here"></i><i class="other"></i></div>
-                <div class="dleg"><span><i class="dot here"></i>Projects 18.4 GB</span><span><i class="dot other"></i>Other 313 GB</span></div>
+                <div class="dleg">
+                  <span><i class="dot here"></i>Projects 18.4 GB</span
+                  ><span><i class="dot other"></i>Other 313 GB</span>
+                </div>
               </div>
             </div>
             <div class="mpane">
@@ -81,17 +97,27 @@
               </div>
               <div class="mpath">↑ · nextcloud:// Files › <b>Backups</b></div>
               <div class="mcols"><span>Name</span><span>Size</span></div>
-              <div class="mrow"><span><i class="fi d"></i>2026-09</span><em class="plain"></em></div>
-              <div class="mrow target"><span><i class="fi d"></i>2026-10</span><em class="plain"></em></div>
-              <div class="mrow"><span><i class="fi"></i>site.tar.gz</span><em class="plain">312 MB</em></div>
-              <div class="mrow"><span><i class="fi"></i>notes.md</span><em class="plain">4 KB</em></div>
+              <div class="mrow">
+                <span><i class="fi d"></i>2026-09</span><em class="plain"></em>
+              </div>
+              <div class="mrow target">
+                <span><i class="fi d"></i>2026-10</span><em class="plain"></em>
+              </div>
+              <div class="mrow">
+                <span><i class="fi"></i>site.tar.gz</span><em class="plain">312 MB</em>
+              </div>
+              <div class="mrow">
+                <span><i class="fi"></i>notes.md</span><em class="plain">4 KB</em>
+              </div>
               <div class="activity">
                 <b>↑ website</b><small>→ Backups/2026-10/</small>
                 <div class="abar"><i></i></div>
                 <small>1,284 of 3,105 files · 94 MB/s</small>
               </div>
             </div>
-            <svg class="beam" viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M30 24 C 44 4, 60 4, 72 20" /></svg>
+            <svg class="beam" viewBox="0 0 100 40" preserveAspectRatio="none">
+              <path d="M30 24 C 44 4, 60 4, 72 20" />
+            </svg>
           </div>
         </div>
       </section>
@@ -119,8 +145,8 @@
         <div class="copy">
           <h2>Drag. Done.</h2>
           <p>
-            Drag left → right to upload, right → left to download. Drop on a folder or a breadcrumb to target it, or drop
-            straight from Finder or Explorer. Folders keep their structure.
+            Drag left → right to upload, right → left to download. Drop on a folder or a breadcrumb to target it, or
+            drop straight from Finder or Explorer. Folders keep their structure.
           </p>
           <ul class="ticks">
             <li>6 files in parallel; big files in parallel parts (S3 multipart, Nextcloud chunks, Box sessions)</li>
@@ -164,8 +190,8 @@
           <h2>Compare. Be sure.</h2>
           <p>
             After a backup, see exactly what's missing or different on each side. Contents are verified by checksum
-            without downloading anything, and odd counts are explained (hello, <code>.DS_Store</code>). One click uploads
-            or downloads the difference.
+            without downloading anything, and odd counts are explained (hello, <code>.DS_Store</code>). One click
+            uploads or downloads the difference.
           </p>
           <ul class="ticks">
             <li>S3 ETags (including multipart uploads), Box SHA-1, Nextcloud checksums</li>
@@ -178,7 +204,10 @@
             <b class="warn">2 differences.</b> 1,928 files match, verified by checksum. This computer: 1,932 · Remote:
             1,928. Includes 2 <code>.DS_Store</code> files that uploads skip on purpose.
           </p>
-          <div class="cmp-tabs"><span class="on">Missing on remote 2</span><span>Missing here 0</span><span>Different 0</span><span>Skipped junk 2</span></div>
+          <div class="cmp-tabs">
+            <span class="on">Missing on remote 2</span><span>Missing here 0</span><span>Different 0</span
+            ><span>Skipped junk 2</span>
+          </div>
           <div class="cmp-row"><code>docs/readme.md</code><small>7 KB</small></div>
           <div class="cmp-row"><code>photos/IMG_0412.HEIC</code><small>3.1 MB</small></div>
           <div class="cmp-foot"><span class="b">Download</span><span class="b primary">Upload 2 files</span></div>
@@ -194,7 +223,10 @@
           </p>
         </div>
         <div class="visual preview" aria-hidden="true">
-          <div class="pv-media"><span>▶</span><div class="pv-scrub"><i></i></div></div>
+          <div class="pv-media">
+            <span>▶</span>
+            <div class="pv-scrub"><i></i></div>
+          </div>
           <div class="pv-cap"><b>intro.mp4</b><small>Home NAS · 3.8 MB</small></div>
         </div>
       </section>
@@ -203,15 +235,47 @@
       <section class="grid">
         <h2>The details, done right</h2>
         <div class="cards">
-          <div class="card"><h3>⌘K palette</h3><p>Commands, accounts, buckets, places and files in one search box.</p></div>
-          <div class="card"><h3>Every account, everywhere</h3><p>Switch accounts from the pane header, or straight from the menu bar / tray.</p></div>
-          <div class="card"><h3>Secrets in your keychain</h3><p>Keys and app passwords live in Keychain / Credential Manager, never in plain text and never in the UI.</p></div>
-          <div class="card"><h3>Move to Trash, never delete</h3><p>Local files only ever go to the real Trash / Recycle Bin. Downloads never overwrite: <code>name (1).ext</code>.</p></div>
-          <div class="card"><h3>Live folder view</h3><p>Files added or removed in Finder, or by a download, show up on their own.</p></div>
-          <div class="card"><h3>Self-hosted friendly</h3><p>Path-style S3 on by default. Point it at <code>http://nas:9000</code> and it works.</p></div>
-          <div class="card"><h3>Updates itself</h3><p>Signed updates install in place with one click.</p></div>
-          <div class="card"><h3>Smooth with huge folders</h3><p>Virtualized lists stay fast with hundreds of thousands of files.</p></div>
-          <div class="card"><h3>Yours to read</h3><p>MIT licensed, about 12 MB, native on macOS, Windows and Linux.</p></div>
+          <div class="card">
+            <h3>⌘K palette</h3>
+            <p>Commands, accounts, buckets, places and files in one search box.</p>
+          </div>
+          <div class="card">
+            <h3>Every account, everywhere</h3>
+            <p>Switch accounts from the pane header, or straight from the menu bar / tray.</p>
+          </div>
+          <div class="card">
+            <h3>Secrets in your keychain</h3>
+            <p>
+              Keys and app passwords live in Keychain / Credential Manager, never in plain text and never in the UI.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Move to Trash, never delete</h3>
+            <p>
+              Local files only ever go to the real Trash / Recycle Bin. Downloads never overwrite:
+              <code>name (1).ext</code>.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Live folder view</h3>
+            <p>Files added or removed in Finder, or by a download, show up on their own.</p>
+          </div>
+          <div class="card">
+            <h3>Self-hosted friendly</h3>
+            <p>Path-style S3 on by default. Point it at <code>http://nas:9000</code> and it works.</p>
+          </div>
+          <div class="card">
+            <h3>Updates itself</h3>
+            <p>Signed updates install in place with one click.</p>
+          </div>
+          <div class="card">
+            <h3>Smooth with huge folders</h3>
+            <p>Virtualized lists stay fast with hundreds of thousands of files.</p>
+          </div>
+          <div class="card">
+            <h3>Yours to read</h3>
+            <p>MIT licensed, about 12 MB, native on macOS, Windows and Linux.</p>
+          </div>
         </div>
       </section>
 
@@ -227,8 +291,14 @@
         <div class="panel" role="tabpanel" data-panel="s3">
           <ol>
             <li><b>Download</b> and open NoExplorer. Settings opens on first launch.</li>
-            <li>Pick your provider (AWS, R2, B2, Wasabi, DigitalOcean, or self-hosted MinIO / SeaweedFS…). The form tells you what to enter.</li>
-            <li>Enter the <b>endpoint</b> (leave it empty for Amazon S3), <b>access key</b> and <b>secret key</b>. Keep <i>Path-style</i> on for self-hosted servers.</li>
+            <li>
+              Pick your provider (AWS, R2, B2, Wasabi, DigitalOcean, or self-hosted MinIO / SeaweedFS…). The form tells
+              you what to enter.
+            </li>
+            <li>
+              Enter the <b>endpoint</b> (leave it empty for Amazon S3), <b>access key</b> and <b>secret key</b>. Keep
+              <i>Path-style</i> on for self-hosted servers.
+            </li>
             <li>Click <b>Save &amp; use</b>, pick a bucket, start dragging.</li>
           </ol>
         </div>
@@ -236,25 +306,37 @@
           <ol>
             <li>In Settings → Accounts, pick <b>Nextcloud / ownCloud</b> and enter your server address.</li>
             <li>Click <b>Sign in with Nextcloud…</b> and approve NoExplorer in your browser.</li>
-            <li>That's it: NoExplorer gets its own app password, kept in your system keychain. No password typed into the app.</li>
+            <li>
+              That's it: NoExplorer gets its own app password, kept in your system keychain. No password typed into the
+              app.
+            </li>
           </ol>
         </div>
         <div class="panel" role="tabpanel" data-panel="webdav" hidden>
           <ol>
             <li>In Settings → Accounts, pick <b>WebDAV</b>.</li>
-            <li>Enter the full WebDAV folder URL from your server or NAS (Synology, QNAP, Apache, nginx…), your user name and password.</li>
+            <li>
+              Enter the full WebDAV folder URL from your server or NAS (Synology, QNAP, Apache, nginx…), your user name
+              and password.
+            </li>
             <li>Click <b>Save &amp; use</b>.</li>
           </ol>
         </div>
         <div class="panel" role="tabpanel" data-panel="box" hidden>
           <ol>
             <li>
-              In the <a href="https://app.box.com/developers/console">Box Developer Console</a>: <b>Create Platform App →
-              Custom App → User Authentication (OAuth 2.0)</b>. An open-source app can't ship a secret, so you use your own
-              (free) app.
+              In the <a href="https://app.box.com/developers/console">Box Developer Console</a>:
+              <b>Create Platform App → Custom App → User Authentication (OAuth 2.0)</b>. An open-source app can't ship a
+              secret, so you use your own (free) app.
             </li>
-            <li>Set the Redirect URI to <code>http://127.0.0.1:53682/callback</code> and tick <i>Read and write all files and folders</i>.</li>
-            <li>In NoExplorer pick <b>Box</b>, paste the <b>Client ID</b> and <b>Client secret</b>, and click <b>Sign in with Box…</b>.</li>
+            <li>
+              Set the Redirect URI to <code>http://127.0.0.1:53682/callback</code> and tick
+              <i>Read and write all files and folders</i>.
+            </li>
+            <li>
+              In NoExplorer pick <b>Box</b>, paste the <b>Client ID</b> and <b>Client secret</b>, and click
+              <b>Sign in with Box…</b>.
+            </li>
           </ol>
         </div>
 
@@ -301,16 +383,16 @@
         <details>
           <summary>My file counts don't match after a backup</summary>
           <p>
-            Open <b>Compare</b> (⌘K → Compare, or right-click a folder). It lists exactly what's missing or different and
-            explains the usual suspects: system junk like <code>.DS_Store</code> and <code>Thumbs.db</code> is skipped on
-            purpose, and symlinks aren't followed.
+            Open <b>Compare</b> (⌘K → Compare, or right-click a folder). It lists exactly what's missing or different
+            and explains the usual suspects: system junk like <code>.DS_Store</code> and <code>Thumbs.db</code> is
+            skipped on purpose, and symlinks aren't followed.
           </p>
         </details>
         <details>
           <summary>Can it delete or overwrite my local files?</summary>
           <p>
-            No. Downloads never overwrite (they become <code>name (1).ext</code>), and removing local files only moves them
-            to the Trash / Recycle Bin, where you can put them back.
+            No. Downloads never overwrite (they become <code>name (1).ext</code>), and removing local files only moves
+            them to the Trash / Recycle Bin, where you can put them back.
           </p>
         </details>
         <details>
@@ -323,7 +405,8 @@
         <details>
           <summary>My server uses a self-signed HTTPS certificate</summary>
           <p>
-            Not supported yet. Use plain HTTP inside your LAN, or a trusted certificate (e.g. Let's Encrypt). It's on the
+            Not supported yet. Use plain HTTP inside your LAN, or a trusted certificate (e.g. Let's Encrypt). It's on
+            the
             <a href="https://github.com/vnappmob/noexplorer/blob/main/docs/ROADMAP.md">roadmap</a>.
           </p>
         </details>
@@ -343,7 +426,9 @@
         <a href="https://github.com/vnappmob/noexplorer/blob/main/docs/ROADMAP.md">Roadmap</a> ·
         <a href="https://github.com/vnappmob/noexplorer/issues">Report an issue</a>
       </p>
-      <p class="muted">MIT License · Made by Kris Luu at <a href="https://github.com/vnappmob">VNAppMob</a> · Geist font (SIL OFL)</p>
+      <p class="muted">
+        MIT License · Made by Kris Luu at <a href="https://github.com/vnappmob">VNAppMob</a> · Geist font (SIL OFL)
+      </p>
     </footer>
   </body>
 </html>

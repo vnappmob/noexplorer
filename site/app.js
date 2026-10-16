@@ -49,7 +49,8 @@ async function main() {
   }
 
   const badge = document.getElementById("ver-badge");
-  if (badge && release.tag_name) badge.insertAdjacentHTML("beforeend", ` <span class="ver">· ${release.tag_name}</span>`);
+  if (badge && release.tag_name)
+    badge.insertAdjacentHTML("beforeend", ` <span class="ver">· ${release.tag_name}</span>`);
 
   const assets = release.assets || [];
   const mine = os && pick(assets, os);
