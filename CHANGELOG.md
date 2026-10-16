@@ -5,6 +5,10 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Removed the floating selection bar. It got in the way and was easy to click by accident; every action is in the right-click menu (and F5, Space, ⌘K). The column header now shows how many items are selected and their size.
+- The computer and cloud watermarks now sit below the last row, so they stay visible (scroll to the end) in long folders instead of disappearing.
+
 ## [0.3.0] - 2026-10-15
 
 ### Changed

@@ -160,10 +160,10 @@ On macOS the title bar is an overlay (`titleBarStyle: Overlay`): the traffic lig
 `#topbar`'s `.tl-space`, and `data-tauri-drag-region` makes the bar draggable. Each pane has two
 header rows. Row 1 (`.src`) is the source: the "This computer" chip and Places menu, or the
 account chip › bucket chip. Row 2 (`.pathbar`) is the path: up, clickable crumbs (empty space
-or ⌘L switches to typing a path), copy, Σ. A floating `.selbar` appears while rows are selected.
+or ⌘L switches to typing a path), copy, Σ. The column header shows the item count, or the selection count and size.
 Transfers show in the activity card, plus the beam: an SVG arc over `#panes`, computed from the
-real element rects on every job tick and resize. The watermarks (`.mark`) hide when the list
-fills the pane (`Pane.fitMark`).
+real element rects on every job tick and resize. The watermark (`.mark`) is appended as the last child of `.list`
+by `Pane.render()`, so it stacks under the rows and scrolls with them.
 
 **Appearance**
 `appearance.ts` stores theme (`system`/`light`/`dark`), text size (13/14/16/18 px) and the pane

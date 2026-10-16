@@ -300,45 +300,37 @@ body.resizing * {
   z-index: 6;
 }
 
-/* watermarks: a computer floats on the local pane, clouds on the remote one */
+/* watermarks: a computer under the local list, clouds under the remote one. They are the list's
+   last child (pane.ts render), so they stack below the rows and scroll with them. */
 .mark {
-  position: absolute;
-  left: 50%;
-  bottom: 96px;
-  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  padding: 40px 0 24px;
   pointer-events: none;
-  z-index: 0;
   color: var(--mark);
+  opacity: var(--mark-opacity, 1);
 }
 .mark-remote {
   color: var(--mark-remote);
 }
-.mark {
-  opacity: var(--mark-opacity, 1);
-  transition: opacity 0.3s;
-}
-/* A full list hides the watermark instead of drawing it under the rows (pane.ts sets .full). */
-.pane.full .mark {
-  opacity: 0;
-}
-.mark span {
+.mark > span {
   display: block;
   position: relative;
 }
 .mark-svg {
   display: block;
-  width: 150px;
+  width: 130px;
   height: auto;
   animation: floaty 7s ease-in-out infinite;
 }
 .mark-remote .mark-svg {
-  width: 160px;
+  width: 140px;
 }
 .mark-remote .mark-mini {
   position: absolute;
-  width: 68px;
-  left: -38px;
-  top: -22px;
+  width: 60px;
+  left: -34px;
+  top: -20px;
   animation: floaty 9s ease-in-out infinite reverse;
 }
 @keyframes floaty {
@@ -620,7 +612,7 @@ body.resizing * {
   flex: 1;
   overflow-y: auto;
   outline: none;
-  padding: 0 10px 84px;
+  padding: 0 10px 16px;
 }
 .row {
   height: var(--row-h);
@@ -694,74 +686,9 @@ body.resizing * {
   font-weight: 600;
 }
 
-/* floating selection bar (one per pane, shown while something is selected) */
-.selbar {
-  position: absolute;
-  left: 50%;
-  bottom: 14px;
-  transform: translateX(-50%);
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px;
-  max-width: calc(100% - 24px);
-  background: var(--dock);
-  color: var(--dock-fg);
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(22, 24, 29, 0.25);
-  animation: rise 0.18s ease-out;
-}
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 8px);
-  }
-}
-.sel-text {
-  padding: 0 10px 0 8px;
-  font-size: var(--fs-sm);
-  opacity: 0.8;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.act {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: calc(var(--fs) * 2.4);
-  padding: 0 11px;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: inherit;
-  font-weight: 500;
-}
-.act:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.12);
-}
-.act.primary {
-  background: var(--accent);
-  color: #fff;
-}
-:root[data-theme="dark"] .act.primary {
-  color: #0d0f14;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .act.primary {
-    color: #0d0f14;
-  }
-}
-.act.primary:hover:not(:disabled) {
-  filter: brightness(1.08);
-  background: var(--accent);
-}
-.act.danger:hover:not(:disabled) {
-  color: #ff8a80;
-}
-body.has-activity #pane-remote .selbar {
-  bottom: 96px;
+/* the activity card floats over the bottom-right of the remote pane: leave room to scroll past it */
+body.has-activity #pane-remote .list {
+  padding-bottom: 96px;
 }
 
 #ghost {
@@ -1213,8 +1140,7 @@ body.dragging * {
   .beam-core,
   .beam-spark,
   .running .bar2 i,
-  .crumb.target,
-  .selbar {
+  .crumb.target {
     animation: none !important;
   }
 }

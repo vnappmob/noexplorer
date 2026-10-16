@@ -222,47 +222,30 @@ export class Pane {
         )
         .join("");
     }
+    // Watermark stacked under the last row (scrolls with the list, so a long list never hides it).
+    const mark = this.isRemote ? "markCloud" : "markComputer";
+    this.list.insertAdjacentHTML(
+      "beforeend",
+      `<div class="mark mark-${this.kind}" aria-hidden="true"><span>${icon(mark)}</span></div>`,
+    );
     this.updateStatus();
-    this.fitMark();
-  }
-
-  /** Watermark only where there's room for it below the rows. */
-  fitMark() {
-    // scrollHeight never drops below clientHeight, so measure the last row instead.
-    const last = this.list.lastElementChild as HTMLElement | null;
-    const used = last?.classList.contains("row") ? last.offsetTop + last.offsetHeight : 0;
-    this.el.classList.toggle("full", used > this.list.clientHeight - 220);
   }
 
   selectedItems() {
     return this.view.filter((e) => this.selected.has(e.key));
   }
 
-  /** Item count in the column header + the floating selection bar (shown while something is selected). */
+  /** Column-header summary: item count and size, or the selection's count and size. */
   updateStatus() {
     const sel = this.selectedItems();
-    const total = this.view.reduce((s, e) => s + e.size, 0);
-    this.q(".count").textContent = `· ${plural(this.view.length, "item")}${total ? ` · ${fmtSize(total)}` : ""}`;
-    const bar = this.q(".selbar");
-    bar.hidden = sel.length === 0;
+    const n = this.view.length;
     if (sel.length) {
       const sz = sel.reduce((s, e) => s + e.size, 0);
-      this.q(".sel-text").textContent =
-        sel.length === 1
-          ? `${sel[0].name}${sz ? ` · ${fmtSize(sz)}` : ""}`
-          : `${sel.length} selected${sz ? ` · ${fmtSize(sz)}` : ""}`;
+      this.q(".count").textContent = `· ${sel.length} of ${n} selected${sz ? ` · ${fmtSize(sz)}` : ""}`;
+    } else {
+      const total = this.view.reduce((s, e) => s + e.size, 0);
+      this.q(".count").textContent = `· ${plural(n, "item")}${total ? ` · ${fmtSize(total)}` : ""}`;
     }
-    const oneFile = sel.length === 1 && !sel[0].dir;
-    const enable: Record<string, boolean> = {
-      preview: oneFile,
-      open: oneFile,
-      link: oneFile,
-      transfer: sel.length > 0 && !!app.bucket,
-      delete: sel.length > 0,
-    };
-    this.el.querySelectorAll<HTMLButtonElement>("[data-act]").forEach((b) => {
-      b.disabled = !(enable[b.dataset.act!] ?? true);
-    });
   }
 
   /** Repaints selection highlight without re-rendering rows. */

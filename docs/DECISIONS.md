@@ -295,10 +295,9 @@ before implementation.
 **Decision.**
 - Two header rows per pane: source chips (account › bucket as dropdowns, or "This computer")
   over a separate path bar with editable crumbs, copy and Σ.
-- No transfer buttons between the panes: they made the window narrower. Transfers come from the
-  floating selection bar, F5, drag, or ⌘K.
-- Context lives in floating layers: the selection bar, the activity card, and an animated beam
-  while transferring.
+- No transfer buttons between the panes: they made the window narrower. Transfers come from
+  drag, the right-click menu, F5, or ⌘K.
+- Context lives in floating layers: the activity card and an animated beam while transferring.
 - A ⌘K palette for commands, accounts, buckets, places and files.
 - Faint watermarks (a computer / clouds) mark local vs remote at a glance.
 - Geist and Geist Mono are bundled (`@fontsource-variable/*`, no network). Stroke icons replace
@@ -308,3 +307,7 @@ before implementation.
 Linux keep their native title bar above `#topbar`. Animations stop under
 `prefers-reduced-motion`. Dropdowns use our own `popover.ts` instead of native `<select>`, so
 keyboard access is implemented there.
+**Amendment (v0.3.1).** The floating selection bar is gone: it was noisy and easy to click by
+accident, and the right-click menu already has every action. The selection count and size show in
+the column header instead. The watermark is now the last element of the list (in flow), so it sits
+under the rows and scrolls into view at the end of a long list instead of being hidden.

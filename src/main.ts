@@ -1,7 +1,7 @@
 // Entry point: wires DOM events to the modules and boots the app.
 // Module map: see docs/ARCHITECTURE.md ("Frontend").
 
-import { calcSize, mkdir, openItem, paneAction, transfer } from "./actions";
+import { calcSize, mkdir, openItem, transfer } from "./actions";
 import { applyAppearance, setupSplitter } from "./appearance";
 import { setupDnd, armDrag } from "./dnd";
 import { hydrateIcons } from "./icons";
@@ -100,13 +100,6 @@ function bindPane(p: Pane) {
       p.render();
     }),
   );
-  p.el.querySelectorAll<HTMLElement>("[data-act]").forEach((b) => {
-    b.onclick = () => {
-      if (b.dataset.act !== "menu") return paneAction(p, b.dataset.act!);
-      const r = b.getBoundingClientRect();
-      showMenu(p, r.left, r.top - 8, true);
-    };
-  });
   p.q(".calc-size").onclick = () => calcSize(p);
 }
 
@@ -152,7 +145,6 @@ async function main() {
   setupSettings();
   setupKeyboard();
   window.addEventListener("focus", () => local.load(true)); // pick up changes made outside the app
-  window.addEventListener("resize", () => (local.fitMark(), remote.fitMark()));
   setActive(local);
 
   await setupJobs();

@@ -30,7 +30,6 @@
     <div class="panes" id="panes">
       <!-- LOCAL -->
       <section class="pane" id="pane-local" data-pane="local" aria-label="This computer">
-        <div class="mark mark-local" aria-hidden="true"><span data-icon="markComputer"></span></div>
         <header class="src">
           <button class="chip" id="places-chip" aria-haspopup="menu"><span class="chip-ico" data-icon="drive"></span><span class="chip-label">This computer</span><span class="chip-sub" id="places-sub"></span><span class="chev" data-icon="chevDown"></span></button>
           <span class="grow"></span>
@@ -51,20 +50,12 @@
           <span data-sort="name">Name <em class="count"></em></span><span data-sort="size">Size</span><span data-sort="modified">Modified</span>
         </div>
         <div class="list" tabindex="0"></div>
-        <div class="selbar" hidden>
-          <span class="sel-text"></span>
-          <button class="act primary" data-act="transfer" title="Upload to S3 (F5 / ⌘↵)">Upload <span data-icon="arrowRight"></span></button>
-          <button class="act" data-act="preview" title="Quick look (Space)" aria-label="Quick look"><span data-icon="eye"></span></button>
-          <button class="act" data-act="open" title="Open with default app (Enter)" aria-label="Open with default app"><span data-icon="external"></span></button>
-          <button class="act" data-act="menu" title="More actions" aria-label="More actions"><span data-icon="more"></span></button>
-        </div>
       </section>
 
       <div class="splitter" title="Drag to resize · double-click to reset"></div>
 
       <!-- REMOTE -->
       <section class="pane" id="pane-remote" data-pane="remote" aria-label="S3 bucket">
-        <div class="mark mark-remote" aria-hidden="true"><span data-icon="markCloud"></span></div>
         <header class="src">
           <button class="chip" id="profile-chip" aria-haspopup="menu"><span class="chip-ico acct-ico" data-icon="cloud"></span><span class="chip-label" id="profile-label">Add account</span><span class="chip-sub" id="profile-sub"></span><span class="chev" data-icon="chevDown"></span></button>
           <span class="sep-chev" data-icon="chevRight"></span>
@@ -87,15 +78,6 @@
           <span data-sort="name">Name <em class="count"></em></span><span data-sort="size">Size</span><span data-sort="modified">Modified</span>
         </div>
         <div class="list" tabindex="0"></div>
-        <div class="selbar" hidden>
-          <span class="sel-text"></span>
-          <button class="act primary" data-act="transfer" title="Download to the left pane (F5 / ⌘↵)"><span data-icon="arrowLeft"></span> Download</button>
-          <button class="act" data-act="preview" title="Quick look (Space)" aria-label="Quick look"><span data-icon="eye"></span></button>
-          <button class="act" data-act="open" title="Open with default app (⌘O)" aria-label="Open with default app"><span data-icon="external"></span></button>
-          <button class="act" data-act="link" title="Copy 7-day link" aria-label="Copy 7-day link"><span data-icon="link"></span></button>
-          <button class="act danger" data-act="delete" title="Delete from S3 (⌘⌫)" aria-label="Delete from S3"><span data-icon="trash"></span></button>
-          <button class="act" data-act="menu" title="More actions" aria-label="More actions"><span data-icon="more"></span></button>
-        </div>
       </section>
 
       <svg id="beam" aria-hidden="true"><path class="beam-base" /><path class="beam-glow" /><path class="beam-core" /><path class="beam-spark" /></svg>
