@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-16
+
 ### Changed
 - A **storage bar** at the bottom of the local pane shows the disk like macOS System Settings → Storage: the current folder, other used space and what's available (the same "available" figure macOS shows, purgeable space included). It replaces the bar under each folder size.
 - Sizes no longer get a "≥" prefix when some folders inside were skipped; hover for the explanation.
