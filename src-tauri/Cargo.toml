@@ -14,7 +14,9 @@ edition = "2024"
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "noexplorer_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# Desktop only: the template's "staticlib"/"cdylib" exist for iOS/Android and made every dev build
+# link two extra libraries (the .a alone was 0.73 GB). ADR-024.
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -52,6 +54,15 @@ libc = "0.2"
 # NSFileManager trashItemAtURL (trash.rs), volume capacity (local.rs); already in the tree via Tauri.
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSFileManager", "NSURL", "NSString", "NSError", "NSValue"] }
 objc2 = "0.6"
+
+# Dev/test builds: line tables for our code (backtraces keep file:line), no debug info for
+# dependencies. No split-debuginfo setting: macOS already defaults to "unpacked", and "unpacked"
+# is rejected on Windows MSVC (stable). Release builds are unchanged. ADR-024.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

@@ -153,6 +153,7 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **TypeScript 7's DOM types make `el.hidden` `boolean | "until-found"`.** Compare explicitly (`el.hidden !== false`) when you need a boolean.
 - **The `hidden` attribute loses to CSS `display: flex`.** `styles.css` has `[hidden]{display:none!important}`. Keep that rule.
 - **`requestAnimationFrame` pauses when the window is hidden or covered.** Progress rendering uses `setTimeout` for that reason.
+- **Dev builds are lean on purpose** ([ADR-024](docs/DECISIONS.md#adr-024)): `crate-type = ["rlib"]` (desktop only) and no debug info for dependencies. Don't restore the template's `staticlib`/`cdylib` without a mobile target, and don't add `split-debuginfo = "unpacked"` (Windows MSVC rejects it).
 - **`tauri::generate_context!()` embeds `../dist`.** Run `npm run build` once before any bare `cargo build/test/clippy` on a fresh clone. CI does this.
 - **The `minio/minio` Docker image is no longer published.** `scripts/dev-s3.sh` uses SeaweedFS, which speaks the same S3 API.
 - **Right-click is captured by the app's context menu.** To open devtools in dev builds use **⌥⌘I** (macOS) or **Ctrl+Shift+I**.

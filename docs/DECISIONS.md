@@ -417,3 +417,30 @@ recycle. Elsewhere it follows the freedesktop.org Trash spec (home trash, or
 `/`, the home folder and its parents.
 **Consequences.** ADR-006 still holds: no download overwrites and no permanent delete.
 Transfers never trash anything.
+
+<a id="adr-024"></a>
+
+## ADR-024: Lean dev builds (desktop-only crate type, no dependency debug info)
+Accepted · 2026-10-16 · see the storage policy in `CLAUDE.md`
+
+**Context.** `src-tauri/target` had reached 22 GB and grew by GB a day. With the template
+profile, one clean dev build plus clippy left 5.1 GB, 3.7 GB of it dependency objects with full
+debug info. The template's `crate-type = ["staticlib", "cdylib", "rlib"]` also linked a
+`libnoexplorer_lib.a` (0.73 GB) and a dylib on every dev build, and those only serve iOS/Android.
+**Decision.**
+- `[lib] crate-type = ["rlib"]` (desktop only; add the others back with a mobile target).
+- `[profile.dev] debug = "line-tables-only"` (backtraces keep file:line for our code) and
+  `[profile.dev.package."*"] debug = false` (no debug info for dependencies).
+- No `split-debuginfo`: macOS already defaults to `unpacked` in dev, and on stable Rust Windows
+  MSVC rejects `-Csplit-debuginfo=unpacked` (checked with rustc).
+- Release builds are unchanged: LTO, one codegen unit, `opt-level = 3`, abort on panic, stripped.
+**Measurements** (clean target, `CARGO_INCREMENTAL=0`, `cargo build` then `cargo clippy`):
+
+| Profile | build | clippy | target | deps |
+|---|---|---|---|---|
+| Template (before) | 44 s | 26 s | 5.1 GB | 3.7 GB |
+| `line-tables-only` + `split-debuginfo = "unpacked"` | 39 s | 24 s | 4.1 GB | 2.9 GB |
+| **This ADR** | **37 s** | **15 s** | **2.1 GB** | 1.6 GB |
+
+**Consequences.** A debugger shows dependency frames without source. Set `debug = true`
+locally to step into a crate. `scripts/clean-build.sh` still keeps the total bounded over time.
