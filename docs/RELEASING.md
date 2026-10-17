@@ -77,15 +77,42 @@ An update reaches users when the release is **published**: apps poll
 `releases/latest/download/latest.json`, which ignores drafts. Check that `latest.json` is among
 the assets before publishing.
 
-## Windows signing (not set up yet)
+## Windows signing (SignPath, waiting for approval)
 
-Unsigned installers trigger a SmartScreen warning ("More info → Run anyway"). Options are
-[SignPath Foundation](https://signpath.org) (free for OSS) or an OV/EV certificate. Tauri
-docs: <https://v2.tauri.app/distribute/sign/windows/>. Tracked in the [roadmap](ROADMAP.md).
+Free code signing from [SignPath Foundation](https://signpath.org) for open-source projects
+(ADR-030). The certificate belongs to SignPath Foundation, so Windows shows it as the publisher.
+`release.yml` already contains the flow; it stays off (unsigned installers, exactly as before)
+until the repo variable `SIGNPATH_ORGANIZATION_ID` is set.
+
+**One-time setup, after SignPath approves the project:**
+1. In SignPath: add **GitHub.com as a Trusted Build System** and link it to the project. Create two
+   artifact configurations with the slugs `app-exe` and `installers`, pasting
+   [`.signpath/app-exe.xml`](../.signpath/app-exe.xml) and
+   [`.signpath/installers.xml`](../.signpath/installers.xml). The signing policy (default slug
+   `release-signing`) must require manual approval.
+2. Create a SignPath API token for a user with submitter rights.
+3. In GitHub → Settings → Secrets and variables → Actions:
+   - secret `SIGNPATH_API_TOKEN`;
+   - variable `SIGNPATH_ORGANIZATION_ID`; optional `SIGNPATH_PROJECT_SLUG` (default `noexplorer`)
+     and `SIGNPATH_POLICY_SLUG` (default `release-signing`).
+4. Turn on MFA for everyone on the team, on GitHub and SignPath (a SignPath Foundation rule).
+
+**Each release** (once enabled), the `windows` job pauses twice for approval in SignPath. You
+have an hour for each:
+1. `noexplorer.exe` (so the installed app is signed too), then the installers are built around it;
+2. the `-setup.exe` and `.msi` installers.
+
+Signing changes the files, so the job makes the updater signatures (`*.sig`) again from the
+signed installers, and the `windows-updater-json` job adds the Windows entries to `latest.json`
+(`scripts/updater-json-windows.mjs`). Check after publishing: on a Windows machine, the
+installer's Properties → Digital Signatures shows SignPath Foundation.
+
+The [code signing policy](https://noexplorer.vnappmob.com/docs/code-signing) on the website
+lists the team roles. Keep it current when people join or leave.
 
 ## Website
 
-- The source is `/site`: static HTML/CSS/JS, `_headers` (security and cache headers) and
+- The source is `/site`: static HTML/CSS/JS (home page `index.html` + `app.js`; docs pages in `site/docs/`), `_headers` (security and cache headers) and
   `404.html`. It is served by **Cloudflare Workers static assets** (no Worker code). The
   config is `wrangler.jsonc`.
 - **Cloudflare Workers Builds** (Cloudflare's GitHub integration) deploys on every push to
@@ -104,6 +131,9 @@ docs: <https://v2.tauri.app/distribute/sign/windows/>. Tracked in the [roadmap](
   4. Optional, under Settings → Build → Build watch paths: include `site/*` and
      `wrangler.jsonc`, so app-only commits don't trigger a deploy.
   5. Save and deploy, then open <https://noexplorer.vnappmob.com>.
+- **Docs pages are generated.** Edit `site-src/docs/<page>.html` (and `_layout.html` for the
+  frame), then run `npm run site:docs` and commit both. `npm run check` fails when `site/docs/`
+  is stale. New pages go in `PAGES` in `scripts/build-docs.mjs` (sidebar order).
 - Manual deploy from a laptop, if ever needed: `npx wrangler login && npm run site:deploy`.
 - The download buttons call `https://api.github.com/repos/vnappmob/noexplorer/releases/latest`
   and pick the asset by file extension. If the repo is renamed, update `REPO` in `site/app.js`.

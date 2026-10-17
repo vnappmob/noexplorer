@@ -581,3 +581,30 @@ as download + upload. A direct stream (pipe the GET body into the PUT) is a late
 it needs a size-aware streaming upload for each provider. Tested in the dev app against
 SeaweedFS + Nextcloud (split, drag S3 → Nextcloud folder, close, reload restores views) and by
 `s3_roundtrip` (server-side copy of a key with spaces, Unicode and `#`).
+
+<a id="adr-030"></a>
+
+## ADR-030: Windows code signing through SignPath Foundation
+Accepted · 2026-10-17
+
+**Context.** Unsigned Windows installers show "Windows protected your PC" and "Unknown
+publisher". A code signing certificate costs money every year and now needs a hardware token or
+a cloud HSM. Azure Artifact Signing is cheap but only open to individuals in the US and Canada.
+**Decision.**
+- Use SignPath Foundation's free certificate for open-source projects. The publisher shown is
+  "SignPath Foundation", not VNAppMob; that's the price of free.
+- Sign twice per release, in the `windows` job of `release.yml`: the app binary first (built with
+  `tauri build --no-bundle`), then the installers that `tauri bundle` builds around it. SignPath
+  can't look inside an NSIS installer, so signing only the installers would leave the installed
+  `noexplorer.exe` unsigned. Each round needs a manual approval (a SignPath Foundation rule).
+- SignPath's GitHub connector only signs workflow artifacts, which proves the files came from
+  this repository's CI. So signed Windows builds skip `tauri-action`. Updater signatures are made
+  again after Authenticode signing, and a final job merges the Windows entries into
+  `latest.json`, after every other job has written its own.
+- Everything is behind the `SIGNPATH_ORGANIZATION_ID` repo variable, so releases keep working
+  unsigned until the project is approved.
+**Consequences.** Releases wait for two approvals (the timeout is one hour each). The signed
+path can't run before approval, so it has only been checked statically (actionlint, the
+`latest.json` merge script with sample signatures). The first signed release needs an eye on
+the Windows job and a check of the installer's signature and the auto-update.
+

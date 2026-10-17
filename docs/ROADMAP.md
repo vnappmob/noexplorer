@@ -41,7 +41,9 @@ Not planned: Google Drive (dropped by the maintainer on 2026-10-16), and exposin
 folders (iCloud Drive, `~/Library/CloudStorage`) as Places. iCloud Drive has no public API for
 third-party desktop apps.
 
-**Also done:** Compare folders with checksums (ADR-028).
+**Also done:** Compare folders with checksums (ADR-028). Docs site (`/docs` on the website).
+
+**In progress:** Windows code signing via SignPath Foundation (ADR-030). `release.yml` is ready; it waits for SignPath to approve the project (docs/RELEASING.md → Windows signing).
 
 ## Tier 1: daily-driver parity (next)
 
@@ -86,7 +88,6 @@ virtualized lists (ADR-021) · tray account switcher.
 ## Tier 3: platform & polish
 
 - More providers behind the same trait: SFTP, Dropbox, OneDrive, Google Cloud Storage (XML API), Azure Blob.
-- **Windows code signing** via SignPath (OSS), in `release.yml`.
 - **i18n** (Vietnamese first, ADR-011) and full keyboard/screen-reader accessibility.
 - **Frontend tests** (Vitest + happy-dom) for `Pane` sorting/selection/virtualization and `files.ts`.
 - **Tighter CSP** and asset-protocol scope (`tauri.conf.json`), see ARCHITECTURE's security model.
