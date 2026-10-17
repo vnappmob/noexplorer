@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.9] - 2026-10-17
+
 ### Changed
 - Deleting on a remote is now a background task: the activity card shows how many items are
   deleted so far (and can stop it), and the rows being deleted stay dimmed until it's done.
