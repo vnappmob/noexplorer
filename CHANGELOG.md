@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-10-17
+
 ### Changed
 - Switching accounts shows what's happening: the account button changes right away, the list says
   "Connecting to …" instead of showing the previous account's files, and a thin bar under the
