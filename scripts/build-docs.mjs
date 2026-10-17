@@ -16,7 +16,11 @@ const PAGES = [
   { slug: "shortcuts", title: "Keyboard shortcuts", desc: "Every shortcut in one table." },
   { slug: "faq", title: "FAQ & troubleshooting", desc: "Answers to common questions and problems." },
   { slug: "privacy", title: "Privacy", desc: "What NoExplorer sends, and where." },
-  { slug: "code-signing", title: "Code signing policy", desc: "How release builds are signed, and by whom." },
+  {
+    slug: "code-signing",
+    title: "Code signing",
+    desc: "How downloads and updates are signed, and installing on Windows.",
+  },
 ];
 
 const SRC = "site-src/docs";

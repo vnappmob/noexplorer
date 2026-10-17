@@ -586,7 +586,7 @@ SeaweedFS + Nextcloud (split, drag S3 → Nextcloud folder, close, reload restor
 <a id="adr-030"></a>
 
 ## ADR-030: Windows code signing through SignPath Foundation
-Accepted · 2026-10-17
+Rejected · 2026-10-17 (SignPath declined the project; see the update at the end)
 
 **Context.** Unsigned Windows installers show "Windows protected your PC" and "Unknown
 publisher". A code signing certificate costs money every year and now needs a hardware token or
@@ -609,3 +609,8 @@ path can't run before approval, so it has only been checked statically (actionli
 `latest.json` merge script with sample signatures). The first signed release needs an eye on
 the Windows job and a check of the installer's signature and the auto-update.
 
+**Update (2026-10-17).** SignPath Foundation declined the application. The SignPath flow was
+removed from `release.yml` (Windows builds in the matrix again, unsigned), along with
+`.signpath/` and the `latest.json` merge script. Windows stays unsigned until there's budget for
+a certificate; Tauri's own `bundle.windows` signing would be used then, which needs none of that
+machinery (docs/RELEASING.md → Windows signing).

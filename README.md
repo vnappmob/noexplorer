@@ -78,9 +78,9 @@ Download the installer for your OS from the
 | Windows 10/11 | `NoExplorer_x.y.z_x64-setup.exe` or `.msi` |
 | Linux | `.AppImage`, `.deb` or `.rpm` |
 
-> Windows builds aren't code-signed yet (SignPath signing is on the way, see the
-> [code signing policy](https://noexplorer.vnappmob.com/docs/code-signing)). If SmartScreen
-> appears, click **More info → Run anyway**.
+> Windows builds aren't code-signed (a certificate costs money every year; see
+> [code signing](https://noexplorer.vnappmob.com/docs/code-signing)). If SmartScreen appears,
+> click **More info → Run anyway**. Updates are always signed with NoExplorer's own update key.
 
 ## Connect
 

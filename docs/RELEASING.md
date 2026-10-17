@@ -77,38 +77,23 @@ An update reaches users when the release is **published**: apps poll
 `releases/latest/download/latest.json`, which ignores drafts. Check that `latest.json` is among
 the assets before publishing.
 
-## Windows signing (SignPath, applied 2026-10-17, waiting for approval)
+## Windows signing (not set up)
 
-Free code signing from [SignPath Foundation](https://signpath.org) for open-source projects
-(ADR-030). The certificate belongs to SignPath Foundation, so Windows shows it as the publisher.
-`release.yml` already contains the flow; it stays off (unsigned installers, exactly as before)
-until the repo variable `SIGNPATH_ORGANIZATION_ID` is set.
+Windows installers are **unsigned**, so SmartScreen warns on first install ("More info → Run
+anyway"). Auto-updates are still verified with the updater key. SignPath Foundation's free
+certificate was declined on 2026-10-17 (ADR-030), and the maintainer accepts unsigned Windows
+builds until there's budget for a certificate.
 
-**One-time setup, after SignPath approves the project:**
-1. In SignPath: add **GitHub.com as a Trusted Build System** and link it to the project. Create two
-   artifact configurations with the slugs `app-exe` and `installers`, pasting
-   [`.signpath/app-exe.xml`](../.signpath/app-exe.xml) and
-   [`.signpath/installers.xml`](../.signpath/installers.xml). The signing policy (default slug
-   `release-signing`) must require manual approval.
-2. Create a SignPath API token for a user with submitter rights.
-3. In GitHub → Settings → Secrets and variables → Actions:
-   - secret `SIGNPATH_API_TOKEN`;
-   - variable `SIGNPATH_ORGANIZATION_ID`; optional `SIGNPATH_PROJECT_SLUG` (default `noexplorer`)
-     and `SIGNPATH_POLICY_SLUG` (default `release-signing`).
-4. Turn on MFA for everyone on the team, on GitHub and SignPath (a SignPath Foundation rule).
-
-**Each release** (once enabled), the `windows` job pauses twice for approval in SignPath. You
-have an hour for each:
-1. `noexplorer.exe` (so the installed app is signed too), then the installers are built around it;
-2. the `-setup.exe` and `.msi` installers.
-
-Signing changes the files, so the job makes the updater signatures (`*.sig`) again from the
-signed installers, and the `windows-updater-json` job adds the Windows entries to `latest.json`
-(`scripts/updater-json-windows.mjs`). Check after publishing: on a Windows machine, the
-installer's Properties → Digital Signatures shows SignPath Foundation.
-
-The [code signing policy](https://noexplorer.vnappmob.com/docs/code-signing) on the website
-lists the team roles. Keep it current when people join or leave.
+When that day comes:
+- Options: an OV/EV certificate (hardware token or cloud HSM, e.g. Certum, Sectigo, SSL.com
+  eSigner) or Azure Artifact Signing if the account becomes eligible (US/Canada individuals, or
+  organizations in the US, Canada, EU or UK).
+- Tauri signs during `tauri build` through `bundle.windows` (`certificateThumbprint` for a
+  certificate in the runner's store, or `signCommand` for a cloud signer). The updater
+  signatures are then made from the signed files automatically. Guide:
+  <https://v2.tauri.app/distribute/sign/windows/>.
+- Update the website's [code signing page](../site-src/docs/code-signing.html), the FAQ and the
+  README note.
 
 ## Website
 

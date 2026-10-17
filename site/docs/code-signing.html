@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Code signing policy · NoExplorer docs</title>
-    <meta name="description" content="How release builds are signed, and by whom." />
+    <title>Code signing · NoExplorer docs</title>
+    <meta name="description" content="How downloads and updates are signed, and installing on Windows." />
     <meta name="theme-color" content="#0b0d12" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#fbfbfd" media="(prefers-color-scheme: light)" />
     <link rel="icon" href="/favicon.png" />
@@ -31,21 +31,12 @@
         <a href="/docs/shortcuts">Keyboard shortcuts</a>
         <a href="/docs/faq">FAQ & troubleshooting</a>
         <a href="/docs/privacy">Privacy</a>
-        <a href="/docs/code-signing" aria-current="page">Code signing policy</a>
+        <a href="/docs/code-signing" aria-current="page">Code signing</a>
       </aside>
       <article class="prose">
-        <h1>Code signing policy</h1>
-        <div class="note">
-          <p>
-            <b
-              >Windows: free code signing provided by <a href="https://signpath.io">SignPath.io</a>, certificate by
-              <a href="https://signpath.org">SignPath Foundation</a>.</b
-            >
-            The application is in progress: until it's approved, Windows builds are not signed.
-          </p>
-        </div>
+        <h1>Code signing</h1>
+        <p class="intro">How NoExplorer's downloads and updates are signed, and what that means when you install it.</p>
 
-        <h2>What is signed</h2>
         <div class="table-scroll">
           <table>
             <tr>
@@ -53,57 +44,51 @@
               <th>Signature</th>
             </tr>
             <tr>
+              <td>macOS</td>
+              <td>Signed with an Apple Developer ID and notarized by Apple. It opens without warnings.</td>
+            </tr>
+            <tr>
               <td>Windows</td>
               <td>
-                The app (<code>noexplorer.exe</code>) and both installers (<code>.exe</code>, <code>.msi</code>),
-                through SignPath.
+                <b>Not signed.</b> A Windows code signing certificate costs money every year, and NoExplorer is free.
+                We'll buy one when the project can afford it.
               </td>
             </tr>
             <tr>
-              <td>macOS</td>
-              <td>Apple Developer ID, notarized by Apple.</td>
-            </tr>
-            <tr>
-              <td>Auto-updates</td>
+              <td>Linux</td>
               <td>
-                Every update is also signed with NoExplorer's own update key. Installed apps reject anything else.
+                The <code>.AppImage</code>, <code>.deb</code> and <code>.rpm</code> files aren't signed, like most apps
+                outside the distro repositories.
+              </td>
+            </tr>
+            <tr>
+              <td>Updates</td>
+              <td>
+                Every update, on every platform, is signed with NoExplorer's own update key. An installed app refuses
+                any update that isn't.
               </td>
             </tr>
           </table>
         </div>
-        <p>
-          Only NoExplorer's own code, built from this repository, is signed. Builds run on GitHub-hosted runners from a
-          release tag (<a href="https://github.com/vnappmob/noexplorer/blob/main/.github/workflows/release.yml"
-            >release.yml</a
-          >), so every signed file can be traced back to the source it was built from.
-        </p>
 
-        <h2>Team and roles</h2>
-        <div class="table-scroll">
-          <table>
-            <tr>
-              <th>Role</th>
-              <th>Members</th>
-            </tr>
-            <tr>
-              <td>Committers and reviewers</td>
-              <td><a href="https://github.com/ltdangkhoa">Kris Luu (@ltdangkhoa)</a></td>
-            </tr>
-            <tr>
-              <td>Approvers</td>
-              <td><a href="https://github.com/ltdangkhoa">Kris Luu (@ltdangkhoa)</a></td>
-            </tr>
-          </table>
-        </div>
+        <h2>Installing on Windows</h2>
         <p>
-          Changes from other contributors are reviewed by a committer before they're merged. Each release is approved by
-          an approver before it's signed. Team members use multi-factor authentication for GitHub and SignPath.
+          Because the installer isn't signed, Windows SmartScreen says “Windows protected your PC” the first time. Click
+          <b>More info → Run anyway</b>. After that, updates install from inside the app without the warning.
+        </p>
+        <p>
+          Only download NoExplorer from this website or the
+          <a href="https://github.com/vnappmob/noexplorer/releases">GitHub releases page</a>. Every installer is built
+          by GitHub's own servers straight from the source code of a tagged release (<a
+            href="https://github.com/vnappmob/noexplorer/blob/main/.github/workflows/release.yml"
+            >release.yml</a
+          >), so you can check what went into it.
         </p>
 
         <h2>Privacy</h2>
         <p>
-          NoExplorer doesn't send information to other networked systems unless you ask it to, except for the update
-          check, which you can turn off. Details: <a href="/docs/privacy">Privacy</a>.
+          NoExplorer doesn't send information anywhere you didn't ask for, except the update check, which you can turn
+          off. Details: <a href="/docs/privacy">Privacy</a>.
         </p>
 
         <nav class="pager" aria-label="Next and previous">
@@ -115,7 +100,7 @@
       <p>
         <a href="/">Home</a> · <a href="https://github.com/vnappmob/noexplorer">GitHub</a> ·
         <a href="https://github.com/vnappmob/noexplorer/blob/main/CHANGELOG.md">Changelog</a> ·
-        <a href="/docs/privacy">Privacy</a> · <a href="/docs/code-signing">Code signing policy</a> ·
+        <a href="/docs/privacy">Privacy</a> · <a href="/docs/code-signing">Code signing</a> ·
         <a href="https://github.com/vnappmob/noexplorer/issues">Report an issue</a>
       </p>
       <p class="muted">MIT License · Made by Kris Luu at <a href="https://github.com/vnappmob">VNAppMob</a></p>

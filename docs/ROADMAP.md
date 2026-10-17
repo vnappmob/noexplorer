@@ -43,8 +43,6 @@ third-party desktop apps.
 
 **Also done:** Compare folders with checksums (ADR-028). Docs site (`/docs` on the website).
 
-**In progress:** Windows code signing via SignPath Foundation (ADR-030). `release.yml` is ready. The maintainer applied on 2026-10-17 and is waiting for SignPath to approve the project (docs/RELEASING.md → Windows signing).
-
 ## Tier 1: daily-driver parity (next)
 
 **Done in 0.4.1:** live folder sizes (ADR-022) · Move to Trash (ADR-023) · live folder view ·
@@ -88,6 +86,7 @@ virtualized lists (ADR-021) · tray account switcher.
 ## Tier 3: platform & polish
 
 - More providers behind the same trait: SFTP, Dropbox, OneDrive, Google Cloud Storage (XML API), Azure Blob.
+- **Windows code signing** when there's budget for a certificate (SignPath declined, ADR-030; see docs/RELEASING.md).
 - **i18n** (Vietnamese first, ADR-011) and full keyboard/screen-reader accessibility.
 - **Frontend tests** (Vitest + happy-dom) for `Pane` sorting/selection/virtualization and `files.ts`.
 - **Tighter CSP** and asset-protocol scope (`tauri.conf.json`), see ARCHITECTURE's security model.
