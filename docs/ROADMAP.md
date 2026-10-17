@@ -43,7 +43,7 @@ third-party desktop apps.
 
 **Also done:** Compare folders with checksums (ADR-028). Docs site (`/docs` on the website).
 
-**In progress:** Windows code signing via SignPath Foundation (ADR-030). `release.yml` is ready; it waits for SignPath to approve the project (docs/RELEASING.md → Windows signing).
+**In progress:** Windows code signing via SignPath Foundation (ADR-030). `release.yml` is ready. The maintainer applied on 2026-10-17 and is waiting for SignPath to approve the project (docs/RELEASING.md → Windows signing).
 
 ## Tier 1: daily-driver parity (next)
 

@@ -77,7 +77,7 @@ An update reaches users when the release is **published**: apps poll
 `releases/latest/download/latest.json`, which ignores drafts. Check that `latest.json` is among
 the assets before publishing.
 
-## Windows signing (SignPath, waiting for approval)
+## Windows signing (SignPath, applied 2026-10-17, waiting for approval)
 
 Free code signing from [SignPath Foundation](https://signpath.org) for open-source projects
 (ADR-030). The certificate belongs to SignPath Foundation, so Windows shows it as the publisher.
