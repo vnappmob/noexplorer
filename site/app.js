@@ -1,6 +1,6 @@
 // Picks the right installer for the visitor's OS from the latest *published* GitHub release.
 // Drafts are invisible to this API, so a broken release never shows up here (ADR-012).
-// Also: the version in the hero badge, and the Setup tabs.
+// Also: the version in the hero badge.
 const REPO = "vnappmob/noexplorer";
 const RELEASES = `https://github.com/${REPO}/releases/latest`;
 
@@ -73,11 +73,3 @@ async function main() {
 }
 
 main();
-
-// Setup tabs (S3 / Nextcloud / WebDAV / Box).
-document.querySelectorAll(".tabs [data-tab]").forEach((tab) =>
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".tabs [data-tab]").forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
-    document.querySelectorAll("[data-panel]").forEach((p) => (p.hidden = p.dataset.panel !== tab.dataset.tab));
-  }),
-);

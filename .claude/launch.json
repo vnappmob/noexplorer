@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "website",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8765", "--directory", "site"],
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["wrangler", "dev", "--port", "8765", "--ip", "127.0.0.1"],
       "port": 8765
     }
   ]

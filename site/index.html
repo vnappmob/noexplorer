@@ -3,15 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>NoExplorer: a fast dual-pane file manager for S3, Nextcloud, WebDAV and Box</title>
+    <title>NoExplorer: drag files between your computer and your cloud</title>
     <meta
       name="description"
-      content="Your computer on the left, your storage on the right. Drag to back up, compare to be sure. Free and open source for macOS, Windows and Linux. Works with Amazon S3, R2, B2, Wasabi, MinIO, Nextcloud, WebDAV and Box."
+      content="Your computer on the left, your cloud on the right. Drag to upload or download. Free and open source for macOS, Windows and Linux, for S3, Nextcloud, WebDAV and Box."
     />
     <meta property="og:title" content="NoExplorer" />
     <meta
       property="og:description"
-      content="Your files and your storage, side by side. Drag to back up, compare to be sure."
+      content="Your computer on the left, your cloud on the right. Drag to upload or download."
     />
     <meta property="og:image" content="https://noexplorer.vnappmob.com/icon.png" />
     <meta name="theme-color" content="#0b0d12" media="(prefers-color-scheme: dark)" />
@@ -23,36 +23,29 @@
   </head>
   <body>
     <header class="nav">
-      <a class="brand" href="#top"><img src="icon.svg" alt="" width="28" height="28" />NoExplorer</a>
+      <a class="brand" href="/"><img src="icon.svg" alt="" width="28" height="28" />NoExplorer</a>
       <nav>
-        <a href="#features">Features</a>
-        <a href="#compare">Compare</a>
-        <a href="#setup">Setup</a>
-        <a href="#faq">FAQ</a>
+        <a href="/docs/">Docs</a>
         <a href="https://github.com/vnappmob/noexplorer" class="gh">GitHub</a>
       </nav>
     </header>
 
     <main id="top">
-      <!-- ============ hero ============ -->
       <section class="hero">
-        <a class="badge" id="ver-badge" href="https://github.com/vnappmob/noexplorer/releases/latest">
-          <b>New</b> Split views · copy cloud to cloud
+        <a class="badge" id="ver-badge" href="https://github.com/vnappmob/noexplorer/blob/main/CHANGELOG.md">
+          <b>What's new</b>
         </a>
-        <h1>Your files and your storage,<br /><span>side by side.</span></h1>
-        <p class="lead">
-          A fast dual-pane file manager for <b>S3</b>, <b>Nextcloud</b>, <b>WebDAV</b> and <b>Box</b>. Your computer on
-          the left, your storage on the right. Drag to back up, compare to be sure.
-        </p>
+        <h1>Your computer on the left.<br /><span>Your cloud on the right.</span></h1>
+        <p class="lead">Drag between them to upload or download. That's it.</p>
         <div class="cta">
           <a id="dl-main" class="btn primary" href="https://github.com/vnappmob/noexplorer/releases/latest">
             <span id="dl-label">Download</span>
             <small id="dl-meta">for macOS, Windows &amp; Linux</small>
           </a>
-          <a class="btn" href="https://github.com/vnappmob/noexplorer">★ Star on GitHub</a>
+          <a class="btn" href="/docs/">Read the docs</a>
         </div>
         <p class="other" id="dl-other"></p>
-        <p class="trust">Free &amp; open source (MIT) · signed &amp; notarized on macOS · about 13 MB</p>
+        <p class="trust">Free &amp; open source · S3 · Nextcloud · WebDAV · Box</p>
 
         <!-- The app, drawn in HTML so it stays crisp and follows the page's light/dark theme. -->
         <div class="app" aria-hidden="true">
@@ -122,317 +115,31 @@
         </div>
       </section>
 
-      <!-- ============ providers ============ -->
-      <section class="providers" aria-label="Works with">
-        <p>Works with</p>
-        <ul>
-          <li>Amazon S3</li>
-          <li>Cloudflare R2</li>
-          <li>Backblaze B2</li>
-          <li>Wasabi</li>
-          <li>DigitalOcean Spaces</li>
-          <li>MinIO</li>
-          <li>SeaweedFS</li>
-          <li>Garage · Ceph</li>
-          <li class="new">Nextcloud · ownCloud</li>
-          <li class="new">WebDAV · NAS</li>
-          <li class="new">Box <small>beta</small></li>
-        </ul>
-      </section>
-
-      <!-- ============ big features ============ -->
-      <section id="features" class="split">
-        <div class="copy">
-          <h2>Drag. Done.</h2>
-          <p>
-            Drag left → right to upload, right → left to download. Drop on a folder or a breadcrumb to target it, or
-            drop straight from Finder or Explorer. Folders keep their structure.
-          </p>
-          <ul class="ticks">
-            <li>6 files in parallel; big files in parallel parts (S3 multipart, Nextcloud chunks, Box sessions)</li>
-            <li>Live speed, progress and cancel, with a beam showing where it's going</li>
-            <li>Keeps going in the menu bar / tray when you close the window</li>
-          </ul>
+      <section class="points">
+        <div>
+          <h3>Drag either way</h3>
+          <p>Left to right uploads, right to left downloads. Folders keep their structure.</p>
         </div>
-        <div class="visual stat-grid">
-          <div><b>6×</b><span>files at once</span></div>
-          <div><b>4×</b><span>parts per big file</span></div>
-          <div><b>2 GB+</b><span>files, tested</span></div>
-          <div><b>0</b><span>local files ever overwritten</span></div>
+        <div>
+          <h3>Big files, no fuss</h3>
+          <p>Parallel transfers with live progress. They keep going when you close the window.</p>
         </div>
-      </section>
-
-      <section class="split rev">
-        <div class="copy">
-          <h2>Folder sizes. Faster than ncdu.</h2>
-          <p>
-            Every folder on your computer shows its size as you browse, scanned in the background by our own parallel
-            scanner and kept up to date as files change. A storage bar puts the folder against the whole disk, like
-            macOS Storage settings.
-          </p>
-          <ul class="ticks">
-            <li>One system call per batch of files on macOS (no <code>stat</code> per file)</li>
-            <li>Polite: low priority, stays on your disk, no surprise permission prompts</li>
-            <li>Going back to a folder is instant</li>
-          </ul>
+        <div>
+          <h3>Nothing gets lost</h3>
+          <p>Downloads never overwrite your files, and Compare shows that everything arrived.</p>
         </div>
-        <figure class="visual bench">
-          <figcaption>Scanning a 224,000-file folder (warm cache, Apple Silicon)</figcaption>
-          <div class="brow us"><span>NoExplorer</span><i style="--w: 8.6%"></i><b>0.55 s</b></div>
-          <div class="brow"><span>ncdu&nbsp;-t&nbsp;8</span><i style="--w: 11.4%"></i><b>0.73 s</b></div>
-          <div class="brow"><span>du&nbsp;-sk</span><i style="--w: 56%"></i><b>3.6 s</b></div>
-          <div class="brow"><span>ncdu</span><i style="--w: 100%"></i><b>6.4 s</b></div>
-        </figure>
-      </section>
-
-      <section id="compare" class="split">
-        <div class="copy">
-          <h2>Compare. Be sure.</h2>
-          <p>
-            After a backup, see exactly what's missing or different on each side. Contents are verified by checksum
-            without downloading anything, and odd counts are explained (hello, <code>.DS_Store</code>). One click
-            uploads or downloads the difference.
-          </p>
-          <ul class="ticks">
-            <li>S3 ETags (including multipart uploads), Box SHA-1, Nextcloud checksums</li>
-            <li>Never calls a file "verified" unless the hash really matches</li>
-          </ul>
-        </div>
-        <div class="visual cmp" aria-hidden="true">
-          <div class="cmp-top"><b>Compare folders</b><span>✓ Verify contents</span></div>
-          <p class="cmp-v">
-            <b class="warn">2 differences.</b> 1,928 files match, verified by checksum. This computer: 1,932 · Remote:
-            1,928. Includes 2 <code>.DS_Store</code> files that uploads skip on purpose.
-          </p>
-          <div class="cmp-tabs">
-            <span class="on">Missing on remote 2</span><span>Missing here 0</span><span>Different 0</span
-            ><span>Skipped junk 2</span>
-          </div>
-          <div class="cmp-row"><code>docs/readme.md</code><small>7 KB</small></div>
-          <div class="cmp-row"><code>photos/IMG_0412.HEIC</code><small>3.1 MB</small></div>
-          <div class="cmp-foot"><span class="b">Download</span><span class="b primary">Upload 2 files</span></div>
-        </div>
-      </section>
-
-      <section class="split rev">
-        <div class="copy">
-          <h2>Look before you download.</h2>
-          <p>
-            Press <kbd>Space</kbd> to preview images, video (with seeking), audio, PDF and text on either side, straight
-            from S3, Nextcloud, WebDAV or Box. Open with your default app, or copy a share link that expires.
-          </p>
-        </div>
-        <div class="visual preview" aria-hidden="true">
-          <div class="pv-media">
-            <span>▶</span>
-            <div class="pv-scrub"><i></i></div>
-          </div>
-          <div class="pv-cap"><b>intro.mp4</b><small>Home NAS · 3.8 MB</small></div>
-        </div>
-      </section>
-
-      <!-- ============ more ============ -->
-      <section class="grid">
-        <h2>The details, done right</h2>
-        <div class="cards">
-          <div class="card">
-            <h3>⌘K palette</h3>
-            <p>Commands, accounts, buckets, places and files in one search box.</p>
-          </div>
-          <div class="card">
-            <h3>Every account, everywhere</h3>
-            <p>
-              Split the right side into up to 3 accounts and drag between them to copy cloud to cloud. Or switch from
-              the menu bar / tray.
-            </p>
-          </div>
-          <div class="card">
-            <h3>Secrets in your keychain</h3>
-            <p>
-              Keys and app passwords live in Keychain / Credential Manager, never in plain text and never in the UI.
-            </p>
-          </div>
-          <div class="card">
-            <h3>Move to Trash, never delete</h3>
-            <p>
-              Local files only ever go to the real Trash / Recycle Bin. Downloads never overwrite:
-              <code>name (1).ext</code>.
-            </p>
-          </div>
-          <div class="card">
-            <h3>Live folder view</h3>
-            <p>Files added or removed in Finder, or by a download, show up on their own.</p>
-          </div>
-          <div class="card">
-            <h3>Self-hosted friendly</h3>
-            <p>Path-style S3 on by default. Point it at <code>http://nas:9000</code> and it works.</p>
-          </div>
-          <div class="card">
-            <h3>Updates itself</h3>
-            <p>Signed updates install in place with one click.</p>
-          </div>
-          <div class="card">
-            <h3>Smooth with huge folders</h3>
-            <p>Virtualized lists stay fast with hundreds of thousands of files.</p>
-          </div>
-          <div class="card">
-            <h3>Yours to read</h3>
-            <p>MIT licensed, about 13 MB, native on macOS, Windows and Linux.</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- ============ setup ============ -->
-      <section id="setup" class="setup">
-        <h2>Connect in a minute</h2>
-        <div class="tabs" role="tablist" aria-label="Account type">
-          <button role="tab" aria-selected="true" data-tab="s3">S3 &amp; compatible</button>
-          <button role="tab" aria-selected="false" data-tab="nextcloud">Nextcloud</button>
-          <button role="tab" aria-selected="false" data-tab="webdav">WebDAV / NAS</button>
-          <button role="tab" aria-selected="false" data-tab="box">Box <small>beta</small></button>
-        </div>
-        <div class="panel" role="tabpanel" data-panel="s3">
-          <ol>
-            <li><b>Download</b> and open NoExplorer. Settings opens on first launch.</li>
-            <li>
-              Pick your provider (AWS, R2, B2, Wasabi, DigitalOcean, or self-hosted MinIO / SeaweedFS…). The form tells
-              you what to enter.
-            </li>
-            <li>
-              Enter the <b>endpoint</b> (leave it empty for Amazon S3), <b>access key</b> and <b>secret key</b>. Keep
-              <i>Path-style</i> on for self-hosted servers.
-            </li>
-            <li>Click <b>Save &amp; use</b>, pick a bucket, start dragging.</li>
-          </ol>
-        </div>
-        <div class="panel" role="tabpanel" data-panel="nextcloud" hidden>
-          <ol>
-            <li>In Settings → Accounts, pick <b>Nextcloud / ownCloud</b> and enter your server address.</li>
-            <li>Click <b>Sign in with Nextcloud…</b> and approve NoExplorer in your browser.</li>
-            <li>
-              That's it: NoExplorer gets its own app password, kept in your system keychain. No password typed into the
-              app.
-            </li>
-          </ol>
-        </div>
-        <div class="panel" role="tabpanel" data-panel="webdav" hidden>
-          <ol>
-            <li>In Settings → Accounts, pick <b>WebDAV</b>.</li>
-            <li>
-              Enter the full WebDAV folder URL from your server or NAS (Synology, QNAP, Apache, nginx…), your user name
-              and password.
-            </li>
-            <li>Click <b>Save &amp; use</b>.</li>
-          </ol>
-        </div>
-        <div class="panel" role="tabpanel" data-panel="box" hidden>
-          <ol>
-            <li>
-              In the <a href="https://app.box.com/developers/console">Box Developer Console</a>:
-              <b>Create Platform App → Custom App → User Authentication (OAuth 2.0)</b>. An open-source app can't ship a
-              secret, so you use your own (free) app.
-            </li>
-            <li>
-              Set the Redirect URI to <code>http://127.0.0.1:53682/callback</code> and tick
-              <i>Read and write all files and folders</i>.
-            </li>
-            <li>
-              In NoExplorer pick <b>Box</b>, paste the <b>Client ID</b> and <b>Client secret</b>, and click
-              <b>Sign in with Box…</b>.
-            </li>
-          </ol>
-        </div>
-
-        <h3>Keyboard</h3>
-        <div class="keys">
-          <div><kbd>Tab</kbd> <kbd>←</kbd> <kbd>→</kbd><span>Switch pane</span></div>
-          <div><kbd>Enter</kbd><span>Open folder / file</span></div>
-          <div><kbd>Space</kbd><span>Quick look</span></div>
-          <div><kbd>F5</kbd> <kbd>⌘ ↵</kbd><span>Copy to the other pane</span></div>
-          <div><kbd>⌫</kbd> <kbd>⌘ ↑</kbd><span>Up one folder</span></div>
-          <div><kbd>⌘ ⌫</kbd><span>Delete remote · Move to Trash</span></div>
-          <div><kbd>⌘ K</kbd><span>Command palette (and Compare)</span></div>
-          <div><kbd>⌘ L</kbd><span>Type a path</span></div>
-          <div><kbd>⌘ \</kbd> <kbd>⌘ W</kbd><span>Split remote view · close it</span></div>
-          <div><kbd>⌘ F</kbd><span>Filter</span></div>
-          <div><kbd>⌘ R</kbd> <kbd>⌘ ,</kbd><span>Refresh · Settings</span></div>
-        </div>
-      </section>
-
-      <!-- ============ FAQ ============ -->
-      <section id="faq" class="faq">
-        <h2>FAQ</h2>
-        <details>
-          <summary>Which services does it work with?</summary>
-          <p>
-            Anything that speaks the S3 API (AWS S3, Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, MinIO,
-            SeaweedFS, Garage, Ceph RGW), Nextcloud and ownCloud, any WebDAV server or NAS, and Box (beta).
-          </p>
-        </details>
-        <details>
-          <summary>Where are my keys and passwords stored?</summary>
-          <p>
-            In your system's credential store: macOS Keychain, Windows Credential Manager, or Secret Service on Linux.
-            They never reach the app's interface and are only sent to the server you configured. The code is open:
-            <a href="https://github.com/vnappmob/noexplorer/blob/main/src-tauri/src/secrets.rs">secrets.rs</a>.
-          </p>
-        </details>
-        <details>
-          <summary>Why does Box need my own app?</summary>
-          <p>
-            Box sign-in needs a client secret, and an open-source app can't keep one secret. Creating a free Custom App
-            takes two minutes (see Setup → Box), and the tokens stay on your computer.
-          </p>
-        </details>
-        <details>
-          <summary>My file counts don't match after a backup</summary>
-          <p>
-            Open <b>Compare</b> (⌘K → Compare, or right-click a folder). It lists exactly what's missing or different
-            and explains the usual suspects: system junk like <code>.DS_Store</code> and <code>Thumbs.db</code> is
-            skipped on purpose, and symlinks aren't followed.
-          </p>
-        </details>
-        <details>
-          <summary>Can it delete or overwrite my local files?</summary>
-          <p>
-            No. Downloads never overwrite (they become <code>name (1).ext</code>), and removing local files only moves
-            them to the Trash / Recycle Bin, where you can put them back.
-          </p>
-        </details>
-        <details>
-          <summary>Windows says "Windows protected your PC"</summary>
-          <p>
-            Windows builds aren't code-signed yet. Click <b>More info → Run anyway</b>. The macOS build is signed and
-            notarized by Apple.
-          </p>
-        </details>
-        <details>
-          <summary>My server uses a self-signed HTTPS certificate</summary>
-          <p>
-            Not supported yet. Use plain HTTP inside your LAN, or a trusted certificate (e.g. Let's Encrypt). It's on
-            the
-            <a href="https://github.com/vnappmob/noexplorer/blob/main/docs/ROADMAP.md">roadmap</a>.
-          </p>
-        </details>
-      </section>
-
-      <section class="final">
-        <h2>Back up with confidence.</h2>
-        <a class="btn primary" href="#top">Download NoExplorer</a>
       </section>
     </main>
 
     <footer>
       <p>
-        <a href="https://github.com/vnappmob/noexplorer">GitHub</a> ·
+        <a href="/docs/">Docs</a> · <a href="https://github.com/vnappmob/noexplorer">GitHub</a> ·
         <a href="https://github.com/vnappmob/noexplorer/releases">Releases</a> ·
         <a href="https://github.com/vnappmob/noexplorer/blob/main/CHANGELOG.md">Changelog</a> ·
-        <a href="https://github.com/vnappmob/noexplorer/blob/main/docs/ROADMAP.md">Roadmap</a> ·
-        <a href="https://github.com/vnappmob/noexplorer/issues">Report an issue</a>
+        <a href="/docs/privacy">Privacy</a> ·
+        <a href="/docs/code-signing">Code signing policy</a>
       </p>
-      <p class="muted">
-        MIT License · Made by Kris Luu at <a href="https://github.com/vnappmob">VNAppMob</a> · Geist font (SIL OFL)
-      </p>
+      <p class="muted">MIT License · Made by Kris Luu at <a href="https://github.com/vnappmob">VNAppMob</a></p>
     </footer>
   </body>
 </html>

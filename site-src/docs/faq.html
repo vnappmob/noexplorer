@@ -1,0 +1,51 @@
+<h3>Windows says “Windows protected your PC”</h3>
+<p>
+  Windows builds aren't code-signed yet (it's in progress, see the
+  <a href="/docs/code-signing">code signing policy</a>). Click <b>More info → Run anyway</b>.
+</p>
+
+<h3>My file counts don't match after a backup</h3>
+<p>
+  Open <a href="/docs/tools">Compare</a>. It lists exactly what's missing or different. Usually it's system files like
+  <code>.DS_Store</code>, which uploads skip on purpose.
+</p>
+
+<h3>Can NoExplorer delete or overwrite my local files?</h3>
+<p>
+  No. Downloads never overwrite (they become <code>name (1).ext</code>), and removing local files only moves them to the
+  Trash or Recycle Bin.
+</p>
+
+<h3>The connection test fails on my self-hosted server</h3>
+<ul>
+  <li>Keep <b>Path-style requests</b> on.</li>
+  <li>Check the port in the endpoint, e.g. <code>:9000</code> for MinIO.</li>
+  <li>
+    Self-signed HTTPS certificates aren't supported yet. Use plain HTTP inside your network, or a trusted certificate
+    (for example from Let's Encrypt).
+  </li>
+</ul>
+
+<h3>Where are my keys and passwords stored?</h3>
+<p>
+  In your system's credential store (macOS Keychain, Windows Credential Manager or Linux Secret Service). They're never
+  shown in the app and only sent to the server you configured.
+</p>
+
+<h3>Why does Box need my own app?</h3>
+<p>
+  Box sign-in needs a client secret, and an open-source app can't keep one secret. A free Box app takes two minutes, see
+  <a href="/docs/accounts">Connect your storage</a>.
+</p>
+
+<h3>Closing the window doesn't quit the app</h3>
+<p>
+  That's so transfers can finish. Quit from the menu bar or tray icon, or turn off
+  <b>Keep running in the background</b> in <b>Settings → General</b>.
+</p>
+
+<h3>Something else is wrong</h3>
+<p>
+  Please <a href="https://github.com/vnappmob/noexplorer/issues">open an issue on GitHub</a> with your system, the
+  NoExplorer version (Settings → About) and what you did.
+</p>

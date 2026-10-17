@@ -12,6 +12,7 @@
 
 <p align="center">
   <a href="https://noexplorer.vnappmob.com">Website</a> ·
+  <a href="https://noexplorer.vnappmob.com/docs/">Docs</a> ·
   <a href="https://github.com/vnappmob/noexplorer/releases/latest">Download</a> ·
   <a href="docs/DEVELOPMENT.md">Develop</a> ·
   <a href="CHANGELOG.md">Changelog</a>
@@ -77,7 +78,9 @@ Download the installer for your OS from the
 | Windows 10/11 | `NoExplorer_x.y.z_x64-setup.exe` or `.msi` |
 | Linux | `.AppImage`, `.deb` or `.rpm` |
 
-> Windows builds aren't code-signed yet. If SmartScreen appears, click **More info → Run anyway**.
+> Windows builds aren't code-signed yet (SignPath signing is on the way, see the
+> [code signing policy](https://noexplorer.vnappmob.com/docs/code-signing)). If SmartScreen
+> appears, click **More info → Run anyway**.
 
 ## Connect
 
@@ -105,8 +108,11 @@ in NoExplorer, paste the **Client ID** and **Client secret**, and click **Sign i
 | Region | `us-east-1` (fine for MinIO) |
 | Path-style requests | ✓ Leave it on for MinIO and other self-hosted servers |
 
-Click **Test**, then **Save & use**. Credentials are stored only on your computer, in the app's
-config folder (readable only by your user).
+Click **Test**, then **Save & use**. Secret keys and passwords are stored only on your computer,
+in the system credential store (Keychain, Credential Manager or Secret Service).
+
+More in the [docs](https://noexplorer.vnappmob.com/docs/): accounts, transfers, Compare,
+shortcuts, FAQ and [privacy](https://noexplorer.vnappmob.com/docs/privacy).
 
 ## Keyboard
 

@@ -1,0 +1,74 @@
+<p class="intro">
+  Add as many accounts as you like in <b>Settings → Accounts</b> (<kbd>⌘ ,</kbd>), then pick one from the account menu
+  at the top of the right pane.
+</p>
+<p>
+  Passwords and secret keys go into your system's credential store (macOS Keychain, Windows Credential Manager or Linux
+  Secret Service). They are only ever sent to the server you entered.
+</p>
+
+<h2>S3 and compatible services</h2>
+<p>
+  Amazon S3, Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, MinIO, SeaweedFS, Garage, Ceph and anything else
+  that speaks S3. Pick your provider first: the form then shows what it needs.
+</p>
+<div class="table-scroll">
+  <table>
+    <tr>
+      <th>Field</th>
+      <th>What to enter</th>
+    </tr>
+    <tr>
+      <td>Endpoint</td>
+      <td>
+        Your server, e.g. <code>https://minio.example.com</code> or <code>http://192.168.1.10:9000</code>.
+        <b>Leave it empty for Amazon S3</b>: each bucket's region is found automatically.
+      </td>
+    </tr>
+    <tr>
+      <td>Access key, Secret key</td>
+      <td>The credentials from your provider.</td>
+    </tr>
+    <tr>
+      <td>Region</td>
+      <td><code>us-east-1</code> works for most self-hosted servers.</td>
+    </tr>
+    <tr>
+      <td>Path-style requests</td>
+      <td>Leave it on for MinIO and other self-hosted servers.</td>
+    </tr>
+  </table>
+</div>
+<p>Click <b>Test</b>, then <b>Save &amp; use</b>, and pick a bucket.</p>
+
+<h2>Nextcloud and ownCloud</h2>
+<ol>
+  <li>Pick <b>Nextcloud / ownCloud</b> and enter your server address.</li>
+  <li>Click <b>Sign in with Nextcloud…</b> and approve NoExplorer in your browser.</li>
+</ol>
+<p>NoExplorer gets its own app password. You never type your Nextcloud password into the app.</p>
+
+<h2>WebDAV and NAS</h2>
+<p>
+  Pick <b>WebDAV</b> and enter the full folder URL from your server or NAS (Synology, QNAP, Apache, nginx…), your user
+  name and password.
+</p>
+
+<h2>Box <small>(beta)</small></h2>
+<p>
+  Box needs your own free Box app, because an open-source app can't keep a client secret private. It takes two minutes:
+</p>
+<ol>
+  <li>
+    In the <a href="https://app.box.com/developers/console">Box Developer Console</a>, choose
+    <b>Create Platform App → Custom App → User Authentication (OAuth 2.0)</b>.
+  </li>
+  <li>
+    Set the <b>Redirect URI</b> to <code>http://127.0.0.1:53682/callback</code> and tick
+    <i>Read and write all files and folders</i>.
+  </li>
+  <li>
+    In NoExplorer, pick <b>Box</b>, paste the <b>Client ID</b> and <b>Client secret</b>, and click
+    <b>Sign in with Box…</b>.
+  </li>
+</ol>
