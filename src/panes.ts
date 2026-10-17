@@ -79,6 +79,10 @@ export function closeView(p: Pane) {
 /** Per-view state of the layout: buttons, heights, which view is the local → remote target. */
 function applyLayout() {
   const many = remotes.length > 1;
+  // Grow factors are shares of the column. Keep them summing to the view count: a lone view left
+  // with grow < 1 (after split, resize, close) would leave a gap under it.
+  const sum = remotes.reduce((n, v) => n + (grow.get(v) ?? 1), 0) || 1;
+  for (const v of remotes) grow.set(v, ((grow.get(v) ?? 1) * remotes.length) / sum);
   for (const v of remotes) {
     v.el.style.flexGrow = String(grow.get(v) ?? 1);
     v.el.classList.toggle("current", many && v === remote);

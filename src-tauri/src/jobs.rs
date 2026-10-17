@@ -153,6 +153,9 @@ impl Job {
 
     fn event(&self, status: &'static str) -> JobEvent {
         let errors = self.errors.lock().unwrap();
+        // One lock, taken before the literal: a guard used inside a struct literal lives until the
+        // end of the statement, so locking `src` twice there deadlocks (v0.4.4 hung every job).
+        let (src_account, src_bucket) = self.src.lock().unwrap().clone().unzip();
         JobEvent {
             id: self.id.clone(),
             kind: self.kind,
@@ -172,8 +175,8 @@ impl Job {
             },
             dest: self.dest.lock().unwrap().clone(),
             local_dir: self.local_dir.lock().unwrap().clone(),
-            src_account: self.src.lock().unwrap().as_ref().map(|s| s.0.clone()),
-            src_bucket: self.src.lock().unwrap().as_ref().map(|s| s.1.clone()),
+            src_account,
+            src_bucket,
         }
     }
 
@@ -215,5 +218,24 @@ impl Job {
 pub fn cancel(state: State<'_, AppState>, id: String) {
     if let Some(f) = state.cancels.lock().unwrap().get(&id) {
         f.store(true, Ordering::Relaxed);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Regression (v0.4.4): `event()` deadlocked on a copy job's `src`, so no job ever reported.
+    #[test]
+    fn event_snapshot_does_not_deadlock() {
+        let job = Job::untracked("copy", "a.txt".into(), "acc", "dst", "");
+        *job.src.lock().unwrap() = Some(("src-acc".into(), "src-bucket".into()));
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let ev = job.event("running");
+            tx.send((ev.src_account, ev.src_bucket)).unwrap();
+        });
+        let got = rx.recv_timeout(std::time::Duration::from_secs(5)).expect("Job::event deadlocked");
+        assert_eq!(got, (Some("src-acc".into()), Some("src-bucket".into())));
     }
 }
