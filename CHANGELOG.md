@@ -5,6 +5,20 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Switching accounts shows what's happening: the account button changes right away, the list says
+  "Connecting to …" instead of showing the previous account's files, and a thin bar under the
+  column header appears whenever a folder takes a moment to load.
+- If a remote folder can't be listed, the error shows in the list with **Try again** (and **Go to
+  top**) instead of a toast, and the view no longer jumps to the top folder on its own.
+- Nextcloud is much snappier: NoExplorer reuses the server's session instead of logging in on
+  every request (about 8× faster per folder listing on a test server).
+- Switching back to an account you've used lists it straight away.
+
+### Fixed
+- Switching accounts quickly could show the wrong bucket or an error, when the previous account's
+  answer arrived late.
+
 ## [0.4.6] - 2026-10-17
 
 ### Fixed

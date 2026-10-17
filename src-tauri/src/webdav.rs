@@ -63,6 +63,24 @@ pub fn http() -> reqwest::Client {
         .expect("HTTP client")
 }
 
+/// Applies `Set-Cookie` headers to `jar`: name=value pairs only (one server per jar, so domain and
+/// path don't matter). A cookie set to "deleted" or with `Max-Age=0`/`Expires` in 1970 is removed,
+/// which is how Nextcloud ends a session.
+fn keep_cookies(jar: &mut Vec<(String, String)>, headers: &reqwest::header::HeaderMap) {
+    for h in headers.get_all(reqwest::header::SET_COOKIE) {
+        let Ok(h) = h.to_str() else { continue };
+        let mut parts = h.split(';').map(str::trim);
+        let Some((name, value)) = parts.next().and_then(|kv| kv.split_once('=')) else { continue };
+        let attrs = parts.map(str::to_ascii_lowercase).collect::<Vec<_>>();
+        let gone = value == "deleted"
+            || attrs.iter().any(|a| a == "max-age=0" || (a.starts_with("expires=") && a.contains("1970")));
+        jar.retain(|(n, _)| n != name);
+        if !gone && !name.is_empty() {
+            jar.push((name.to_string(), value.to_string()));
+        }
+    }
+}
+
 fn method(m: &str) -> Method {
     Method::from_bytes(m.as_bytes()).expect("HTTP method")
 }
@@ -96,6 +114,11 @@ pub struct Dav {
     nextcloud: bool,
     /// Collections known to exist (so uploads don't MKCOL the same parents again).
     made: Mutex<HashSet<String>>,
+    /// Session cookies from the server (name, value), sent back on every request. With basic auth
+    /// alone, Nextcloud checks the app password on each request (~100 ms of server time); its
+    /// session cookie skips that (115 → 13 ms per PROPFIND on the dev server). Writes keep working
+    /// because requests still carry basic auth for the same user. Memory only, never logged.
+    jar: Mutex<Vec<(String, String)>>,
 }
 
 impl Dav {
@@ -107,7 +130,15 @@ impl Dav {
             format!("{}/", normalize_endpoint(&p.endpoint))
         };
         let root_path = decode(url_path(&root));
-        Dav { profile: p.clone(), http: http(), root, root_path, nextcloud, made: Mutex::new(HashSet::new()) }
+        Dav {
+            profile: p.clone(),
+            http: http(),
+            root,
+            root_path,
+            nextcloud,
+            made: Mutex::new(HashSet::new()),
+            jar: Mutex::new(vec![]),
+        }
     }
 
     pub fn account(&self) -> &str {
@@ -119,7 +150,20 @@ impl Dav {
     }
 
     fn req(&self, m: Method, url: &str) -> RequestBuilder {
-        self.http.request(m, url).basic_auth(self.profile.access_key.trim(), Some(self.profile.secret_key.trim()))
+        let b =
+            self.http.request(m, url).basic_auth(self.profile.access_key.trim(), Some(self.profile.secret_key.trim()));
+        let jar = self.jar.lock().unwrap();
+        if jar.is_empty() {
+            return b;
+        }
+        b.header(reqwest::header::COOKIE, jar.iter().map(|(k, v)| format!("{k}={v}")).collect::<Vec<_>>().join("; "))
+    }
+
+    /// Sends a request built by [`Dav::req`] and keeps the cookies the server sets.
+    async fn send(&self, b: RequestBuilder) -> reqwest::Result<reqwest::Response> {
+        let r = b.send().await?;
+        keep_cookies(&mut self.jar.lock().unwrap(), r.headers());
+        Ok(r)
     }
 
     pub async fn containers(&self) -> Result<Vec<BucketInfo>, String> {
@@ -136,11 +180,12 @@ impl Dav {
             r#"<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getcontentlength/><d:getlastmodified/></d:prop></d:propfind>"#
         };
         let r = self
-            .req(method("PROPFIND"), &self.url(key))
-            .header("Depth", depth)
-            .header("Content-Type", "application/xml; charset=utf-8")
-            .body(body)
-            .send()
+            .send(
+                self.req(method("PROPFIND"), &self.url(key))
+                    .header("Depth", depth)
+                    .header("Content-Type", "application/xml; charset=utf-8")
+                    .body(body),
+            )
             .await
             .map_err(net_err)?;
         let xml = ok(r).await?.text().await.map_err(net_err)?;
@@ -214,15 +259,12 @@ impl Dav {
         let api =
             format!("{}/ocs/v2.php/apps/files_sharing/api/v1/shares?format=json", server_of(&self.profile.endpoint));
         let r = self
-            .req(Method::POST, &api)
-            .header("OCS-APIRequest", "true")
-            .form_body(&[
+            .send(self.req(Method::POST, &api).header("OCS-APIRequest", "true").form_body(&[
                 ("path", &format!("/{}", key.trim_end_matches('/'))),
                 ("shareType", "3"),
                 ("permissions", "1"),
                 ("expireDate", &expire),
-            ])
-            .send()
+            ]))
             .await
             .map_err(net_err)?;
         let v: serde_json::Value = ok(r).await?.json().await.map_err(net_err)?;
@@ -241,9 +283,7 @@ impl Dav {
     ) -> Result<(Vec<u8>, Option<u64>), String> {
         let last = end.unwrap_or(start + cap - 1).min(start + cap - 1);
         let r = self
-            .req(Method::GET, &self.url(key))
-            .header("Range", format!("bytes={start}-{last}"))
-            .send()
+            .send(self.req(Method::GET, &self.url(key)).header("Range", format!("bytes={start}-{last}")))
             .await
             .map_err(net_err)?;
         let r = ok(r).await?;
@@ -264,7 +304,7 @@ impl Dav {
     }
 
     pub async fn mkdir(&self, _container: &str, prefix: &str, name: &str) -> Result<(), String> {
-        let r = self.req(method("MKCOL"), &self.url(&format!("{prefix}{name}/"))).send().await.map_err(net_err)?;
+        let r = self.send(self.req(method("MKCOL"), &self.url(&format!("{prefix}{name}/")))).await.map_err(net_err)?;
         ok(r).await.map(|_| ())
     }
 
@@ -278,7 +318,7 @@ impl Dav {
             if self.made.lock().unwrap().contains(&path) {
                 continue;
             }
-            let r = self.req(method("MKCOL"), &self.url(&path)).send().await.map_err(net_err)?;
+            let r = self.send(self.req(method("MKCOL"), &self.url(&path))).await.map_err(net_err)?;
             // 405 = it already exists.
             if !(r.status().is_success() || r.status() == StatusCode::METHOD_NOT_ALLOWED) {
                 return ok(r).await.map(|_| ());
@@ -292,7 +332,7 @@ impl Dav {
     pub async fn delete(&self, _container: &str, keys: Vec<String>) -> Result<usize, String> {
         let mut n = 0;
         for k in keys {
-            let r = self.req(Method::DELETE, &self.url(&k)).send().await.map_err(net_err)?;
+            let r = self.send(self.req(Method::DELETE, &self.url(&k))).await.map_err(net_err)?;
             if r.status() == StatusCode::NOT_FOUND {
                 continue;
             }
@@ -316,10 +356,11 @@ impl Dav {
             return self.upload_chunked(key, path, size, job).await;
         }
         let r = self
-            .req(Method::PUT, &self.url(key))
-            .header("Content-Length", size)
-            .body(reqwest::Body::wrap_stream(file_stream(path.to_path_buf(), 0, size, job)))
-            .send()
+            .send(
+                self.req(Method::PUT, &self.url(key))
+                    .header("Content-Length", size)
+                    .body(reqwest::Body::wrap_stream(file_stream(path.to_path_buf(), 0, size, job))),
+            )
             .await
             .map_err(net_err)?;
         ok(r).await.map(|_| ())
@@ -331,7 +372,7 @@ impl Dav {
         let user = enc(self.profile.access_key.trim());
         let session = format!("{server}/remote.php/dav/uploads/{user}/noexplorer-{}", uuid::Uuid::new_v4());
         let dest = self.url(key);
-        let r = self.req(method("MKCOL"), &session).header("Destination", &dest).send().await.map_err(net_err)?;
+        let r = self.send(self.req(method("MKCOL"), &session).header("Destination", &dest)).await.map_err(net_err)?;
         ok(r).await?;
         let res: Result<(), String> = async {
             let chunks = size.div_ceil(CHUNK);
@@ -342,30 +383,32 @@ impl Dav {
                 let offset = i * CHUNK;
                 let len = CHUNK.min(size - offset);
                 let r = self
-                    .req(Method::PUT, &format!("{session}/{:05}", i + 1))
-                    .header("Destination", &dest)
-                    .header("OC-Total-Length", size)
-                    .header("Content-Length", len)
-                    .body(reqwest::Body::wrap_stream(file_stream(path.to_path_buf(), offset, len, job)))
-                    .send()
+                    .send(
+                        self.req(Method::PUT, &format!("{session}/{:05}", i + 1))
+                            .header("Destination", &dest)
+                            .header("OC-Total-Length", size)
+                            .header("Content-Length", len)
+                            .body(reqwest::Body::wrap_stream(file_stream(path.to_path_buf(), offset, len, job))),
+                    )
                     .await
                     .map_err(net_err)?;
                 ok(r).await?;
             }
             let r = self
-                .req(method("MOVE"), &format!("{session}/.file"))
-                .header("Destination", &dest)
-                .header("OC-Total-Length", size)
-                .header("Overwrite", "T")
-                .timeout(Duration::from_secs(600)) // assembling a huge file takes a while
-                .send()
+                .send(
+                    self.req(method("MOVE"), &format!("{session}/.file"))
+                        .header("Destination", &dest)
+                        .header("OC-Total-Length", size)
+                        .header("Overwrite", "T")
+                        .timeout(Duration::from_secs(600)), // assembling a huge file takes a while
+                )
                 .await
                 .map_err(net_err)?;
             ok(r).await.map(|_| ())
         }
         .await;
         if res.is_err() {
-            let _ = self.req(Method::DELETE, &session).send().await;
+            let _ = self.send(self.req(Method::DELETE, &session)).await;
         }
         res
     }
@@ -378,7 +421,7 @@ impl Dav {
         let mut tmp = path.as_os_str().to_owned();
         tmp.push(".part");
         let tmp = PathBuf::from(tmp);
-        let r = ok(self.req(Method::GET, &self.url(key)).send().await.map_err(net_err)?).await?;
+        let r = ok(self.send(self.req(Method::GET, &self.url(key))).await.map_err(net_err)?).await?;
         let mut body = r.bytes_stream();
         let f = tokio::fs::File::create(&tmp).await.map_err(|e| e.to_string())?;
         let mut w = tokio::io::BufWriter::with_capacity(1 << 20, f);
@@ -733,6 +776,25 @@ fn parse_multistatus(xml: &str) -> Vec<Prop> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cookie_jar_keeps_updates_and_drops() {
+        use reqwest::header::{HeaderMap, HeaderValue, SET_COOKIE};
+        let mut jar = vec![];
+        let mut h = HeaderMap::new();
+        h.append(SET_COOKIE, HeaderValue::from_static("oc123=abc; path=/; secure; HttpOnly"));
+        h.append(SET_COOKIE, HeaderValue::from_static("nc_sameSiteCookielax=true; path=/; samesite=lax"));
+        keep_cookies(&mut jar, &h);
+        assert_eq!(jar, vec![("oc123".into(), "abc".into()), ("nc_sameSiteCookielax".into(), "true".into())]);
+        let mut h = HeaderMap::new();
+        h.append(SET_COOKIE, HeaderValue::from_static("oc123=xyz; path=/"));
+        h.append(
+            SET_COOKIE,
+            HeaderValue::from_static("nc_sameSiteCookielax=deleted; expires=Thu, 01 Jan 1970 00:00:00 GMT"),
+        );
+        keep_cookies(&mut jar, &h);
+        assert_eq!(jar, vec![("oc123".to_string(), "xyz".to_string())]);
+    }
 
     #[test]
     fn parses_nextcloud_multistatus() {

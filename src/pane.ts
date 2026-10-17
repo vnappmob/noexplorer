@@ -31,7 +31,15 @@ export const paneHooks = {
   moved: (_p: Pane): void => {},
   /** After every listing (entries are fresh objects, so computed sizes must be re-applied). */
   listed: (_p: Pane): void => {},
+  /** "Try again" on a remote view's error: reconnect the account (settings.ts loadBuckets). */
+  retry: (_p: Pane): void => {},
 };
+
+/** Shown in a remote view's list instead of rows: an account being connected, or why it failed. */
+export type Notice = { kind: "connecting" } | { kind: "error"; msg: string };
+
+/** A listing slower than this gets the loading bar; faster ones would only flicker. */
+const BUSY_AFTER = 150;
 
 export class Pane {
   readonly el: HTMLElement;
@@ -71,6 +79,10 @@ export class Pane {
   bucket = "";
   /** Containers of `account` (the bucket picker). */
   buckets: BucketInfo[] = [];
+  /** Bumped on every account switch, so a slow answer for the previous account is dropped. */
+  token = 0;
+  notice: Notice | null = null;
+  private busyTimer = 0;
 
   constructor(
     readonly kind: "local" | "remote",
@@ -94,6 +106,35 @@ export class Pane {
     new ResizeObserver(redraw).observe(this.list);
     // Text size changes the row height.
     window.addEventListener("textsize", () => ((this.rowH = 0), this.drawRows(true)));
+    this.list.addEventListener("click", (ev) => {
+      const b = (ev.target as HTMLElement).closest<HTMLElement>("[data-notice]");
+      if (b?.dataset.notice === "retry") paneHooks.retry(this);
+      else if (b?.dataset.notice === "top") this.go("");
+    });
+  }
+
+  /** `.loading` on the pane (the bar under the column header), only for slow work. */
+  setBusy(on: boolean) {
+    clearTimeout(this.busyTimer);
+    if (on) this.busyTimer = window.setTimeout(() => this.el.classList.add("loading"), BUSY_AFTER);
+    else this.el.classList.remove("loading");
+  }
+
+  /** Account switch: drop the old account's rows at once and say what we're waiting for. */
+  showConnecting() {
+    this.entries = [];
+    this.selected.clear();
+    this.notice = { kind: "connecting" };
+    this.render();
+    this.setBusy(true);
+  }
+
+  /** Remote views: show why listing failed, with Try again (and Go to top in a subfolder). */
+  showError(e: unknown) {
+    this.entries = [];
+    this.notice = { kind: "error", msg: String(e) };
+    this.setBusy(false);
+    this.render();
   }
 
   q<T extends HTMLElement = HTMLElement>(sel: string) {
@@ -117,20 +158,27 @@ export class Pane {
   /** Re-lists `cwd`. `keepSelection` keeps still-existing selected rows (used after refreshes). */
   async load(keepSelection = false): Promise<void> {
     const seq = ++this.seq;
+    this.setBusy(true);
     try {
       if (this.isRemote) await this.loadRemote(seq);
       else await this.loadLocal(seq);
       if (seq !== this.seq) return;
+      this.notice = null;
     } catch (e) {
       if (seq !== this.seq) return;
+      this.setBusy(false);
+      // Remote: say what failed and let the user retry. Jumping to the root hid timeouts and made
+      // a slow server look like a random folder change.
+      if (this.isRemote) return this.showError(e);
       this.entries = [];
       if (this.cwd) {
-        // Folder may have vanished; fall back to the parent / root.
-        this.cwd = this.isRemote ? "" : (this.parent ?? "");
+        // Folder may have vanished (an unplugged disk): fall back to the parent.
+        this.cwd = this.parent ?? "";
         return this.load();
       }
       fail(e);
     }
+    this.setBusy(false);
     if (!keepSelection) {
       this.selected.clear();
       this.anchor = -1;
@@ -265,7 +313,17 @@ export class Pane {
     });
 
     this.rowsEl = null;
-    if (this.isRemote && !this.profile()) {
+    const n = this.isRemote ? this.notice : null;
+    const p = this.isRemote ? this.profile() : null;
+    if (n && p) {
+      const host =
+        p.kind === "box" ? "box.com" : p.endpoint.replace(/^https?:\/\//, "").replace(/\/+$/, "") || "Amazon S3";
+      this.list.innerHTML =
+        n.kind === "connecting"
+          ? `<div class="empty notice"><span class="spin" aria-hidden="true"></span><b>Connecting to ${esc(p.name)}…</b>${esc(host)}</div>`
+          : `<div class="empty notice err"><b>Couldn’t open ${this.cwd ? "this folder" : esc(p.name)}</b><span class="msg">${esc(n.msg)}</span>
+             <span class="actions"><button data-notice="retry" class="primary">Try again</button>${this.cwd ? `<button data-notice="top">Go to top</button>` : ""}</span></div>`;
+    } else if (this.isRemote && !p) {
       this.list.innerHTML = `<div class="empty"><b>No remote account yet</b>Click the account button above to add S3, Nextcloud or WebDAV storage.</div>`;
     } else if (!this.view.length) {
       const hint = this.isRemote

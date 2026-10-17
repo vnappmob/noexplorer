@@ -246,7 +246,7 @@ split (%) in localStorage. It applies them as `<html data-theme>`, the `--fs` CS
 | Module | Owns |
 |---|---|
 | `main.ts` | Boot sequence and per-pane DOM bindings (row selection, dblclick, crumbs, sort headers, footer buttons) |
-| `pane.ts` | `Pane` class: `cwd`, `entries` → `view` (filter + sort), `selected`, `load/go/up/render/repaintRows/paint/selectIndex`, virtualized rows (ADR-021), size bars. Calls `paneHooks.openFile` for files and `paneHooks.listed` after each listing |
+| `pane.ts` | `Pane` class: `cwd`, `entries` → `view` (filter + sort), `selected`, `load/go/up/render/repaintRows/paint/selectIndex`, virtualized rows (ADR-021), size bars, loading bar (`setBusy`) and remote notices (`showConnecting`, `showError` with Try again → `paneHooks.retry`). Calls `paneHooks.openFile` for files and `paneHooks.listed` after each listing |
 | `panes.ts` | `local`, the remote views `remotes[]` (cloned from `#remote-tpl`), `remote` (live binding to the last-focused view), `active`, `addView/closeView`, the `.hsplit` handles, saved layout (`"views"` in localStorage), `setActive`, `switchTo`, `cyclePane` |
 | `actions.ts` | `transfer`, `openItem`, `copyLink`, `deleteRemote`, `trashLocal`, `mkdir`, `calcSize`, `paneAction(pane, name)` |
 | `sizes.ts` | Local folder sizes: `requestSizes`, `stopSizes`, the `"dir-sizes"` listener (rows, path-bar total, live re-list), and the storage bar (`drawDisk`) |

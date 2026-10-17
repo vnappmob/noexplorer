@@ -8,7 +8,7 @@ import { ask } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { appearance, setTextSize, setTheme, type Theme } from "./appearance";
 import { addView, MAX_VIEWS, remote, remotes, savedViews, saveViews, switchTo } from "./panes";
-import type { Pane } from "./pane";
+import { type Pane, paneHooks } from "./pane";
 import { describeAccount, guessProvider, isS3, PRESETS, type ProviderId } from "./providers";
 import { activeProfile, app } from "./state";
 import { openMenu, type MenuItem } from "./popover";
@@ -312,11 +312,8 @@ export async function setViewAccount(v: Pane, id: string) {
   v.account = id;
   v.bucket = "";
   v.cwd = "";
-  try {
-    app.settings = await invoke<Settings>("set_active_profile", { id });
-  } catch (e) {
-    fail(e);
-  }
+  // Saving the default (config + tray menu) doesn't need to hold up the listing.
+  invoke<Settings>("set_active_profile", { id }).then((s) => (app.settings = s), fail);
   await loadBuckets(v, true);
 }
 
@@ -377,6 +374,7 @@ export function bindPickers(v: Pane) {
  */
 export async function applySettings(s: Settings, show?: string) {
   app.settings = s;
+  knownBuckets.clear(); // an account's endpoint or key may have changed
   if (show) {
     remote.account = show;
     remote.bucket = "";
@@ -388,24 +386,55 @@ export async function applySettings(s: Settings, show?: string) {
   await Promise.all(remotes.map((v) => loadBuckets(v)));
 }
 
-/** Fills a view's bucket picker, keeps its bucket (or the account's default), and lists it. */
-export async function loadBuckets(v: Pane, resetScroll = false) {
-  const p = v.profile();
-  let buckets: BucketInfo[] = [];
-  if (p) {
-    try {
-      buckets = await invoke<BucketInfo[]>("list_buckets", { account: v.account });
-    } catch (e) {
-      fail(e);
-    }
-  }
+/** Each account's containers, from the last time they were listed. Switching back to an account
+ * lists its folder straight away and refreshes this in the background: one round trip instead of
+ * two (for Nextcloud/WebDAV/Box, listing containers is only a connection check). */
+const knownBuckets = new Map<string, BucketInfo[]>();
+
+/** Picks the view's bucket from `buckets`: keeps it, else the account's default, else the first. */
+function useBuckets(v: Pane, buckets: BucketInfo[]) {
   const names = buckets.map((b) => b.name);
   const keep = names.includes(v.bucket);
   v.buckets = buckets;
-  v.bucket = keep ? v.bucket : names.includes(p?.bucket ?? "") ? p!.bucket : (names[0] ?? "");
+  v.bucket = keep ? v.bucket : names.includes(v.profile()?.bucket ?? "") ? v.profile()!.bucket : (names[0] ?? "");
   if (!keep) v.cwd = "";
   renderPickers(v);
+  return keep;
+}
+
+/** Fills a view's bucket picker, keeps its bucket (or the account's default), and lists it. */
+export async function loadBuckets(v: Pane, resetScroll = false) {
+  const t = ++v.token;
+  const p = v.profile();
+  renderPickers(v); // the chip shows the new account right away
   if (resetScroll) v.list.scrollTop = 0;
+  if (!p) return void (useBuckets(v, []), v.load());
+  const fetch = invoke<BucketInfo[]>("list_buckets", { account: v.account });
+  const cached = knownBuckets.get(v.account);
+  if (cached) {
+    useBuckets(v, cached);
+    const listing = v.load();
+    fetch.then(
+      (b) => {
+        knownBuckets.set(p.id, b);
+        // The bucket went away (or this view moved on): pick again and re-list.
+        if (t === v.token && !useBuckets(v, b)) v.load();
+      },
+      () => {}, // the listing reports connection problems
+    );
+    return listing;
+  }
+  if (!v.entries.length || resetScroll) v.showConnecting();
+  let buckets: BucketInfo[];
+  try {
+    buckets = await fetch;
+  } catch (e) {
+    if (t === v.token) v.showError(e);
+    return;
+  }
+  knownBuckets.set(p.id, buckets);
+  if (t !== v.token) return; // switched to another account meanwhile
+  useBuckets(v, buckets);
   await v.load();
 }
 
@@ -432,6 +461,11 @@ export async function splitView(after: Pane = remote) {
 }
 
 export function setupSettings() {
+  // "Try again" in a view's error: reconnect from scratch.
+  paneHooks.retry = (v) => {
+    knownBuckets.delete(v.account);
+    loadBuckets(v);
+  };
   // Tray menu → open the window on that account (tray.rs).
   listen<string>("tray-open-account", async (ev) => {
     if (dialog().open) dialog().close();
