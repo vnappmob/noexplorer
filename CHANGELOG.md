@@ -5,6 +5,17 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Deleting on a remote is now a background task: the activity card shows how many items are
+  deleted so far (and can stop it), and the rows being deleted stay dimmed until it's done.
+- Transfer lanes are two boxes lined up with the two panes, each with the full path, and the
+  transfer flowing between them.
+
+### Fixed
+- The transfer beam followed whatever rows were selected instead of the files being sent. It now
+  starts at the files that were sent (or the list edge on their side when they're scrolled away),
+  and hands over to a lane as soon as you leave the folder.
+
 ## [0.4.8] - 2026-10-17
 
 ### Added

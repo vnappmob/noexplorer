@@ -3,6 +3,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { openCompare } from "./compare";
+import { noteJobItems } from "./jobs";
 import { requestSizes } from "./sizes";
 import { ask } from "@tauri-apps/plugin-dialog";
 import type { Pane } from "./pane";
@@ -27,8 +28,9 @@ export async function transfer(from: Pane, items: Item[], targetDir?: string, to
     if (v.isRemote && (!v.profile() || !v.bucket)) return toast("Add a remote account first", true);
   const list = items.map((e) => ({ key: e.key, size: e.size }));
   try {
+    let id: string;
     if (from.isRemote && dest.isRemote) {
-      await invoke("copy_remote", {
+      id = await invoke<string>("copy_remote", {
         srcAccount: from.account || null,
         srcBucket: from.bucket,
         srcPrefix: from.cwd,
@@ -38,10 +40,23 @@ export async function transfer(from: Pane, items: Item[], targetDir?: string, to
         dstPrefix: targetDir ?? dest.cwd,
       });
     } else if (dest.isRemote) {
-      await invoke("upload", { ...dest.where(), prefix: targetDir ?? dest.cwd, paths: items.map((e) => e.key) });
+      id = await invoke<string>("upload", {
+        ...dest.where(),
+        prefix: targetDir ?? dest.cwd,
+        paths: items.map((e) => e.key),
+      });
     } else {
-      await invoke("download", { ...from.where(), prefix: from.cwd, items: list, dest: targetDir ?? local.cwd });
+      id = await invoke<string>("download", {
+        ...from.where(),
+        prefix: from.cwd,
+        items: list,
+        dest: targetDir ?? local.cwd,
+      });
     }
+    noteJobItems(
+      id,
+      items.map((e) => e.key),
+    ); // the beam starts at these rows
   } catch (e) {
     fail(e);
   }
@@ -107,13 +122,19 @@ export async function deleteRemote(v: Pane = remote, list = v.selectedItems()) {
     },
   );
   if (!ok) return;
+  // A background job (progress in the activity card); the rows stay, dimmed, until it's done and
+  // the folder refreshes (jobs.ts).
+  const keys = list.map((e) => e.key);
+  keys.forEach((k) => v.pending.add(k));
+  v.selected.clear();
+  v.render();
   try {
-    const n = await invoke<number>("delete", { ...v.where(), keys: list.map((e) => e.key) });
-    toast(`Deleted ${plural(n, "object")}`);
+    noteJobItems(await invoke<string>("delete", { ...v.where(), keys }), keys);
   } catch (e) {
+    keys.forEach((k) => v.pending.delete(k));
+    v.render();
     fail(e);
   }
-  v.load();
 }
 
 export async function mkdir(p: Pane) {

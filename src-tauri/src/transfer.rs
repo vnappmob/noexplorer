@@ -467,7 +467,7 @@ mod tests {
         let listed = c.list(bucket, "rt/folder/").await.unwrap();
         assert!(listed.iter().any(|e| e.dir && e.key == "rt/folder/sub/"));
 
-        assert_eq!(c.delete(bucket, vec!["rt/".into()]).await.unwrap(), all.len() + 2);
+        assert_eq!(c.delete(bucket, vec!["rt/".into()], None).await.unwrap(), all.len() + 2);
         assert!(c.list_all(bucket, "rt/").await.unwrap().is_empty());
         std::fs::remove_dir_all(dir).unwrap();
     }

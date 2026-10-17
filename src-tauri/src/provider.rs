@@ -160,11 +160,13 @@ impl Remote {
     }
 
     /// Deletes files and folders (keys ending in `/`, recursively). Returns how many objects went.
-    pub async fn delete(&self, container: &str, keys: Vec<String>) -> Result<usize, String> {
+    /// Deletes files and folders (with everything inside). `job` gets the progress (files =
+    /// objects or items) and can cancel between steps.
+    pub async fn delete(&self, container: &str, keys: Vec<String>, job: Option<&Job>) -> Result<usize, String> {
         match self {
-            Remote::S3(s) => s.delete(container, keys).await,
-            Remote::Dav(d) => d.delete(container, keys).await,
-            Remote::Box(b) => b.delete(container, keys).await,
+            Remote::S3(s) => s.delete(container, keys, job).await,
+            Remote::Dav(d) => d.delete(container, keys, job).await,
+            Remote::Box(b) => b.delete(container, keys, job).await,
         }
     }
 

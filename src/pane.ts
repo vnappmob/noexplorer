@@ -79,6 +79,8 @@ export class Pane {
   bucket = "";
   /** Containers of `account` (the bucket picker). */
   buckets: BucketInfo[] = [];
+  /** Keys being deleted in the background: shown dimmed until the job ends (actions.ts). */
+  pending = new Set<string>();
   /** Bumped on every account switch, so a slow answer for the previous account is dropped. */
   token = 0;
   notice: Notice | null = null;
@@ -354,7 +356,7 @@ export class Pane {
     const known = !e.dir || e.calc;
     const skipped = !known && this.sizesSettled;
     const size = known ? fmtSize(e.size) : skipped ? "—" : "";
-    return `<div class="row${this.selected.has(e.key) ? " sel" : ""}" data-i="${i}"${e.dir ? ` data-dir="${esc(e.key)}"` : ""}>
+    return `<div class="row${this.selected.has(e.key) ? " sel" : ""}${this.pending.has(e.key) ? " deleting" : ""}" data-i="${i}"${e.dir ? ` data-dir="${esc(e.key)}"` : ""}>
       <span class="name"><span class="ico${e.dir ? " dir" : ""}">${icon(e.dir ? "folder" : FILE_ICON[kindOf(e.name)])}</span><span>${esc(e.name)}</span></span>
       <span class="size${e.calc ? " calc" : ""}"${skipped ? ' title="Not scanned automatically (another disk, or a private folder you haven’t opened yet). Click Σ to scan it."' : e.partial ? ' title="Some folders inside were skipped. Click Σ to include them."' : ""}>${size}</span>
       <span class="date">${fmtDate(e.modified)}</span>

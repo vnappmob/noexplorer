@@ -375,9 +375,19 @@ impl BoxCom {
     }
 
     /// Moves files and folders (recursively) to the Box trash. Returns how many went.
-    pub async fn delete(&self, _container: &str, keys: Vec<String>) -> Result<usize, String> {
+    pub async fn delete(&self, _container: &str, keys: Vec<String>, job: Option<&Job>) -> Result<usize, String> {
         let mut n = 0;
-        for k in keys {
+        let total = keys.len() as u64;
+        if let Some(j) = job {
+            j.files_total.store(total, Ordering::Relaxed);
+        }
+        for (i, k) in keys.into_iter().enumerate() {
+            if let Some(j) = job {
+                if j.cancelled() {
+                    return Err("cancelled".into());
+                }
+                j.files_done.store(i as u64, Ordering::Relaxed); // the ones before this are done
+            }
             let Ok(it) = self.resolve(&k).await else { continue };
             let url = if it.dir {
                 self.api(&format!("folders/{}?recursive=true", it.id))
@@ -390,6 +400,9 @@ impl BoxCom {
                 n += 1;
             }
             self.ids.lock().unwrap().retain(|p, _| !p.starts_with(&k));
+        }
+        if let Some(j) = job {
+            j.files_done.store(total, Ordering::Relaxed);
         }
         Ok(n)
     }
@@ -1216,7 +1229,7 @@ mod tests {
         assert!(b2.link("", "docs/n0.txt", 7 * 86_400, false).await.unwrap().contains("/s/"));
         b2.mkdir("", "docs/", "made").await.unwrap();
         assert!(b2.list("", "docs/").await.unwrap().iter().any(|e| e.key == "docs/made/"));
-        assert_eq!(b2.delete("", vec!["docs/".into()]).await.unwrap(), 1);
+        assert_eq!(b2.delete("", vec!["docs/".into()], None).await.unwrap(), 1);
         assert!(state.lock().unwrap().nodes.is_empty(), "everything went to the (mock) trash");
         assert!(state.lock().unwrap().refreshes >= 3, "the expired token was refreshed");
         std::fs::remove_dir_all(dir).unwrap();

@@ -997,30 +997,32 @@ body.dragging * {
   }
 }
 
-/* Transfer lanes (jobs.ts renderLanes): the first row of #panes, same columns as the panes, so the
-   local side sits over the left pane and the remote side over the right one. */
+/* Rows being deleted in the background (actions.ts deleteRemote → a "delete" job). */
+.row.deleting {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.row.deleting .name span:last-child {
+  text-decoration: line-through;
+}
+
+/* Transfer lanes (jobs.ts renderLanes): the first row of #panes. Two boxes lined up with the two
+   panes, and the transfer flowing between them in a middle column centered on the 12px gutter. */
 #lanes {
   grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
 }
 .lane {
-  position: relative;
+  --mid: 56px;
   display: grid;
-  grid-template-columns: minmax(0, var(--left, 50%)) 12px minmax(0, 1fr);
-  align-items: center;
-  height: calc(var(--fs) * 2.4);
+  /* left box ends, and right box starts, (mid - 12) / 2 = 22px away from the gutter */
+  grid-template-columns: minmax(0, calc(var(--left, 50%) - 22px)) var(--mid) minmax(0, 1fr);
+  align-items: stretch;
+  height: calc(var(--fs) * 2.5);
   flex: none;
   margin-bottom: 6px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--bg);
-  overflow: hidden;
-  cursor: pointer;
   animation: lane-in 0.22s ease-out;
-}
-.lane:hover {
-  border-color: var(--accent);
 }
 /* In and out by height, so the panes below glide instead of jumping. */
 @keyframes lane-in {
@@ -1039,68 +1041,71 @@ body.dragging * {
     opacity: 0;
     height: 0;
     margin-bottom: 0;
-    border-width: 0;
   }
 }
-.lane-side {
+.lane-box {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   min-width: 0;
-  height: 100%;
-  padding: 0 12px;
-  border: 0;
-  background: none;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
   font-size: var(--fs-sm);
   color: var(--fg2);
   text-align: left;
+}
+button.lane-box,
+.lane-open {
   cursor: pointer;
 }
-.lane-side:hover {
-  color: var(--accent);
+button.lane-box:hover,
+.lane-box.r:hover {
+  border-color: var(--accent);
 }
-.lane-side svg {
+.lane-open {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+.lane-box svg {
   flex: none;
   width: 1.1em;
   height: 1.1em;
   opacity: 0.7;
 }
-.lane-side b {
+.lane-box b {
   flex: none;
   font-weight: 600;
   color: var(--fg);
 }
-.lane-side span {
+/* Full path, clipped at its start (rtl box + an ltr <bdi>) so the deepest folders stay visible. */
+.lane-path {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  direction: rtl;
+  text-align: left;
   font-family: var(--mono);
   font-size: var(--fs-xs);
 }
-.lane-arrow {
-  justify-self: center;
-  color: var(--accent);
-  font-weight: 700;
-}
-.lane-r {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-.lane-r .lane-side {
-  flex: 1;
-}
-.lane-num {
-  flex: none;
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-  padding-left: 8px;
-}
 .lane-x {
   flex: none;
-  margin: 0 4px;
+  margin-right: -4px;
 }
 .lane-bar {
   position: absolute;
@@ -1109,6 +1114,51 @@ body.dragging * {
   height: 2px;
   background: var(--accent);
   transition: width 0.3s;
+}
+.lane-mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.lane-flow {
+  width: 100%;
+  height: 12px;
+  overflow: visible;
+}
+.lane-flow path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.lane-flow .track {
+  stroke-opacity: 0.2;
+}
+.lane-flow .dash {
+  stroke-dasharray: 4 6;
+  animation: lane-flow 0.7s linear infinite;
+}
+.lane.rtl .lane-flow .dash {
+  animation-direction: reverse;
+}
+@keyframes lane-flow {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+.lane-num {
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font-weight: 600;
+  line-height: 1;
 }
 
 /* activity card (transfers), floating bottom-right over the remote pane */
@@ -1492,6 +1542,7 @@ body.dragging * {
   .beam-spark,
   .running .bar2 i,
   .crumb.target,
+  .lane-flow .dash,
   .seg.here.pending,
   .pane.scanning .calc-size .i {
     animation: none !important;

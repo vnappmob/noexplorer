@@ -423,7 +423,7 @@ mod tests {
         // Drift: same-size edit, size change, a file only remote, a file deleted remotely.
         std::fs::write(root.join("edit.txt"), "bbbb").unwrap();
         std::fs::write(root.join("grow.txt"), "xyz").unwrap();
-        r.delete(bucket, vec![format!("{prefix}sub/gone.txt")]).await.unwrap();
+        r.delete(bucket, vec![format!("{prefix}sub/gone.txt")], None).await.unwrap();
         r.upload_file(bucket, &format!("{prefix}remote-only.txt"), &root.join("same.txt"), 4, &job).await.unwrap();
 
         let cancel = Arc::new(AtomicBool::new(false));
@@ -436,7 +436,7 @@ mod tests {
         assert_eq!(d.junk.iter().map(|f| f.rel.as_str()).collect::<Vec<_>>(), ["sub/.DS_Store"]);
         assert_eq!((d.same_verified, d.same_size), (2, 0), "big.bin (multipart ETag) and same.txt verified");
 
-        r.delete(bucket, vec![prefix.split('/').next().unwrap().to_string() + "/"]).await.unwrap();
+        r.delete(bucket, vec![prefix.split('/').next().unwrap().to_string() + "/"], None).await.unwrap();
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

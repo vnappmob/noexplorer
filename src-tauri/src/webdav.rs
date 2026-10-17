@@ -329,9 +329,19 @@ impl Dav {
     }
 
     /// Deletes files and folders (WebDAV deletes folders recursively). Returns how many were removed.
-    pub async fn delete(&self, _container: &str, keys: Vec<String>) -> Result<usize, String> {
+    pub async fn delete(&self, _container: &str, keys: Vec<String>, job: Option<&Job>) -> Result<usize, String> {
         let mut n = 0;
-        for k in keys {
+        let total = keys.len() as u64;
+        if let Some(j) = job {
+            j.files_total.store(total, Ordering::Relaxed);
+        }
+        for (i, k) in keys.into_iter().enumerate() {
+            if let Some(j) = job {
+                if j.cancelled() {
+                    return Err("cancelled".into());
+                }
+                j.files_done.store(i as u64, Ordering::Relaxed); // the ones before this are done
+            }
             let r = self.send(self.req(Method::DELETE, &self.url(&k))).await.map_err(net_err)?;
             if r.status() == StatusCode::NOT_FOUND {
                 continue;
@@ -339,6 +349,9 @@ impl Dav {
             ok(r).await?;
             n += 1;
             self.made.lock().unwrap().retain(|m| !m.starts_with(&k));
+        }
+        if let Some(j) = job {
+            j.files_done.store(total, Ordering::Relaxed);
         }
         Ok(n)
     }
@@ -871,7 +884,7 @@ mod tests {
         assert!(share.contains("/s/"), "public share link expected, got {share}");
         d.mkdir("Files", "rt/", "new folder").await.unwrap();
         assert!(d.list("Files", "rt/").await.unwrap().iter().any(|e| e.key == "rt/new folder/"));
-        assert_eq!(d.delete("Files", vec!["rt/".into()]).await.unwrap(), 1);
+        assert_eq!(d.delete("Files", vec!["rt/".into()], None).await.unwrap(), 1);
         assert!(d.list("Files", "rt/").await.is_err(), "rt/ should be gone");
         std::fs::remove_dir_all(dir).unwrap();
     }

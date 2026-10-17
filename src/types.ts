@@ -85,7 +85,7 @@ export type LocalListing = { path: string; parent: string | null; crumbs: Crumb[
 /** `jobs::JobEvent` — payload of the `"job"` event. */
 export type JobEvent = {
   id: string;
-  kind: "up" | "down" | "copy";
+  kind: "up" | "down" | "copy" | "delete";
   label: string;
   /** Profile id of the remote account. */
   account: string;

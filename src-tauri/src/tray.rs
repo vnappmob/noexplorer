@@ -34,7 +34,12 @@ pub struct Line {
 
 impl Line {
     fn text(&self) -> String {
-        let arrow = if self.kind == "up" { "⬆" } else { "⬇" };
+        let arrow = match self.kind {
+            "up" => "⬆",
+            "delete" => "🗑",
+            "copy" => "⇄",
+            _ => "⬇",
+        };
         let label: String = if self.label.chars().count() > 34 {
             format!("{}…", self.label.chars().take(33).collect::<String>())
         } else {

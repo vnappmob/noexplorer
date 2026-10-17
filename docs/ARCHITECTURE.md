@@ -89,7 +89,7 @@ means the active account (ADR-025).
 | `presign` | `bucket, key, secs, inline` | URL | remote | `secs` is clamped to 60 s–7 d. `inline` forces Content-Type/Disposition for preview |
 | `read_text` | `bucket, key, max` | string | remote | Range GET `0..max`, decoded as lossy UTF-8 |
 | `mkdir` | `bucket, prefix, name` | – | remote | Writes an empty `prefix+name/` marker object |
-| `delete` | `bucket, keys` | count | remote | A key ending in `/` deletes recursively. Bulk delete, then one-by-one as a fallback |
+| `delete` | `account?, bucket, keys[]` | job id | remote | Background job (kind `delete`): folders with everything inside; progress in `files_done/files_total` (S3: per batch of up to 1000, WebDAV/Box: per item); cancellable between steps |
 | `upload` | `bucket, prefix, paths` | job id | transfer | `paths` are absolute local files or folders. Folders keep their structure |
 | `download` | `bucket, prefix, items[{key,size}], dest?` | job id | transfer | Writes to `dest` (the left pane's folder), else to the configured or OS Downloads folder |
 | `open_object` | `bucket, key` | – | transfer | Downloads to `$TMP/noexplorer/<uuid>/` and opens with the default app |
@@ -107,7 +107,7 @@ The TS mirror is `JobEvent` in `src/types.ts`.
 
 ```jsonc
 {
-  "id": "uuid", "kind": "up" | "down" | "copy", "label": "a.txt, b.txt +3 more",
+  "id": "uuid", "kind": "up" | "down" | "copy" | "delete", "label": "a.txt, b.txt +3 more",
   "account": "profile-id", "bucket": "demo", "prefix": "backups/",   // remote side (copy: the destination)
   "src_account": null, "src_bucket": null,         // copy: the source view (for the beam)
   "src_dir": "/Users/me/Projects",                 // upload: local folder; copy: source prefix (lanes)

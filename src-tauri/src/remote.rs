@@ -3,10 +3,12 @@
 //! id); `None` means the active account.
 
 use serde::Serialize;
-use tauri::State;
+use tauri::{AppHandle, State};
 
+use crate::jobs::Job;
 use crate::provider::{BucketInfo, Entry};
 use crate::state::AppState;
+use crate::util::{file_name, job_label};
 
 /// Total size of a folder (or file / bucket root). Mirrors `SizeInfo` in `src/types.ts`.
 #[derive(Serialize)]
@@ -91,10 +93,30 @@ pub async fn mkdir(
 /// Deletes files and folders (keys ending in `/`, recursively). Returns the count.
 #[tauri::command]
 pub async fn delete(
+    app: AppHandle,
     state: State<'_, AppState>,
     account: Option<String>,
     bucket: String,
     keys: Vec<String>,
-) -> Result<usize, String> {
-    state.remote(account.as_deref())?.delete(&bucket, keys).await
+) -> Result<String, String> {
+    // A background job like transfers (kind "delete"): a big folder can take a while, and the UI
+    // shows its progress and lets it be cancelled. `prefix` = the folder the keys are in.
+    let r = state.remote(account.as_deref())?;
+    let first = keys.first().ok_or("Nothing to delete")?;
+    let prefix = match first.trim_end_matches('/').rfind('/') {
+        Some(i) => first[..=i].to_string(),
+        None => String::new(),
+    };
+    let label = job_label(keys.iter().map(|k| file_name(k.trim_end_matches('/'))).collect());
+    let job = Job::new(&app, "delete", label, r.account(), &bucket, &prefix);
+    let id = job.id.clone();
+    let j = job.clone();
+    job.spawn(app, async move {
+        if let Err(e) = r.delete(&bucket, keys, Some(&j)).await
+            && e != "cancelled"
+        {
+            j.fail("Delete", e);
+        }
+    });
+    Ok(id)
 }

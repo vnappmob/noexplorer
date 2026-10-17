@@ -307,7 +307,7 @@ impl S3 {
     }
 
     /// Deletes objects; keys ending in `/` delete the whole folder recursively. Returns the count.
-    pub async fn delete(&self, bucket: &str, keys: Vec<String>) -> Result<usize, String> {
+    pub async fn delete(&self, bucket: &str, keys: Vec<String>, job: Option<&Job>) -> Result<usize, String> {
         let c = self.client_for(bucket).await;
         let mut all = vec![];
         for k in keys {
@@ -319,7 +319,13 @@ impl S3 {
         all.sort();
         all.dedup();
         let n = all.len();
+        if let Some(j) = job {
+            j.files_total.store(n as u64, Ordering::Relaxed);
+        }
         for chunk in all.chunks(1000) {
+            if job.is_some_and(|j| j.cancelled()) {
+                return Err("cancelled".into());
+            }
             let objs: Vec<ObjectIdentifier> =
                 chunk.iter().filter_map(|k| ObjectIdentifier::builder().key(k).build().ok()).collect();
             let del = Delete::builder().set_objects(Some(objs)).quiet(true).build().map_err(err)?;
@@ -329,6 +335,9 @@ impl S3 {
                 for k in chunk {
                     c.delete_object().bucket(bucket).key(k).send().await.map_err(err)?;
                 }
+            }
+            if let Some(j) = job {
+                j.files_done.fetch_add(chunk.len() as u64, Ordering::Relaxed);
             }
         }
         Ok(n)

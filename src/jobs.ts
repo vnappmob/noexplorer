@@ -21,18 +21,47 @@ const HIDE_AFTER = 8000; // ms after the last transfer finishes
 /** Transfers still running (the updater asks before restarting over them). */
 export const activeJobCount = () => [...jobs.values()].filter((j) => j.status === "running").length;
 
-const pct = (j: JobView) => (j.bytes_total ? (j.bytes_done / j.bytes_total) * 100 : j.status === "done" ? 100 : 0);
-const whereOf = (j: JobView) => (j.kind === "up" ? `→ ${j.bucket}/${j.prefix}` : `→ ${j.local_dir ?? ""}`);
-const numbersOf = (j: JobView) =>
-  j.status === "running"
+// Deletes count items (objects), transfers count bytes.
+const pct = (j: JobView) =>
+  j.kind === "delete"
     ? j.files_total
-      ? `${fmtSize(j.bytes_done)} / ${fmtSize(j.bytes_total)}${j.speed > 0 ? ` · ${fmtSize(j.speed)}/s` : ""}`
-      : "Preparing…"
-    : j.status === "done"
-      ? `Done · ${plural(j.files_done, "file")}`
-      : j.status === "cancelled"
-        ? "Cancelled"
-        : "Failed";
+      ? (j.files_done / j.files_total) * 100
+      : j.status === "done"
+        ? 100
+        : 0
+    : j.bytes_total
+      ? (j.bytes_done / j.bytes_total) * 100
+      : j.status === "done"
+        ? 100
+        : 0;
+const whereOf = (j: JobView) =>
+  j.kind === "delete"
+    ? `in ${j.bucket}/${j.prefix}`
+    : j.kind === "down"
+      ? `→ ${j.local_dir ?? ""}`
+      : `→ ${j.bucket}/${j.prefix}`;
+const ICON: Record<string, string> = { up: "arrowUp", down: "arrowDown", copy: "arrowRight", delete: "trash" };
+const GLYPH: Record<string, string> = { up: "↑", down: "↓", copy: "→", delete: "×" };
+const numbersOf = (j: JobView) =>
+  j.kind === "delete"
+    ? j.status === "running"
+      ? j.files_total
+        ? `Deleting · ${j.files_done} / ${plural(j.files_total, "item")}`
+        : "Finding items…"
+      : j.status === "done"
+        ? `Deleted · ${plural(j.files_total, "item")}`
+        : j.status === "cancelled"
+          ? `Stopped · ${j.files_done} deleted`
+          : "Failed"
+    : j.status === "running"
+      ? j.files_total
+        ? `${fmtSize(j.bytes_done)} / ${fmtSize(j.bytes_total)}${j.speed > 0 ? ` · ${fmtSize(j.speed)}/s` : ""}`
+        : "Preparing…"
+      : j.status === "done"
+        ? `Done · ${plural(j.files_done, "file")}`
+        : j.status === "cancelled"
+          ? "Cancelled"
+          : "Failed";
 
 // ---------- activity card ----------
 
@@ -51,7 +80,7 @@ function renderCard() {
   const others = running.length > 1 ? `+${running.length - 1} more` : "";
   const ico =
     focus.status === "running"
-      ? icon(focus.kind === "up" ? "arrowUp" : "arrowDown")
+      ? icon(ICON[focus.kind] ?? "arrowDown")
       : focus.status === "done"
         ? icon("check")
         : icon("x");
@@ -97,7 +126,7 @@ function renderList(all = [...jobs.values()].reverse()) {
             : "";
       const files = j.files_total ? `${j.files_done}/${j.files_total} files · ` : "";
       return `<div class="job ${j.status}">
-        <span class="label">${j.kind === "up" ? "↑" : "↓"} ${esc(j.label)}<small class="where">${esc(whereOf(j))}</small></span>
+        <span class="label">${GLYPH[j.kind] ?? "↓"} ${esc(j.label)}<small class="where">${esc(whereOf(j))}</small></span>
         <span class="ctl">${ctl}</span>
         <div class="bar2"><i style="width:${pct(j).toFixed(1)}%"></i></div>
         <div class="meta">${files}${esc(numbersOf(j))}</div>${err}
@@ -120,17 +149,42 @@ const viewFor = (account: string | null | undefined, bucket: string | null | und
   remotes.find((v) => v.account === account && v.bucket === bucket && !v.notice) ?? null;
 
 const trimSlash = (p: string) => p.replace(/[\\/]+$/, "");
+const same = (a: string | null | undefined, b: string | null | undefined) => trimSlash(a ?? "") === trimSlash(b ?? "");
 
-function anchorFrom(p: Pane, side: "left" | "right"): Pt {
-  // The selected row (what the user just sent) when it's in view; else the middle of the list.
+/** Keys of the items each transfer carries (from `transfer()` in actions.ts): the beam starts at
+ * them, never at whatever happens to be selected now. Jobs started elsewhere (Compare) have none. */
+const jobItems = new Map<string, Set<string>>();
+
+export function noteJobItems(id: string, keys: string[]) {
+  const j = jobs.get(id);
+  if (j && j.status !== "running") {
+    // Already over (a quick delete can finish before its id comes back): un-dim right away.
+    if (j.kind === "delete") for (const v of remotes) keys.forEach((k) => v.pending.delete(k));
+    return void remotes.forEach((v) => v.render());
+  }
+  jobItems.set(id, new Set(keys));
+  scheduleRender();
+}
+
+/**
+ * Start of the beam in `p`: the first of the job's rows that's in view. When they're scrolled
+ * away, the list edge on their side (top or bottom); when unknown, the middle of the list.
+ */
+function anchorFrom(p: Pane, side: "left" | "right", keys: Set<string> | undefined): Pt {
   const box = p.list.getBoundingClientRect();
-  const r = p.list.querySelector<HTMLElement>(".row.sel")?.getBoundingClientRect();
-  const visible = r && r.bottom > box.top && r.top < box.bottom;
-  const src = visible ? r! : box;
-  return {
-    x: side === "right" ? src.right - 24 : src.left + 24,
-    y: visible ? src.top + src.height / 2 : src.top + Math.min(src.height / 2, 160),
-  };
+  const x = (r: DOMRect) => (side === "right" ? r.right - 24 : r.left + 24);
+  const middle = { x: x(box), y: box.top + Math.min(box.height / 2, 160) };
+  if (!keys?.size) return middle;
+  const ids = p.view.flatMap((e, i) => (keys.has(e.key) ? [i] : []));
+  if (!ids.length) return middle;
+  // Rows in the DOM that are inside the list's viewport (the list is virtualized).
+  const shown = [...p.list.querySelectorAll<HTMLElement>(".row")]
+    .map((el) => ({ i: Number(el.dataset.i), r: el.getBoundingClientRect() }))
+    .filter(({ r }) => r.bottom > box.top + 2 && r.top < box.bottom - 2);
+  const hit = shown.find(({ i }) => ids.includes(i));
+  if (hit) return { x: x(hit.r), y: hit.r.top + hit.r.height / 2 };
+  const first = shown.length ? Math.min(...shown.map((s) => s.i)) : 0;
+  return { x: x(box), y: ids[0] < first ? box.top + 6 : box.bottom - 6 };
 }
 
 /**
@@ -164,19 +218,33 @@ function anchorTo(p: Pane, dir: string): { at: Pt; el: HTMLElement; exact: boole
   };
 }
 
-/** The ends of a job's beam, or null when one of them isn't on screen. */
-function endsOf(j: JobView): { from: Pane; to: Pane; dir: string } | null {
-  if (j.kind === "up") {
-    const to = viewFor(j.account, j.bucket);
-    return to ? { from: local, to, dir: j.prefix } : null;
-  }
-  if (j.kind === "down") {
-    const from = viewFor(j.account, j.bucket);
-    return from && j.local_dir ? { from, to: local, dir: j.local_dir } : null;
-  }
-  const from = viewFor(j.src_account, j.src_bucket);
-  const to = viewFor(j.account, j.bucket);
-  return from && to && from !== to ? { from, to, dir: j.prefix } : null;
+/** `dir` is `cwd` or inside it. */
+function under(dir: string, cwd: string) {
+  const d = trimSlash(dir);
+  const c = trimSlash(cwd);
+  return !c || d === c || d.startsWith(c + "/") || d.startsWith(c + "\\");
+}
+
+/**
+ * Where the beam goes for job `j`, or null when the panes have left its folders (then it gets a
+ * lane instead, never both): the source pane must show the source folder, and the destination pane
+ * the destination folder or a folder above it (the beam then aims at the row leading into it).
+ */
+function placement(j: JobView): { from: Pane; to: Pane; dir: string } | null {
+  if (j.kind === "delete") return null;
+  let from: Pane | null, to: Pane | null, srcDir: string | null, dstDir: string | null;
+  if (j.kind === "up") [from, to, srcDir, dstDir] = [local, viewFor(j.account, j.bucket), j.src_dir, j.prefix];
+  else if (j.kind === "down") [from, to, srcDir, dstDir] = [viewFor(j.account, j.bucket), local, j.prefix, j.local_dir];
+  else
+    [from, to, srcDir, dstDir] = [
+      viewFor(j.src_account, j.src_bucket),
+      viewFor(j.account, j.bucket),
+      j.src_dir,
+      j.prefix,
+    ];
+  if (!from || !to || from === to || srcDir == null || dstDir == null) return null;
+  if (!same(from.cwd, srcDir) || !under(dstDir, to.cwd)) return null;
+  return { from, to, dir: dstDir };
 }
 
 // Current beam ends (relative to #panes) and the glide towards new ones.
@@ -217,13 +285,14 @@ function renderBeam() {
   document.querySelectorAll(".crumb.target").forEach((c) => c.classList.remove("target"));
   // The newest running job whose two ends are on screen.
   const running = [...jobs.values()].filter((j) => j.status === "running").reverse();
-  const ends = running.map(endsOf).find((e) => e) ?? null;
-  if (!ends) {
+  const job = running.find((j) => placement(j));
+  const ends = job && placement(job);
+  if (!job || !ends) {
     beam.classList.remove("on"); // fades out where it was (no jump while fading)
     return;
   }
   const box = $("panes").getBoundingClientRect();
-  const s = anchorFrom(ends.from, ends.from.isRemote ? "left" : "right");
+  const s = anchorFrom(ends.from, ends.from.isRemote ? "left" : "right", jobItems.get(job.id));
   const e = anchorTo(ends.to, ends.dir);
   moveBeam([s.x - box.left, s.y - box.top, e.at.x - box.left, e.at.y - box.top], wasOn);
   beam.classList.add("on");
@@ -232,64 +301,47 @@ function renderBeam() {
 
 // ---------- transfer lanes ----------
 //
-// While a transfer runs and the panes have moved away from its folders, a lane above the panes
-// keeps saying what goes where: the local side over the left pane, the remote side over the right
-// one, the arrow pointing the way the files move. One lane per such transfer. Clicking a side opens
-// that folder in its pane; clicking the lane opens both, and the lane goes away.
+// While a transfer runs and the panes have left its folders (`placement` is null), a lane above the
+// panes keeps showing it: two boxes lined up with the two panes, each with that side's full path,
+// and the transfer flowing between them over the gap. One lane per such transfer. Clicking a box
+// opens that folder in its pane; clicking the middle opens both (and the lane goes away).
 
-const same = (a: string | null | undefined, b: string | null | undefined) => trimSlash(a ?? "") === trimSlash(b ?? "");
+const SCHEME: Record<string, string> = { s3: "s3://", nextcloud: "nextcloud://", webdav: "dav://", box: "box://" };
 
-/** Both panes show exactly this job's folders (the beam covers it, no lane needed). */
-function inPlace(j: JobView) {
-  const dst = viewFor(j.account, j.bucket);
-  if (j.kind === "up") return same(local.cwd, j.src_dir) && !!dst && same(dst.cwd, j.prefix);
-  if (j.kind === "down") return !!dst && same(dst.cwd, j.prefix) && same(local.cwd, j.local_dir);
-  const src = viewFor(j.src_account, j.src_bucket);
-  return !!src && !!dst && same(src.cwd, j.src_dir) && same(dst.cwd, j.prefix);
+type Side = { icon: string; name: string; path: string; open: () => unknown };
+
+function localSide(dir: string | null): Side {
+  return { icon: "desktop", name: "", path: dir ?? "", open: () => dir && local.go(dir) };
 }
 
-/** `…/Projects/website` (last segments, home as ~). */
-function shortLocal(path: string) {
-  const home = local.roots.find((r) => /Home$/.test(r.name))?.path;
-  let p = home && path.startsWith(home) ? "~" + path.slice(home.length) : path;
-  const parts = p.split(/[\\/]/).filter(Boolean);
-  if (parts.length > 3) p = "…/" + parts.slice(-3).join("/");
-  return p || "/";
-}
-
-function remoteLabel(account: string | null, bucket: string | null, prefix: string | null) {
+function remoteSide(account: string | null, bucket: string | null, prefix: string | null): Side {
   const p = app.settings.profiles.find((x) => x.id === account);
-  const where = p?.kind === "s3" ? `${bucket ?? ""}/${prefix ?? ""}` : `/${prefix ?? ""}`;
-  return { name: p?.name ?? "Remote", where };
-}
-
-type Side = { html: string; title: string; open: () => unknown };
-
-function sides(j: JobView): { left: Side; right: Side; arrow: string } {
-  const loc = (dir: string | null): Side => ({
-    html: `${icon("desktop")}<span>${esc(shortLocal(dir ?? ""))}</span>`,
-    title: dir ?? "",
-    open: () => dir && local.go(dir),
-  });
-  const rem = (account: string | null, bucket: string | null, prefix: string | null): Side => {
-    const r = remoteLabel(account, bucket, prefix);
-    return {
-      html: `${icon("cloud")}<b>${esc(r.name)}</b><span>${esc(r.where)}</span>`,
-      title: `${r.name} · ${r.where}`,
-      open: () => account && bucket != null && openRemote(account, bucket, prefix ?? ""),
-    };
+  return {
+    icon: "cloud",
+    name: p?.name ?? "Remote",
+    // The same form as the pane's path bar: scheme + container + folders.
+    path: `${SCHEME[p?.kind ?? "s3"] ?? ""}${bucket ?? ""}/${prefix ?? ""}`,
+    open: () => account && bucket != null && openRemote(account, bucket, prefix ?? ""),
   };
-  const dst = rem(j.account, j.bucket, j.prefix);
-  if (j.kind === "up") return { left: loc(j.src_dir), right: dst, arrow: "→" };
-  if (j.kind === "down") return { left: loc(j.local_dir), right: dst, arrow: "←" };
-  return { left: rem(j.src_account, j.src_bucket, j.src_dir), right: dst, arrow: "→" };
 }
+
+/** Left box = over the left pane. Uploads and copies flow left → right, downloads right → left. */
+function sides(j: JobView): { left: Side; right: Side; rtl: boolean } {
+  const dst = remoteSide(j.account, j.bucket, j.prefix);
+  if (j.kind === "up") return { left: localSide(j.src_dir), right: dst, rtl: false };
+  if (j.kind === "down") return { left: localSide(j.local_dir), right: dst, rtl: true };
+  return { left: remoteSide(j.src_account, j.src_bucket, j.src_dir), right: dst, rtl: false };
+}
+
+/** The box's content; the path is clipped at its start, so the deepest folders stay visible. */
+const boxHtml = (s: Side) =>
+  `${icon(s.icon)}${s.name ? `<b>${esc(s.name)}</b>` : ""}<span class="lane-path"><bdi>${esc(s.path)}</bdi></span>`;
 
 const laneEls = new Map<string, HTMLElement>();
 
 function renderLanes() {
   const box = $("lanes");
-  const show = [...jobs.values()].filter((j) => j.status === "running" && !inPlace(j));
+  const show = [...jobs.values()].filter((j) => j.status === "running" && j.kind !== "delete" && !placement(j));
   const keep = new Set(show.map((j) => j.id));
   for (const [id, el] of laneEls)
     if (!keep.has(id)) {
@@ -299,37 +351,46 @@ function renderLanes() {
       setTimeout(() => el.remove(), 220);
     }
   for (const j of show) {
-    let el = laneEls.get(j.id);
     const s = sides(j);
+    let el = laneEls.get(j.id);
     if (!el) {
       // Built once and updated in place, so a click isn't lost to a re-render mid-press.
       el = document.createElement("div");
       el.className = "lane";
-      el.innerHTML = `<button class="lane-side l"></button><span class="lane-arrow"></span>
-        <span class="lane-r"><button class="lane-side r"></button><span class="lane-num"></span>
-        <button class="ib lane-x" title="Cancel" aria-label="Cancel transfer">${icon("x")}</button></span>
-        <i class="lane-bar"></i>`;
-      el.querySelector<HTMLElement>(".lane-x")!.onclick = (ev) => {
-        ev.stopPropagation();
-        invoke("cancel", { id: j.id });
-      };
-      el.onclick = (ev) => {
-        const side = (ev.target as HTMLElement).closest(".lane-side");
-        const cur = sides(jobs.get(j.id) ?? j);
-        if (!side || side.classList.contains("l")) cur.left.open();
-        if (!side || side.classList.contains("r")) cur.right.open();
-      };
+      el.innerHTML = `<button class="lane-box l"></button>
+        <button class="lane-mid" title="Show both folders">
+          <svg class="lane-flow" viewBox="0 0 48 12" preserveAspectRatio="none" aria-hidden="true">
+            <path class="track" d="M2 6 H46" /><path class="dash" d="M2 6 H46" /><path class="head" d="" />
+          </svg>
+          <span class="lane-num"></span>
+        </button>
+        <span class="lane-box r"><button class="lane-open"></button>
+          <button class="ib lane-x" title="Cancel" aria-label="Cancel transfer">${icon("x")}</button>
+          <i class="lane-bar"></i></span>`;
+      const id = j.id;
+      const cur = () => sides(jobs.get(id) ?? j);
+      el.querySelector<HTMLElement>(".lane-box.l")!.onclick = () => cur().left.open();
+      el.querySelector<HTMLElement>(".lane-open")!.onclick = () => cur().right.open();
+      el.querySelector<HTMLElement>(".lane-mid")!.onclick = () => (cur().left.open(), cur().right.open());
+      el.querySelector<HTMLElement>(".lane-x")!.onclick = () => invoke("cancel", { id });
       box.append(el);
       laneEls.set(j.id, el);
     }
-    const l = el.querySelector<HTMLElement>(".lane-side.l")!;
-    const r = el.querySelector<HTMLElement>(".lane-side.r")!;
-    if (l.title !== s.left.title) ((l.innerHTML = s.left.html), (l.title = `Show ${s.left.title}`));
-    if (r.title !== `Show ${s.right.title}`) ((r.innerHTML = s.right.html), (r.title = `Show ${s.right.title}`));
-    el.querySelector(".lane-arrow")!.textContent = s.arrow;
-    el.querySelector(".lane-num")!.textContent = j.files_total
-      ? `${Math.floor(pct(j))}% · ${j.files_done}/${j.files_total}`
-      : "Preparing…";
+    const l = el.querySelector<HTMLElement>(".lane-box.l")!;
+    const r = el.querySelector<HTMLElement>(".lane-open")!;
+    if (l.dataset.path !== s.left.path) {
+      l.innerHTML = boxHtml(s.left);
+      l.dataset.path = s.left.path;
+      l.title = `Show ${s.left.path}`;
+    }
+    if (r.dataset.path !== s.right.path) {
+      r.innerHTML = boxHtml(s.right);
+      r.dataset.path = s.right.path;
+      r.title = `Show ${s.right.path}`;
+    }
+    el.classList.toggle("rtl", s.rtl);
+    el.querySelector<SVGPathElement>(".head")!.setAttribute("d", s.rtl ? "M7 2 L2 6 L7 10" : "M41 2 L46 6 L41 10");
+    el.querySelector(".lane-num")!.textContent = j.files_total ? `${Math.floor(pct(j))}%` : "…";
     el.querySelector<HTMLElement>(".lane-bar")!.style.width = `${pct(j).toFixed(1)}%`;
   }
 }
@@ -365,13 +426,16 @@ function onJob(ev: JobEvent) {
     lastAt: keepTiming ? prev!.lastAt : now,
   });
   if (ev.status !== "running") {
+    // A finished delete un-dims only its own rows (the refresh below drops the deleted ones).
+    if (ev.kind === "delete") for (const v of remotes) jobItems.get(ev.id)?.forEach((k) => v.pending.delete(k));
+    jobItems.delete(ev.id);
     // Refresh whichever pane is showing the destination.
     // Refresh whichever views are showing the destination.
     if (ev.kind !== "down")
       for (const v of remotes)
         if (v.account === ev.account && v.bucket === ev.bucket && ev.prefix.startsWith(v.cwd)) v.load(true);
     if (ev.kind === "down" && ev.local_dir?.startsWith(local.cwd)) local.load(true);
-    const verb = ev.kind === "up" ? "Uploaded" : ev.kind === "copy" ? "Copied" : "Downloaded";
+    const verb = { up: "Uploaded", copy: "Copied", delete: "Deleted", down: "Downloaded" }[ev.kind];
     if (ev.status === "done") toast(`${verb}: ${ev.label}`);
   }
   scheduleRender();
