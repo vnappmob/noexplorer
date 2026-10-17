@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-10-17
+
 ### Fixed
 - Uploads and downloads in 0.4.4 showed no progress, never refreshed the pane, and after a few
   transfers stopped working: every transfer's progress report deadlocked a background thread.
