@@ -223,8 +223,9 @@ Accepted · 2026-10-15
 be able to glance at progress.
 **Decision.** A tray icon (template icon on macOS) with live transfer rows and a % title on
 macOS. Closing the window hides it when `general.run_in_background` is on (the default). On
-macOS the Dock icon is hidden too (`ActivationPolicy::Accessory`). Notifications fire when a
-job finishes while the window isn't focused. `single-instance` and launch-at-login
+macOS the Dock icon is hidden too (`ActivationPolicy::Accessory`). (Notifications when a job
+finished were removed on 2026-10-17: the maintainer doesn't want them, since each platform
+handles them differently and macOS asks for permission.) `single-instance` and launch-at-login
 (`--hidden`) complete the background-app behavior.
 **Consequences.** "Quit" is now an explicit action (tray menu or ⌘Q). The tray menu is rebuilt
 only when its rows change and texts update in place, so an open menu doesn't flicker. Linux

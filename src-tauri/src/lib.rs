@@ -7,7 +7,7 @@
 //! Module map (see `docs/ARCHITECTURE.md` for the full picture):
 //! - [`config`]   — S3 accounts (profiles) + General settings: persisted JSON + S3 client
 //! - [`state`]    — shared app state (settings, client, cancel flags)
-//! - [`jobs`]     — background job bookkeeping + progress events + notifications
+//! - [`jobs`]     — background job bookkeeping + progress events
 //! - [`remote`]   — S3 browsing: list, size, presign, read, mkdir, delete
 //! - [`transfer`] — upload / download / open engine (multipart, concurrency)
 //! - [`local`]    — local filesystem browsing for the left pane
@@ -15,7 +15,7 @@
 //! - [`autostart`] — launch at login (LaunchAgent with bundle id / Run key / .desktop)
 //! - [`util`]     — small pure helpers (path safety, labels, error text)
 //!
-//! Plugins: opener, dialog, updater + process (auto-update & relaunch), notification,
+//! Plugins: opener, dialog, updater + process (auto-update & relaunch),
 //! single-instance. Launch at login is our own [`autostart`] module (started with `--hidden`).
 
 mod autostart;
@@ -52,7 +52,6 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_notification::init())
         // Previews of providers without presigned URLs (WebDAV) stream through nxr:// (proxy.rs).
         .register_asynchronous_uri_scheme_protocol("nxr", |ctx, request, responder| {
             let app = ctx.app_handle().clone();

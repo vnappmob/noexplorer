@@ -22,7 +22,7 @@ export type Profile = {
 };
 
 /** `config::General` — Settings → General. */
-export type General = { run_in_background: boolean; check_updates: boolean; notify: boolean; auto_sizes: boolean };
+export type General = { run_in_background: boolean; check_updates: boolean; auto_sizes: boolean };
 
 /** `config::Settings` — everything in config.json. */
 export type Settings = { profiles: Profile[]; active: string; download_dir: string; general: General };
@@ -102,6 +102,8 @@ export type JobEvent = {
   /** Copy jobs: where the files come from. */
   src_account: string | null;
   src_bucket: string | null;
+  /** Uploads and copies: the folder the files come from (local path or source prefix). */
+  src_dir: string | null;
 };
 
 export type SortBy = "name" | "size" | "modified";

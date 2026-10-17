@@ -28,6 +28,8 @@
     </div>
 
     <div class="panes" id="panes">
+      <!-- Transfer lanes (jobs.ts): one per running transfer whose folders the panes have left. -->
+      <div id="lanes"></div>
       <!-- LOCAL -->
       <section class="pane" id="pane-local" data-pane="local" aria-label="This computer">
         <header class="src">
@@ -201,9 +203,6 @@
           </label>
           <label class="check"><input type="checkbox" name="launch_at_login" />
             <span><b>Launch at login</b><br /><small>Starts quietly in the menu bar / system tray.</small></span>
-          </label>
-          <label class="check"><input type="checkbox" name="notify" />
-            <span><b>Notify when transfers finish</b><br /><small>Only when NoExplorer isn't the active window.</small></span>
           </label>
           <label class="check"><input type="checkbox" name="auto_sizes" />
             <span><b>Show folder sizes automatically</b><br /><small>On this computer, folders get their size as you browse (scanned in the background, kept up to date). Other disks and private folders you haven't opened yet are skipped; Σ scans everything.</small></span>

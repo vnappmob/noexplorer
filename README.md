@@ -60,7 +60,7 @@ and you're done.
   the menu bar / tray. **Split the remote side** to show up to 3 accounts at once, and drag
   between them to copy from one cloud to another.
 - **Runs in the background**: close the window and NoExplorer stays in the menu bar / tray,
-  showing transfer progress there and notifying you when transfers finish.
+  showing transfer progress there.
 - **Auto-updates**: new versions install in place with one click.
 - **Σ Size** for any folder, local or remote. A path bar always shows where you are.
 - Copy a 7-day share link, create folders, delete from S3, follow progress (with cancel)

@@ -68,7 +68,7 @@ means the active account (ADR-025).
 | `save_profile` | `profile` | `Settings` | config | Upsert (an empty `id` means new; an empty secret keeps the saved one), make it active, store the secret in the OS keychain, write `config.json` (0600), rebuild the client |
 | `delete_profile` | `id` | `Settings` | config | Also deletes its keychain entry. If it was active, the first remaining account becomes active |
 | `set_active_profile` | `id` | `Settings` | config | Switches the remote pane's account. Running jobs keep their own client |
-| `save_general` | `general` | `Settings` | config | Settings → General (`run_in_background`, `check_updates`, `notify`) |
+| `save_general` | `general` | `Settings` | config | Settings → General (`run_in_background`, `check_updates`, `auto_sizes`) |
 | `autostart_enabled` | – | `bool` | autostart | Is "Launch at login" registered with the OS |
 | `set_autostart` | `enabled` | – | autostart | macOS: LaunchAgent **with `AssociatedBundleIdentifiers`**; Windows: Run key; Linux: `.desktop` autostart. Starts with `--hidden` |
 | `list_buckets` | – | `BucketInfo[] {name, region}` | config | Buckets of the active account. `region` comes from AWS ListBuckets (null elsewhere) and is shown as a badge in the bucket menu |
@@ -110,6 +110,7 @@ The TS mirror is `JobEvent` in `src/types.ts`.
   "id": "uuid", "kind": "up" | "down" | "copy", "label": "a.txt, b.txt +3 more",
   "account": "profile-id", "bucket": "demo", "prefix": "backups/",   // remote side (copy: the destination)
   "src_account": null, "src_bucket": null,         // copy: the source view (for the beam)
+  "src_dir": "/Users/me/Projects",                 // upload: local folder; copy: source prefix (lanes)
   "files_done": 3, "files_total": 5, "bytes_done": 123, "bytes_total": 456,
   "status": "running" | "done" | "error" | "cancelled",
   "error": null | "2 errors. First: x.bin: …",     // per-file failures don't stop the job
@@ -198,8 +199,8 @@ select the next row. The size index follows through its watcher.
 calls `prevent_close()` + `tray::hide_main()`. On macOS that also switches to the `Accessory`
 activation policy, so there's no Dock icon. Jobs keep running, and every tick goes to the UI
 (`"job"`) **and** to `tray::on_job`, which updates the menu rows in place and rebuilds the menu
-only when the set of rows changes. A finished job raises a system notification when the window
-isn't focused (`general.notify`). Quit happens only from the tray, ⌘Q, or with
+only when the set of rows changes. There are no system notifications (removed in 0.4.8: they
+behave differently on every platform and ask for permission). Quit happens only from the tray, ⌘Q, or with
 run_in_background off. `single-instance` focuses the running app on a second launch, and
 `RunEvent::Reopen` (Dock click) shows the window. Launch at login (`autostart.rs`) passes
 `--hidden`, so the app starts in the tray. The tray lists the S3 accounts (`tray::set_accounts`,
@@ -252,7 +253,7 @@ split (%) in localStorage. It applies them as `<html data-theme>`, the `--fs` CS
 | `sizes.ts` | Local folder sizes: `requestSizes`, `stopSizes`, the `"dir-sizes"` listener (rows, path-bar total, live re-list), and the storage bar (`drawDisk`) |
 | `dnd.ts` | Mouse-event drag between panes (`armDrag` on mousedown, threshold 5 px, ghost label, drop-target highlight) and OS drops |
 | `preview.ts` | Modal state `pv`, `openPreview`, `previewStep`, `closePreview` |
-| `jobs.ts` | `"job"` listener, speed smoothing, the activity card (#activity) with the expandable transfer list, and the transfer beam (#beam) from source to destination |
+| `jobs.ts` | `"job"` listener, speed smoothing, the activity card (#activity) with the expandable transfer list, the transfer beam (#beam, only between panes that show the job's folders, gliding ends) and the transfer lanes (#lanes, one per running job whose folders the panes have left) |
 | `settings.ts` | Settings dialog (Accounts / General / Appearance / About tabs), account picker and bucket picker, `applySettings()`, autostart toggle |
 | `appearance.ts` | Theme, text size, pane splitter (per-device prefs) |
 | `providers.ts` | Provider presets (AWS, R2, B2, Wasabi, DO, self-hosted) for the account form; `describeAccount()` |

@@ -5,6 +5,17 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Transfer lanes: while files are moving and you open other folders (on either side), a strip
+  above the panes keeps showing where each transfer goes, one strip per transfer. Click it to go
+  back to those folders.
+
+### Changed
+- The transfer beam only connects what's on screen. Switch a view to another account mid-transfer
+  and it fades out instead of pointing at unrelated files; its ends now glide instead of jumping.
+- No more system notifications (and no permission prompt). Progress stays in the window and in
+  the menu bar / tray.
+
 ## [0.4.7] - 2026-10-17
 
 ### Changed

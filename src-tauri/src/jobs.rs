@@ -11,10 +11,8 @@ use std::time::Duration;
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
-use tauri_plugin_notification::NotificationExt;
 
 use crate::state::AppState;
-use crate::util::fmt_bytes;
 
 const TICK: Duration = Duration::from_millis(250);
 
@@ -39,6 +37,9 @@ pub struct Job {
     pub local_dir: Mutex<Option<String>>,
     /// Copy jobs (`kind = "copy"`): where the files come from (`account`/`bucket` are the target).
     pub src: Mutex<Option<(String, String)>>,
+    /// Folder the files come from: the local folder (uploads) or the source prefix (copies). The
+    /// transfer lanes show it when the panes have moved elsewhere. Downloads come from `prefix`.
+    pub src_dir: Mutex<Option<String>>,
 }
 
 /// Payload of the `"job"` event. Mirrors `JobEvent` in `src/types.ts`.
@@ -61,6 +62,8 @@ pub struct JobEvent {
     /// Copy jobs: source account and bucket.
     src_account: Option<String>,
     src_bucket: Option<String>,
+    /// Uploads and copies: the folder the files come from.
+    src_dir: Option<String>,
 }
 
 impl Job {
@@ -82,6 +85,7 @@ impl Job {
             dest: Mutex::new(None),
             local_dir: Mutex::new(None),
             src: Mutex::new(None),
+            src_dir: Mutex::new(None),
         }
     }
 
@@ -120,37 +124,6 @@ impl Job {
         let _ = app.emit("job", ev);
     }
 
-    /// Desktop notification for a finished job, unless the user is looking at the app.
-    fn notify_done(&self, app: &AppHandle, status: &'static str) {
-        let s = app.state::<AppState>().settings();
-        let focused = app.get_webview_window("main").and_then(|w| w.is_focused().ok()).unwrap_or(false);
-        if !s.general.notify || focused || status == "cancelled" {
-            return;
-        }
-        let (verb, files) = (
-            match self.kind {
-                "up" => "Uploaded",
-                "copy" => "Copied",
-                _ => "Downloaded",
-            },
-            self.files_done.load(Ordering::Relaxed),
-        );
-        let (title, body) = match status {
-            "done" => (
-                format!("{verb} {}", self.label),
-                format!(
-                    "{files} file{} · {}",
-                    if files == 1 { "" } else { "s" },
-                    fmt_bytes(self.bytes_total.load(Ordering::Relaxed))
-                ),
-            ),
-            _ => {
-                (format!("Transfer finished with errors: {}", self.label), self.event(status).error.unwrap_or_default())
-            }
-        };
-        let _ = app.notification().builder().title(title).body(body).show();
-    }
-
     fn event(&self, status: &'static str) -> JobEvent {
         let errors = self.errors.lock().unwrap();
         // One lock, taken before the literal: a guard used inside a struct literal lives until the
@@ -177,6 +150,7 @@ impl Job {
             local_dir: self.local_dir.lock().unwrap().clone(),
             src_account,
             src_bucket,
+            src_dir: self.src_dir.lock().unwrap().clone(),
         }
     }
 
@@ -208,7 +182,6 @@ impl Job {
                 "error"
             };
             job.publish(&app, status);
-            job.notify_done(&app, status);
             app.state::<AppState>().cancels.lock().unwrap().remove(&job.id);
         });
     }

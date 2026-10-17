@@ -255,7 +255,6 @@ async function syncGeneralControls() {
   const g = app.settings.general;
   box("run_in_background").checked = g.run_in_background;
   box("check_updates").checked = g.check_updates;
-  box("notify").checked = g.notify;
   box("auto_sizes").checked = g.auto_sizes;
   box("launch_at_login").checked = await invoke<boolean>("autostart_enabled").catch(() => false);
 }
@@ -270,7 +269,6 @@ async function onGeneralChange(ev: Event) {
     const general: General = {
       run_in_background: box("run_in_background").checked,
       check_updates: box("check_updates").checked,
-      notify: box("notify").checked,
       auto_sizes: box("auto_sizes").checked,
     };
     app.settings = await invoke<Settings>("save_general", { general });
@@ -315,6 +313,16 @@ export async function setViewAccount(v: Pane, id: string) {
   // Saving the default (config + tray menu) doesn't need to hold up the listing.
   invoke<Settings>("set_active_profile", { id }).then((s) => (app.settings = s), fail);
   await loadBuckets(v, true);
+}
+
+/** Shows `bucket/prefix` of `account`: in a view already on it, else in the focused view. */
+export async function openRemote(account: string, bucket: string, prefix: string) {
+  const v = remotes.find((x) => x.account === account && x.bucket === bucket) ?? remote;
+  if (v.account === account && v.bucket === bucket) return v.go(prefix);
+  v.account = account;
+  v.bucket = bucket;
+  v.cwd = prefix;
+  await loadBuckets(v, true); // keeps the bucket and folder when they exist
 }
 
 /** Palette / tray: show `id` in the focused remote view. */

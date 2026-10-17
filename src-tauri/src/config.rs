@@ -77,15 +77,13 @@ pub struct General {
     pub run_in_background: bool,
     /// Check GitHub Releases for a new version at startup and every few hours.
     pub check_updates: bool,
-    /// System notification when a transfer finishes while the window is hidden.
-    pub notify: bool,
     /// Compute folder sizes in the local pane automatically (sizes.rs).
     pub auto_sizes: bool,
 }
 
 impl Default for General {
     fn default() -> Self {
-        Self { run_in_background: true, check_updates: true, notify: true, auto_sizes: true }
+        Self { run_in_background: true, check_updates: true, auto_sizes: true }
     }
 }
 

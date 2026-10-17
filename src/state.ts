@@ -9,7 +9,7 @@ export const app = {
     profiles: [],
     active: "",
     download_dir: "",
-    general: { run_in_background: true, check_updates: true, notify: true, auto_sizes: true },
+    general: { run_in_background: true, check_updates: true, auto_sizes: true },
   } as Settings,
   /** Show dotfiles in the local pane. */
   showHidden: store.get("hidden") === "1",

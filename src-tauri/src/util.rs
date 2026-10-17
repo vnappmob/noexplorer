@@ -88,7 +88,7 @@ pub fn job_label(names: Vec<String>) -> String {
     }
 }
 
-/// "1.5 GB", "320 KB" — for tray/notification text (the UI has its own `fmtSize`).
+/// "1.5 GB", "320 KB" — for tray text (the UI has its own `fmtSize`).
 pub fn fmt_bytes(n: u64) -> String {
     const UNITS: [&str; 4] = ["KB", "MB", "GB", "TB"];
     if n < 1024 {

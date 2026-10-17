@@ -2,7 +2,7 @@
 //! `Remote` and moves up to [`FILE_CONCURRENCY`] files at once (ADR-005). How a single file moves
 //! (multipart, chunking, `.part` files) is the provider's business, see `s3.rs`.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 
 use futures::{StreamExt, stream};
@@ -68,6 +68,8 @@ pub async fn upload(
     let c = state.remote(account.as_deref())?;
     let label = job_label(paths.iter().map(|p| file_name(&p.replace('\\', "/"))).collect());
     let job = Job::new(&app, "up", label, c.account(), &bucket, &prefix);
+    *job.src_dir.lock().unwrap() =
+        paths.first().and_then(|p| Path::new(p).parent()).map(|d| d.to_string_lossy().into_owned());
     let id = job.id.clone();
     let j = job.clone();
     job.spawn(app, async move {
@@ -110,6 +112,7 @@ pub async fn upload_rel(
     let c = state.remote(account.as_deref())?;
     let label = job_label(rels.iter().map(|r| file_name(r)).collect());
     let job = Job::new(&app, "up", label, c.account(), &bucket, &prefix);
+    *job.src_dir.lock().unwrap() = Some(root.clone());
     let id = job.id.clone();
     let j = job.clone();
     job.spawn(app, async move {
@@ -219,6 +222,7 @@ pub async fn copy_remote(
     let same = src.account() == dst.account();
     let label = job_label(items.iter().map(|i| file_name(&i.key)).collect());
     let job = Job::new(&app, "copy", label, dst.account(), &dst_bucket, &dst_prefix);
+    *job.src_dir.lock().unwrap() = Some(src_prefix.clone());
     *job.src.lock().unwrap() = Some((src.account().to_string(), src_bucket.clone()));
     let id = job.id.clone();
     let j = job.clone();

@@ -6,7 +6,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { icon } from "./icons";
-import { local, remote, remotes } from "./panes";
+import { local, remotes } from "./panes";
+import { openRemote } from "./settings";
+import { app } from "./state";
 import type { Pane } from "./pane";
 import type { JobEvent } from "./types";
 import { $, esc, fail, fmtSize, plural, toast } from "./util";
@@ -105,52 +107,231 @@ function renderList(all = [...jobs.values()].reverse()) {
 }
 
 // ---------- transfer beam ----------
+//
+// The beam only connects things that are on screen: the source and destination must each be shown
+// by a pane (a remote view on the job's account + bucket, not connecting or failed). Otherwise it
+// fades out, rather than pointing into a view that now shows another account. Its ends glide to new
+// positions instead of jumping when panes scroll, switch or reload.
 
-function anchorFrom(p: Pane, box: DOMRect, side: "left" | "right") {
-  // Prefer the selected row (what the user just sent); else the middle of the list.
-  const row = p.list.querySelector<HTMLElement>(".row.sel") ?? null;
-  const r = row?.getBoundingClientRect();
+type Pt = { x: number; y: number };
+
+/** The remote view showing `account` + `bucket` and ready (not connecting / failed), if any. */
+const viewFor = (account: string | null | undefined, bucket: string | null | undefined) =>
+  remotes.find((v) => v.account === account && v.bucket === bucket && !v.notice) ?? null;
+
+const trimSlash = (p: string) => p.replace(/[\\/]+$/, "");
+
+function anchorFrom(p: Pane, side: "left" | "right"): Pt {
+  // The selected row (what the user just sent) when it's in view; else the middle of the list.
+  const box = p.list.getBoundingClientRect();
+  const r = p.list.querySelector<HTMLElement>(".row.sel")?.getBoundingClientRect();
   const visible = r && r.bottom > box.top && r.top < box.bottom;
-  const src = visible ? r! : p.list.getBoundingClientRect();
-  const x = side === "right" ? src.right - 24 : src.left + 24;
-  const y = visible ? src.top + src.height / 2 : src.top + Math.min(src.height / 2, 160);
-  return { x, y };
+  const src = visible ? r! : box;
+  return {
+    x: side === "right" ? src.right - 24 : src.left + 24,
+    y: visible ? src.top + src.height / 2 : src.top + Math.min(src.height / 2, 160),
+  };
 }
 
-function anchorTo(p: Pane) {
-  const crumb = p.el.querySelector<HTMLElement>(".crumb.last") ?? p.el.querySelector<HTMLElement>(".pathbar")!;
-  const r = crumb.getBoundingClientRect();
-  return { x: r.left + r.width / 2, y: r.bottom - 2 };
+/**
+ * Where the files land in `p`: the crumb of `dir` when the pane is in it or below it, the row of
+ * the subfolder leading to it when the pane is above it, else the pane's first crumb (the bucket or
+ * disk). `exact` = it's the destination folder itself (it gets the pulsing ring).
+ */
+function anchorTo(p: Pane, dir: string): { at: Pt; el: HTMLElement; exact: boolean } {
+  const want = trimSlash(dir);
+  const crumbs = [...p.el.querySelectorAll<HTMLElement>(".crumb")];
+  let el = crumbs.find((c) => trimSlash(c.dataset.p ?? "") === want);
+  let exact = !!el;
+  if (!el) {
+    const here = trimSlash(p.cwd);
+    const sep = p.isRemote ? "/" : want.includes("\\") ? "\\" : "/";
+    if (want.startsWith(here ? here + sep : "")) {
+      const next = (here ? here + sep : "") + want.slice(here ? here.length + 1 : 0).split(sep)[0];
+      el =
+        [...p.list.querySelectorAll<HTMLElement>(".row[data-dir]")].find(
+          (r) => trimSlash(r.dataset.dir ?? "") === next,
+        ) ?? undefined;
+    }
+  }
+  el ??= crumbs[0] ?? p.q(".pathbar");
+  const r = el.getBoundingClientRect();
+  const isRow = el.classList.contains("row");
+  return {
+    at: isRow ? { x: r.left + 40, y: r.top + r.height / 2 } : { x: r.left + r.width / 2, y: r.bottom - 2 },
+    el,
+    exact,
+  };
+}
+
+/** The ends of a job's beam, or null when one of them isn't on screen. */
+function endsOf(j: JobView): { from: Pane; to: Pane; dir: string } | null {
+  if (j.kind === "up") {
+    const to = viewFor(j.account, j.bucket);
+    return to ? { from: local, to, dir: j.prefix } : null;
+  }
+  if (j.kind === "down") {
+    const from = viewFor(j.account, j.bucket);
+    return from && j.local_dir ? { from, to: local, dir: j.local_dir } : null;
+  }
+  const from = viewFor(j.src_account, j.src_bucket);
+  const to = viewFor(j.account, j.bucket);
+  return from && to && from !== to ? { from, to, dir: j.prefix } : null;
+}
+
+// Current beam ends (relative to #panes) and the glide towards new ones.
+let cur: [number, number, number, number] | null = null;
+let glide = 0;
+
+function drawPath([sx, sy, ex, ey]: [number, number, number, number]) {
+  const dx = (ex - sx) * 0.5;
+  const d = `M ${sx} ${sy} C ${sx + dx} ${sy}, ${ex - dx} ${ey + 40}, ${ex} ${ey}`;
+  $("beam")
+    .querySelectorAll("path")
+    .forEach((p) => {
+      p.setAttribute("d", d);
+      p.setAttribute("pathLength", "100");
+    });
+}
+
+/** Moves the beam to `to` over ~200 ms (or at once when it was hidden or barely moves). */
+function moveBeam(to: [number, number, number, number], wasOn: boolean) {
+  clearInterval(glide);
+  const from = cur;
+  cur = to;
+  const far = from && Math.max(...to.map((v, i) => Math.abs(v - from[i]))) > 4;
+  if (!wasOn || !from || !far) return drawPath(to);
+  // setInterval, not rAF: rAF pauses in a covered window, which would freeze the beam mid-glide.
+  const t0 = performance.now();
+  glide = window.setInterval(() => {
+    const k = Math.min(1, (performance.now() - t0) / 200);
+    const e = 1 - (1 - k) ** 3; // ease-out
+    drawPath(from.map((v, i) => v + (to[i] - v) * e) as [number, number, number, number]);
+    if (k >= 1) clearInterval(glide);
+  }, 16);
 }
 
 function renderBeam() {
   const beam = $("beam") as unknown as SVGSVGElement;
-  const running = [...jobs.values()].filter((j) => j.status === "running");
+  const wasOn = beam.classList.contains("on");
   document.querySelectorAll(".crumb.target").forEach((c) => c.classList.remove("target"));
-  if (!running.length) {
-    beam.classList.remove("on");
+  // The newest running job whose two ends are on screen.
+  const running = [...jobs.values()].filter((j) => j.status === "running").reverse();
+  const ends = running.map(endsOf).find((e) => e) ?? null;
+  if (!ends) {
+    beam.classList.remove("on"); // fades out where it was (no jump while fading)
     return;
   }
-  const j = running[running.length - 1]; // most recent
-  // Remote side of the job: the view showing its account + bucket (else the focused one).
-  const view = (account: string, bucket: string) =>
-    remotes.find((v) => v.account === account && v.bucket === bucket) ?? remote;
-  const target = view(j.account, j.bucket);
-  const from = j.kind === "up" ? local : j.kind === "copy" ? view(j.src_account ?? "", j.src_bucket ?? "") : target;
-  const to = j.kind === "down" ? local : target;
-  if (from === to) return void beam.classList.remove("on");
   const box = $("panes").getBoundingClientRect();
-  const s = anchorFrom(from, from.list.getBoundingClientRect(), from.isRemote ? "left" : "right");
-  const e = anchorTo(to);
-  const [sx, sy, ex, ey] = [s.x - box.left, s.y - box.top, e.x - box.left, e.y - box.top];
-  const dx = (ex - sx) * 0.5;
-  const d = `M ${sx} ${sy} C ${sx + dx} ${sy}, ${ex - dx} ${ey + 40}, ${ex} ${ey}`;
-  beam.querySelectorAll("path").forEach((p) => {
-    p.setAttribute("d", d);
-    p.setAttribute("pathLength", "100");
-  });
+  const s = anchorFrom(ends.from, ends.from.isRemote ? "left" : "right");
+  const e = anchorTo(ends.to, ends.dir);
+  moveBeam([s.x - box.left, s.y - box.top, e.at.x - box.left, e.at.y - box.top], wasOn);
   beam.classList.add("on");
-  to.el.querySelector(".crumb.last")?.classList.add("target");
+  if (e.exact) e.el.classList.add("target");
+}
+
+// ---------- transfer lanes ----------
+//
+// While a transfer runs and the panes have moved away from its folders, a lane above the panes
+// keeps saying what goes where: the local side over the left pane, the remote side over the right
+// one, the arrow pointing the way the files move. One lane per such transfer. Clicking a side opens
+// that folder in its pane; clicking the lane opens both, and the lane goes away.
+
+const same = (a: string | null | undefined, b: string | null | undefined) => trimSlash(a ?? "") === trimSlash(b ?? "");
+
+/** Both panes show exactly this job's folders (the beam covers it, no lane needed). */
+function inPlace(j: JobView) {
+  const dst = viewFor(j.account, j.bucket);
+  if (j.kind === "up") return same(local.cwd, j.src_dir) && !!dst && same(dst.cwd, j.prefix);
+  if (j.kind === "down") return !!dst && same(dst.cwd, j.prefix) && same(local.cwd, j.local_dir);
+  const src = viewFor(j.src_account, j.src_bucket);
+  return !!src && !!dst && same(src.cwd, j.src_dir) && same(dst.cwd, j.prefix);
+}
+
+/** `…/Projects/website` (last segments, home as ~). */
+function shortLocal(path: string) {
+  const home = local.roots.find((r) => /Home$/.test(r.name))?.path;
+  let p = home && path.startsWith(home) ? "~" + path.slice(home.length) : path;
+  const parts = p.split(/[\\/]/).filter(Boolean);
+  if (parts.length > 3) p = "…/" + parts.slice(-3).join("/");
+  return p || "/";
+}
+
+function remoteLabel(account: string | null, bucket: string | null, prefix: string | null) {
+  const p = app.settings.profiles.find((x) => x.id === account);
+  const where = p?.kind === "s3" ? `${bucket ?? ""}/${prefix ?? ""}` : `/${prefix ?? ""}`;
+  return { name: p?.name ?? "Remote", where };
+}
+
+type Side = { html: string; title: string; open: () => unknown };
+
+function sides(j: JobView): { left: Side; right: Side; arrow: string } {
+  const loc = (dir: string | null): Side => ({
+    html: `${icon("desktop")}<span>${esc(shortLocal(dir ?? ""))}</span>`,
+    title: dir ?? "",
+    open: () => dir && local.go(dir),
+  });
+  const rem = (account: string | null, bucket: string | null, prefix: string | null): Side => {
+    const r = remoteLabel(account, bucket, prefix);
+    return {
+      html: `${icon("cloud")}<b>${esc(r.name)}</b><span>${esc(r.where)}</span>`,
+      title: `${r.name} · ${r.where}`,
+      open: () => account && bucket != null && openRemote(account, bucket, prefix ?? ""),
+    };
+  };
+  const dst = rem(j.account, j.bucket, j.prefix);
+  if (j.kind === "up") return { left: loc(j.src_dir), right: dst, arrow: "→" };
+  if (j.kind === "down") return { left: loc(j.local_dir), right: dst, arrow: "←" };
+  return { left: rem(j.src_account, j.src_bucket, j.src_dir), right: dst, arrow: "→" };
+}
+
+const laneEls = new Map<string, HTMLElement>();
+
+function renderLanes() {
+  const box = $("lanes");
+  const show = [...jobs.values()].filter((j) => j.status === "running" && !inPlace(j));
+  const keep = new Set(show.map((j) => j.id));
+  for (const [id, el] of laneEls)
+    if (!keep.has(id)) {
+      // Slide out, so the panes glide back up instead of jumping.
+      laneEls.delete(id);
+      el.classList.add("out");
+      setTimeout(() => el.remove(), 220);
+    }
+  for (const j of show) {
+    let el = laneEls.get(j.id);
+    const s = sides(j);
+    if (!el) {
+      // Built once and updated in place, so a click isn't lost to a re-render mid-press.
+      el = document.createElement("div");
+      el.className = "lane";
+      el.innerHTML = `<button class="lane-side l"></button><span class="lane-arrow"></span>
+        <span class="lane-r"><button class="lane-side r"></button><span class="lane-num"></span>
+        <button class="ib lane-x" title="Cancel" aria-label="Cancel transfer">${icon("x")}</button></span>
+        <i class="lane-bar"></i>`;
+      el.querySelector<HTMLElement>(".lane-x")!.onclick = (ev) => {
+        ev.stopPropagation();
+        invoke("cancel", { id: j.id });
+      };
+      el.onclick = (ev) => {
+        const side = (ev.target as HTMLElement).closest(".lane-side");
+        const cur = sides(jobs.get(j.id) ?? j);
+        if (!side || side.classList.contains("l")) cur.left.open();
+        if (!side || side.classList.contains("r")) cur.right.open();
+      };
+      box.append(el);
+      laneEls.set(j.id, el);
+    }
+    const l = el.querySelector<HTMLElement>(".lane-side.l")!;
+    const r = el.querySelector<HTMLElement>(".lane-side.r")!;
+    if (l.title !== s.left.title) ((l.innerHTML = s.left.html), (l.title = `Show ${s.left.title}`));
+    if (r.title !== `Show ${s.right.title}`) ((r.innerHTML = s.right.html), (r.title = `Show ${s.right.title}`));
+    el.querySelector(".lane-arrow")!.textContent = s.arrow;
+    el.querySelector(".lane-num")!.textContent = j.files_total
+      ? `${Math.floor(pct(j))}% · ${j.files_done}/${j.files_total}`
+      : "Preparing…";
+    el.querySelector<HTMLElement>(".lane-bar")!.style.width = `${pct(j).toFixed(1)}%`;
+  }
 }
 
 // ---------- events ----------
@@ -162,6 +343,7 @@ function scheduleRender() {
     renderTimer = window.setTimeout(() => {
       renderTimer = 0;
       renderCard();
+      renderLanes();
       renderBeam();
     }, 60);
 }
@@ -220,6 +402,8 @@ export async function setupJobs() {
     }
   });
   window.addEventListener("resize", scheduleRender);
+  // A pane re-rendered (switched account, reloaded, scrolled to new rows): re-aim the beam.
+  document.addEventListener("panechange", () => activeJobCount() && scheduleRender());
   local.list.addEventListener("scroll", scheduleRender, { passive: true });
   await listen<JobEvent>("job", (e) => onJob(e.payload));
 }

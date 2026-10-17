@@ -247,6 +247,8 @@ body:not(.mac) .tl-space {
   display: grid;
   /* --left is set by the splitter (appearance.ts) */
   grid-template-columns: minmax(0, var(--left, 50%)) 12px minmax(0, 1fr);
+  /* row 1: transfer lanes (usually hidden); row 2: the panes */
+  grid-template-rows: auto minmax(0, 1fr);
   padding: 0 12px 12px;
   position: relative;
 }
@@ -993,6 +995,120 @@ body.dragging * {
   to {
     stroke-dashoffset: -100;
   }
+}
+
+/* Transfer lanes (jobs.ts renderLanes): the first row of #panes, same columns as the panes, so the
+   local side sits over the left pane and the remote side over the right one. */
+#lanes {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+}
+.lane {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, var(--left, 50%)) 12px minmax(0, 1fr);
+  align-items: center;
+  height: calc(var(--fs) * 2.4);
+  flex: none;
+  margin-bottom: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  overflow: hidden;
+  cursor: pointer;
+  animation: lane-in 0.22s ease-out;
+}
+.lane:hover {
+  border-color: var(--accent);
+}
+/* In and out by height, so the panes below glide instead of jumping. */
+@keyframes lane-in {
+  from {
+    opacity: 0;
+    height: 0;
+    margin-bottom: 0;
+  }
+}
+.lane.out {
+  pointer-events: none;
+  animation: lane-out 0.22s ease-in forwards;
+}
+@keyframes lane-out {
+  to {
+    opacity: 0;
+    height: 0;
+    margin-bottom: 0;
+    border-width: 0;
+  }
+}
+.lane-side {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  font-size: var(--fs-sm);
+  color: var(--fg2);
+  text-align: left;
+  cursor: pointer;
+}
+.lane-side:hover {
+  color: var(--accent);
+}
+.lane-side svg {
+  flex: none;
+  width: 1.1em;
+  height: 1.1em;
+  opacity: 0.7;
+}
+.lane-side b {
+  flex: none;
+  font-weight: 600;
+  color: var(--fg);
+}
+.lane-side span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+}
+.lane-arrow {
+  justify-self: center;
+  color: var(--accent);
+  font-weight: 700;
+}
+.lane-r {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.lane-r .lane-side {
+  flex: 1;
+}
+.lane-num {
+  flex: none;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  padding-left: 8px;
+}
+.lane-x {
+  flex: none;
+  margin: 0 4px;
+}
+.lane-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--accent);
+  transition: width 0.3s;
 }
 
 /* activity card (transfers), floating bottom-right over the remote pane */

@@ -340,6 +340,7 @@ export class Pane {
       this.drawRows(true);
     }
     this.updateStatus();
+    this.el.dispatchEvent(new Event("panechange", { bubbles: true }));
   }
 
   /** Redraws the rows in place (new sizes) without re-sorting. */
