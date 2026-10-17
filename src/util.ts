@@ -57,6 +57,7 @@ export function askText(title: string, value = ""): Promise<string | null> {
   $("ask-title").textContent = title;
   input.value = value;
   d.returnValue = "";
+  $("ask-cancel").onclick = () => d.close("cancel");
   d.showModal();
   input.focus();
   return new Promise((resolve) => {

@@ -5,6 +5,10 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- New folder: pressing Enter in the name box cancelled instead of creating the folder. Only
+  clicking OK worked.
+
 ## [0.4.5] - 2026-10-17
 
 ### Fixed

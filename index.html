@@ -297,7 +297,8 @@
         <input id="ask-input" spellcheck="false" autocomplete="off" />
         <div class="buttons">
           <span class="spacer"></span>
-          <button value="cancel" formnovalidate>Cancel</button>
+          <!-- type="button": Enter submits with the first submit button, so Cancel must not be one. -->
+          <button type="button" id="ask-cancel">Cancel</button>
           <button value="ok" class="primary">OK</button>
         </div>
       </form>
