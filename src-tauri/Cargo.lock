@@ -2990,7 +2990,7 @@ dependencies = [
 
 [[package]]
 name = "noexplorer"
-version = "0.4.7"
+version = "0.4.8"
 dependencies = [
  "auto-launch",
  "aws-credential-types",

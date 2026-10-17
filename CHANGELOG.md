@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.8] - 2026-10-17
+
 ### Added
 - Transfer lanes: while files are moving and you open other folders (on either side), a strip
   above the panes keeps showing where each transfer goes, one strip per transfer. Click it to go
