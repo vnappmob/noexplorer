@@ -98,6 +98,7 @@ means the active account (ADR-025).
 | `interrupted_jobs` | – | `PendingJob[]` | resume | Transfers journaled in `pending.json` that didn't finish (not running now) |
 | `resume_job` | `id` | job id | resume | Starts it again with `resume: true`: uploads skip remote files with the same size, downloads skip complete files and continue `.part` files |
 | `dismiss_interrupted` | `id` | – | resume | Forgets an interrupted transfer |
+| `cert_fingerprint` | `endpoint` | `"AB:CD:…"` | tls | SHA-256 of the certificate an https:// server presents, read without trusting it (to pin it in `Profile.cert_pin`) |
 | `upload` | `bucket, prefix, paths` | job id | transfer | `paths` are absolute local files or folders. Folders keep their structure |
 | `download` | `bucket, prefix, items[{key,size}], dest?` | job id | transfer | Writes to `dest` (the left pane's folder), else to the configured or OS Downloads folder |
 | `open_object` | `bucket, key` | – | transfer | Downloads to `$TMP/noexplorer/<uuid>/` and opens with the default app |

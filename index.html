@@ -175,6 +175,11 @@
             <label id="acct-endpoint-row"><span id="lbl-endpoint">Endpoint</span>
               <input name="endpoint" placeholder="https://s3.example.com or http://192.168.1.10:9000" required spellcheck="false" />
             </label>
+            <div id="acct-cert" class="cert-row" hidden>
+              <input type="hidden" name="cert_pin" />
+              <span id="acct-cert-text"></span>
+              <button type="button" id="acct-cert-btn"></button>
+            </div>
             <div id="acct-signin" class="signin" hidden>
               <button type="button" id="acct-nc-login" class="primary">Sign in with Nextcloud…</button>
               <button type="button" id="acct-nc-cancel" hidden>Cancel</button>

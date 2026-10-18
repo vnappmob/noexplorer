@@ -19,6 +19,8 @@ export type Profile = {
   path_style: boolean;
   /** The secret is in the OS credential store (Keychain…) rather than config.json. */
   keychain?: boolean;
+  /** SHA-256 fingerprint of a trusted self-signed certificate ("" = normal checks). tls.rs. */
+  cert_pin?: string;
 };
 
 /** `config::General` — Settings → General. */

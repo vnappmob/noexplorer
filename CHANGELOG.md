@@ -15,6 +15,9 @@ versions: [SemVer](https://semver.org/).
   running transfers can be paused, an optional speed limit applies to everything, and transfers
   cut short by quitting or a crash can be resumed on the next launch. Resumed downloads continue
   their `.part` files, and big S3 uploads continue from the parts already on the server.
+- Experimental **self-signed HTTPS**: an S3, Nextcloud or WebDAV account can trust its server's
+  own certificate (a NAS, a home server) after you compare its fingerprint. Only that exact
+  certificate is accepted; everything else is still checked normally.
 
 ## [0.4.9] - 2026-10-17
 

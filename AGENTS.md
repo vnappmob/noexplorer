@@ -61,6 +61,7 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   transfer.rs        upload / download / open_object jobs (file concurrency; per-file work is the provider's)
   jobs.rs            Background Job + "job" progress events + cancel
   resume.rs          Experimental resumable transfers: speed limit (`throttle`), `retry`, journals (pending.json, multipart.json), pause
+  tls.rs             Experimental self-signed HTTPS: certificate pinning verifier; reqwest as the S3 SDK's HTTP client for pinned accounts
   fileops.rs         Rename / move / duplicate: local (never overwrite, same disk) and remote jobs (`Remote::transfer_within`)
   local.rs           Local filesystem commands for the left pane (+ volume_info for the storage bar)
   scan.rs            Parallel folder-size scanner (macOS getattrlistbulk fast path)
@@ -127,6 +128,7 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **`safe_rel()` must wrap every object key that becomes a local path.** It is the path-traversal guard.
 - **Drag between panes uses mouse events, not HTML5 drag-and-drop.** HTML5 DnD is broken on Windows while Tauri's file drop is enabled ([ADR-003](docs/DECISIONS.md#adr-003)).
 - **Escape every untrusted string before it goes into `innerHTML`** (file names, keys, errors), using `esc()`. Text previews use `textContent`.
+- **TLS is never switched off.** Self-signed servers are handled by pinning one certificate per account (`tls.rs`); don't add an "accept invalid certificates" option.
 - **Secrets stay in the backend.** Secret keys live in the OS credential store (`secrets.rs`, [ADR-020](docs/DECISIONS.md#adr-020)); `config.json` (mode 600) holds them only when no store exists. Every command that returns `Settings` must return `config::redacted()`, and none goes into logs or errors.
 - **Never lose or rotate the updater signing key** (`~/.tauri/noexplorer-updater.key` on the maintainer's Mac, plus the repo secret `TAURI_SIGNING_PRIVATE_KEY`). Installed apps only accept updates signed by it; a new key means every user has to reinstall by hand ([ADR-015](docs/DECISIONS.md#adr-015)).
 - **Closing the window hides to the tray; it doesn't quit** (when `general.run_in_background` is on). Code that must run "on exit" has to handle `app.exit()` from the tray, not window close.

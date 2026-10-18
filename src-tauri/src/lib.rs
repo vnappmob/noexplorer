@@ -34,6 +34,7 @@ mod scan;
 mod secrets;
 mod sizes;
 mod state;
+mod tls;
 mod transfer;
 mod trash;
 mod tray;
@@ -127,6 +128,7 @@ pub fn run() {
             resume::dismiss_interrupted,
             resume::resume_job,
             resume::pause,
+            tls::cert_fingerprint,
             sizes::stop_sizes,
             trash::trash_local,
             local::read_local_text,

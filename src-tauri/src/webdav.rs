@@ -51,16 +51,27 @@ const SEGMENT: &AsciiSet = &CONTROLS
     .add(b'|')
     .add(b'}');
 
-/// A shared HTTP client (rustls with the ring provider, like the updater).
-pub fn http() -> reqwest::Client {
+/// Settings every client shares (rustls with the ring provider, like the updater).
+pub fn http_builder() -> reqwest::ClientBuilder {
     if rustls::crypto::CryptoProvider::get_default().is_none() {
         let _ = rustls::crypto::ring::default_provider().install_default();
     }
     reqwest::Client::builder()
         .user_agent(concat!("NoExplorer/", env!("CARGO_PKG_VERSION")))
         .connect_timeout(Duration::from_secs(15))
-        .build()
-        .expect("HTTP client")
+}
+
+/// A shared HTTP client.
+pub fn http() -> reqwest::Client {
+    http_builder().build().expect("HTTP client")
+}
+
+/// The client for an account: one that trusts its pinned certificate, if it has one (tls.rs).
+fn http_for(p: &Profile) -> reqwest::Client {
+    if p.cert_pin.is_empty() {
+        return http();
+    }
+    crate::tls::pinned_client(&p.cert_pin).unwrap_or_else(|_| http())
 }
 
 /// Applies `Set-Cookie` headers to `jar`: name=value pairs only (one server per jar, so domain and
@@ -132,7 +143,7 @@ impl Dav {
         let root_path = decode(url_path(&root));
         Dav {
             profile: p.clone(),
-            http: http(),
+            http: http_for(p),
             root,
             root_path,
             nextcloud,

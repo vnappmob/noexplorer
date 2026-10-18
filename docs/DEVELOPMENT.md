@@ -68,8 +68,40 @@ skipped and the other tests still run. On a fresh clone, run `npm run build` onc
 | `local::tests::*` | Local listing (hidden files, crumbs), mkdir name validation |
 | `transfer::tests::collect_uploads_*` | Folder walk keeps structure and skips junk files |
 | `transfer::tests::s3_roundtrip` | Real server: create bucket → multipart upload of 40 MB → list → download and byte-compare → path-style presign → delete |
+| `transfer::tests::s3_resume`, `s3_pause_limit_journal` | Resumable transfers: multipart continued from the server's parts, `.part` download continued, pause, speed limit, journal |
+| `fileops::tests::*`, round-trips | Rename / move / duplicate never overwrite (local), and remote move/copy on S3, Nextcloud and the Box mock |
+| `tls::tests::pinning_against_untrusted_proxy` | Self-signed HTTPS: refused by default, works pinned (S3 incl. multipart, WebDAV), refused with a wrong pin |
+| `webdav::tests::nextcloud_roundtrip`, `box_api::tests::*` | Nextcloud against dev Nextcloud; Box against the in-memory mock |
 
 The frontend has no automated tests yet (roadmap). Use the manual checklist below for UI changes.
+
+### Self-signed HTTPS test
+
+`tls::tests::pinning_against_untrusted_proxy` needs an HTTPS proxy with a certificate nobody
+trusts, in front of dev S3 and dev Nextcloud. Caddy's internal CA does that:
+
+```bash
+cat > /tmp/Caddyfile <<'EOF2'
+{
+  auto_https disable_redirects
+  skip_install_trust
+}
+https://localhost:8443 {
+  tls internal
+  reverse_proxy host.docker.internal:8333
+}
+https://localhost:8444 {
+  tls internal
+  reverse_proxy host.docker.internal:8080 {
+    header_up Host localhost:8080
+  }
+}
+EOF2
+docker run -d --name nx-caddy -p 8443:8443 -p 8444:8444 -v /tmp/Caddyfile:/etc/caddy/Caddyfile caddy:2
+```
+
+Then add `NOEXPLORER_TEST_TLS_S3=https://localhost:8443 NOEXPLORER_TEST_TLS_DAV=https://localhost:8444`
+to the S3 + Nextcloud test variables.
 
 ## Manual test checklist (before a release, or after UI changes)
 

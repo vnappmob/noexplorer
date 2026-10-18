@@ -50,6 +50,9 @@ pub struct Profile {
     pub path_style: bool,
     /// The secret key is in the OS credential store; config.json keeps `secret_key` empty.
     pub keychain: bool,
+    /// SHA-256 fingerprint ("AB:CD:…") of the server certificate this account trusts even though
+    /// the system doesn't (self-signed HTTPS, experimental; tls.rs). Empty = normal checks only.
+    pub cert_pin: String,
 }
 
 impl Default for Profile {
@@ -65,6 +68,7 @@ impl Default for Profile {
             bucket: String::new(),
             path_style: true,
             keychain: false,
+            cert_pin: String::new(),
         }
     }
 }

@@ -56,6 +56,13 @@ pub fn make_client_in(p: &Profile, region: &str) -> Client {
     if !endpoint.is_empty() && !is_aws(p) {
         b = b.endpoint_url(endpoint);
     }
+    // A pinned self-signed certificate (experimental): requests go through reqwest (tls.rs).
+    if !p.cert_pin.is_empty()
+        && !is_aws(p)
+        && let Ok(h) = crate::tls::PinnedHttpClient::new(&p.cert_pin)
+    {
+        b = b.http_client(h);
+    }
     Client::from_conf(b.build())
 }
 

@@ -997,6 +997,25 @@ body.dragging * {
   }
 }
 
+/* Account form: trusted self-signed certificate (experimental). */
+.cert-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px dashed var(--line2);
+  border-radius: 8px;
+  font-size: var(--fs-sm);
+  color: var(--fg2);
+}
+.cert-row span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Rows being deleted in the background (actions.ts deleteRemote → a "delete" job). */
 .row.deleting {
   opacity: 0.45;

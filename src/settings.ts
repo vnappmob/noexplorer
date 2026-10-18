@@ -10,7 +10,7 @@ import { appearance, setTextSize, setTheme, type Theme } from "./appearance";
 import { addView, MAX_VIEWS, remote, remotes, savedViews, saveViews, switchTo } from "./panes";
 import { type Pane, paneHooks } from "./pane";
 import { describeAccount, guessProvider, isS3, PRESETS, type ProviderId } from "./providers";
-import { activeProfile, app } from "./state";
+import { activeProfile, app, exp } from "./state";
 import { openMenu, type MenuItem } from "./popover";
 import type { BucketInfo, General, Profile, Settings } from "./types";
 import { renderExperimental } from "./experimental";
@@ -83,6 +83,8 @@ function editAccount(p: Profile | null) {
   // Nextcloud can sign in through the browser instead: no password to type.
   secret.required = !p && provider !== "nextcloud";
   $<HTMLButtonElement>("acct-delete").hidden = !p;
+  input("cert_pin").value = p?.cert_pin ?? "";
+  renderCert();
   setMsg("");
   renderAccountList();
   (f.elements.namedItem(p ? "name" : "endpoint") as HTMLInputElement).focus();
@@ -141,7 +143,44 @@ function readForm(): Profile {
     secret_key: v("secret_key"),
     bucket: v("bucket"),
     path_style: f.get("path_style") === "on",
+    cert_pin: v("cert_pin"),
   };
+}
+
+// ---------- self-signed HTTPS (experimental) ----------
+
+/** The "Certificate" row of the account form: shown for https:// servers when the experiment is
+ * on (or when the account already trusts a certificate, so it can be removed). */
+function renderCert() {
+  const pin = input("cert_pin").value;
+  const kind = PRESETS[$<HTMLSelectElement>("acct-provider").value as ProviderId].kind;
+  const https = /^https:\/\//i.test(input("endpoint").value.trim());
+  $("acct-cert").hidden = !pin && !(exp("self_signed") && https && kind !== "box");
+  $("acct-cert-text").textContent = pin
+    ? `Trusts the certificate ${pin.slice(0, 11)}…${pin.slice(-5)}`
+    : "Self-signed certificate? Trust it after checking its fingerprint.";
+  $("acct-cert-text").title = pin;
+  $("acct-cert-btn").textContent = pin ? "Stop trusting" : "Trust certificate…";
+}
+
+async function onCertButton() {
+  if (input("cert_pin").value) {
+    input("cert_pin").value = "";
+    return renderCert();
+  }
+  const endpoint = input("endpoint").value.trim();
+  try {
+    const fp = await invoke<string>("cert_fingerprint", { endpoint });
+    const host = endpoint.replace(/^https:\/\//i, "").split("/")[0];
+    const ok = await ask(
+      `Trust the certificate of ${host}?\n\nSHA-256 fingerprint:\n${fp}\n\nCompare it with the fingerprint your server shows (for example in its admin page). Only trust it if they match.`,
+      { title: "Trust certificate", kind: "warning", okLabel: "Trust", cancelLabel: "Cancel" },
+    );
+    if (ok) input("cert_pin").value = fp;
+    renderCert();
+  } catch (e) {
+    fail(e);
+  }
 }
 
 function setMsg(text: string, cls = "") {
@@ -490,6 +529,10 @@ export function setupSettings() {
   $("acct-nc-cancel").onclick = () => invoke("cancel_login");
   $("acct-delete").onclick = deleteAccount;
   $("acct-add").onclick = () => editAccount(null);
+  // Self-signed HTTPS (experimental): the certificate row follows the address and provider.
+  input("endpoint").addEventListener("input", renderCert);
+  $("acct-provider").addEventListener("change", renderCert);
+  $("acct-cert-btn").onclick = onCertButton;
   $<HTMLSelectElement>("acct-provider").addEventListener("change", (ev) =>
     applyPreset((ev.target as HTMLSelectElement).value as ProviderId, true),
   );
