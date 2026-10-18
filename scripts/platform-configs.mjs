@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 const base = JSON.parse(readFileSync("src-tauri/tauri.conf.json", "utf8"));
 const windows = base.app.windows.map((w) => ({ ...w, transparent: true }));
 const files = {
-  "src-tauri/tauri.macos.conf.json": { app: { macOSPrivateApi: true, windows } },
+  "src-tauri/tauri.macos.conf.json": { app: { windows } },
   "src-tauri/tauri.windows.conf.json": { app: { windows } },
 };
 const check = process.argv.includes("--check");

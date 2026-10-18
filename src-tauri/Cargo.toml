@@ -22,6 +22,8 @@ crate-type = ["rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+# macos-private-api: transparent window for the experimental native look. tauri-build requires it to
+# match `app.macOSPrivateApi` in tauri.conf.json (set for all platforms; it only affects macOS).
 tauri = { version = "2", features = ["protocol-asset", "tray-icon", "image-png", "macos-private-api"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
