@@ -491,6 +491,7 @@ export async function loadBuckets(v: Pane, resetScroll = false) {
 /** Boot: settings, then the saved views (or one view on the default account). */
 export async function initSettings() {
   app.settings = await invoke<Settings>("get_settings");
+  window.dispatchEvent(new Event("settings-loaded"));
   const saved = savedViews().filter((v) => app.settings.profiles.some((p) => p.id === v.account));
   const views = saved.length ? saved : [{ account: app.settings.active, bucket: "", prefix: "" }];
   for (const v of views) addView(v);

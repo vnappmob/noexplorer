@@ -2,6 +2,7 @@
 // both panes' current folders. Entries are built fresh each time it opens, so they always reflect
 // the current state; actions reuse the same functions as buttons and shortcuts.
 
+import { pairs, runPair, savePairFromPanes } from "./backups";
 import { invoke } from "@tauri-apps/api/core";
 import { calcSize, deleteRemote, mkdir, paneAction, remoteName, transfer, trashLocal, TRASH_LABEL } from "./actions";
 import { describeAccount } from "./providers";
@@ -11,7 +12,7 @@ import { icon } from "./icons";
 import type { Pane } from "./pane";
 import { active, closeView, local, MAX_VIEWS, remote, remotes, switchTo } from "./panes";
 import { addAccount, openSettings, selectBucket, splitView, switchProfile } from "./settings";
-import { app } from "./state";
+import { app, exp } from "./state";
 import { checkForUpdates } from "./updater";
 import { $, esc, fail, toast } from "./util";
 
@@ -45,6 +46,10 @@ function build(): Entry[] {
   cmd(app.showHidden ? "Hide hidden files" : "Show hidden files", "eye", () => paneAction(local, "hidden"));
   if (remotes.length < MAX_VIEWS) cmd("Split view: another account below", "split", () => splitView(remote), "⌘\\");
   if (remotes.length > 1) cmd("Close this remote view", "x", () => closeView(remote), "⌘W");
+  if (exp("backup_pairs")) {
+    for (const p of pairs()) cmd(`Back up: ${p.name}`, "arrowUp", () => runPair(p));
+    if (remote.bucket) cmd("Save current folders as a backup pair", "plus", savePairFromPanes);
+  }
   cmd("Settings", "sliders", () => openSettings(), "⌘,");
   cmd("Add account (S3, Nextcloud, WebDAV)", "plus", addAccount);
   cmd("Check for updates", "update", () => checkForUpdates(true));

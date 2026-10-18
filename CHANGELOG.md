@@ -18,6 +18,8 @@ versions: [SemVer](https://semver.org/).
 - Experimental **self-signed HTTPS**: an S3, Nextcloud or WebDAV account can trust its server's
   own certificate (a NAS, a home server) after you compare its fingerprint. Only that exact
   certificate is accepted; everything else is still checked normally.
+- Experimental **backup pairs**: save "this folder ↔ that remote folder" and back it up in one
+  click from the Backups button or ⌘K. It compares the two and uploads what's missing or changed.
 
 ## [0.4.9] - 2026-10-17
 

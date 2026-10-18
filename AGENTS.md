@@ -46,6 +46,7 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   menu.ts            Right-click menu      keyboard.ts  All shortcuts
   experimental.ts    Settings → Experimental (EXPERIMENTS list); features check `exp("key")` from state.ts
   fileops.ts         Rename / move / duplicate / undo (experimental file_ops)
+  backups.ts         Backup pairs (experimental): saved local ↔ remote folders, run = compare + upload_rel
   types.ts           Types mirrored from Rust     util.ts / files.ts / state.ts  helpers and global state
 index.html           All markup (panes, dialogs, preview)      src/styles.css  All styles (light and dark)
 src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
