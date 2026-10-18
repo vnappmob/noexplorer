@@ -47,6 +47,7 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   experimental.ts    Settings → Experimental (EXPERIMENTS list); features check `exp("key")` from state.ts
   fileops.ts         Rename / move / duplicate / undo (experimental file_ops)
   thumbs.ts          Grid view thumbnails (experimental): <img>/<video> per visible tile, presigned links cached
+  nav.ts             Tabs, back/forward history, favorites (experimental); recorded via `paneHooks.visited`
   backups.ts         Backup pairs (experimental): saved local ↔ remote folders, run = compare + upload_rel
   types.ts           Types mirrored from Rust     util.ts / files.ts / state.ts  helpers and global state
 index.html           All markup (panes, dialogs, preview)      src/styles.css  All styles (light and dark)
