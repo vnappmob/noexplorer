@@ -42,7 +42,6 @@ export type Experimental = {
   tabs: boolean;
   providers: boolean;
   native_look: boolean;
-  vietnamese: boolean;
 };
 
 /** `config::Settings` — everything in config.json. */

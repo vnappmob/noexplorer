@@ -51,7 +51,7 @@ virtualized lists (ADR-021) · tray account switcher.
 **Experimental (Settings → Experimental, off by default, ADR-031), 2026-10-18:** rename / move /
 duplicate with undo on both sides (parts of 1 and 2), tabs / history / favorites (3), resumable
 transfers with pause and a speed limit, backup pairs, thumbnail grid, self-signed HTTPS
-(ADR-032), Google Cloud Storage / Azure Blob / SFTP (ADR-033), native window look, Vietnamese UI.
+(ADR-032), Google Cloud Storage / Azure Blob / SFTP (ADR-033), native window look. (A Vietnamese UI shipped too and was removed: it froze the window, and the UI stays English.)
 Next for them: real-world runs, then graduating each one out of Experimental.
 
 1. **Local file operations**: rename (F2 / click-to-rename), duplicate, copy/move between local
@@ -93,7 +93,7 @@ Next for them: real-world runs, then graduating each one out of Experimental.
 
 - More providers behind the same trait: SFTP, Dropbox, OneDrive, Google Cloud Storage (XML API), Azure Blob.
 - **Windows code signing** when there's budget for a certificate (SignPath declined, ADR-030; see docs/RELEASING.md).
-- **i18n** (Vietnamese first, ADR-011) and full keyboard/screen-reader accessibility.
+- Full keyboard/screen-reader accessibility. (No translations: the UI stays English, ADR-011.)
 - **Frontend tests** (Vitest + happy-dom) for `Pane` sorting/selection/virtualization and `files.ts`.
 - **Tighter CSP** and asset-protocol scope (`tauri.conf.json`), see ARCHITECTURE's security model.
 - **Self-signed TLS**: an opt-in "trust this certificate" (`config.rs::make_client`).

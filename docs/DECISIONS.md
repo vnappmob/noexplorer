@@ -149,6 +149,8 @@ Accepted · 2026-10-15
 **Consequences.** Adding i18n later means extracting strings into a dictionary module. They
 are concentrated in `index.html`, `pane.ts`, `actions.ts`, `menu.ts`, `jobs.ts`,
 `preview.ts` and `settings.ts`.
+**Update 2026-10-18.** An experimental Vietnamese UI (0.4.10, a DOM-rewriting MutationObserver)
+froze the window and was removed. The maintainer doesn't want translations: the UI stays English only.
 
 <a id="adr-012"></a>
 
@@ -621,7 +623,7 @@ machinery (docs/RELEASING.md → Windows signing).
 Accepted · 2026-10-18
 
 **Context.** A batch of large features (file operations, resumable transfers, backup pairs, grid,
-tabs, three providers, native look, Vietnamese UI) landed at once, mostly tested against local
+tabs, three providers, native look, and a Vietnamese UI since removed) landed at once, mostly tested against local
 servers and a browser harness rather than daily use.
 **Decision.** Each ships behind its own toggle in Settings → Experimental (`general.experimental`
 in config, `exp("key")` in the frontend), **off by default**. Turning one off hides its UI again;

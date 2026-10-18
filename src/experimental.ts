@@ -44,7 +44,6 @@ export const EXPERIMENTS: { key: keyof Experimental; title: string; desc: string
     title: "Native window look",
     desc: "Windows 11 Mica and macOS translucency behind the panes.",
   },
-  { key: "vietnamese", title: "Giao diện tiếng Việt", desc: "Vietnamese interface (needs a restart of the window)." },
 ];
 
 /** Fills the Experimental tab (index.html #exp-form). */

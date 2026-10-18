@@ -128,8 +128,6 @@ pub struct Experimental {
     pub providers: bool,
     /// Native window material (Windows Mica, macOS vibrancy).
     pub native_look: bool,
-    /// Vietnamese interface.
-    pub vietnamese: bool,
 }
 
 /// Everything in `config.json`. Mirrors `Settings` in `src/types.ts`.

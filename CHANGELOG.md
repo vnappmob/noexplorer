@@ -5,6 +5,12 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Settings → Experimental lists one feature per row again (the items ran together on shared lines).
+
+### Removed
+- The experimental Vietnamese interface. Turning it on froze the window; the app is English only.
+
 ## [0.4.10] - 2026-10-18
 
 ### Added
@@ -29,8 +35,8 @@ versions: [SemVer](https://semver.org/).
   folders, listed in the places menu, the account menu and ⌘K.
 - Experimental **more storage types**: Google Cloud Storage (S3-compatible API with HMAC keys),
   Azure Blob Storage, and SFTP (through your `ssh` setup: keys, agent and ~/.ssh/config).
-- Experimental **native window look** (Windows 11 Mica, macOS translucency) and **Vietnamese
-  interface**.
+- Experimental **native window look** (Windows 11 Mica, macOS translucency) and Vietnamese
+  interface (removed again in the next release).
 
 ### Website
 - The docs moved to a faster docs site with search (Starlight): pages load as you point at a link.

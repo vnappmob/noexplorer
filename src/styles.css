@@ -2187,15 +2187,25 @@ dialog::backdrop {
   gap: 14px;
   min-height: 330px;
 }
-#general-form label.check {
+#general-form label.check,
+#exp-form label.check {
   display: flex;
   align-items: flex-start;
   gap: 10px;
 }
-#general-form label.check input {
+#general-form label.check input,
+#exp-form label.check input {
   margin-top: 3px;
 }
+/* settings → experimental: one feature per row, like General */
+#exp-form,
+#exp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
 #general-form small,
+#exp-form small,
 .muted {
   color: var(--muted);
 }

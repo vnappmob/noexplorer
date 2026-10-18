@@ -38,7 +38,3 @@ Lets an account trust its server's own certificate, after you compare its finger
 ## Native window look
 
 Windows 11 Mica and macOS translucency behind the panes.
-
-## Vietnamese interface
-
-Giao diện tiếng Việt. The window reloads when you switch.
