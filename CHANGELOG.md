@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.10] - 2026-10-18
+
 ### Added
 - **Settings → Experimental**: new features ship here, off until you turn them on.
 - Experimental **rename, move and duplicate**, on this computer and on remotes: F2 renames, the
