@@ -1105,7 +1105,7 @@ button:focus-visible,
 .cell .tile .ico svg {
   width: calc(var(--fs) * 4.6);
   height: calc(var(--fs) * 4.6);
-  stroke-width: 1.4;
+  stroke-width: 1;
 }
 .cell .tile .thumb {
   position: absolute;
