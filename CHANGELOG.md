@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.12] - 2026-10-18
+
 ### Changed
 - Grid view: file and folder icons are bigger, so they fill their tiles.
 
