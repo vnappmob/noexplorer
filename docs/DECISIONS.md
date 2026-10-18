@@ -696,3 +696,23 @@ are removed.
 **Consequences.** One scheme for every preview. Answers wait for a free main-thread slot (they're
 small and cheap to hand over). Switching the release profile to `panic = "unwind"` would make
 wry's catch work too; that is a profile change for the maintainer to approve.
+
+<a id="adr-036"></a>
+
+## ADR-036: Grid thumbnails made by the backend, cached in memory and on disk
+Accepted · 2026-10-18
+
+**Context.** The grid showed each image file itself: whole photos downloaded and decoded per tile,
+and because the grid is virtualized, every redraw while scrolling dropped them and loaded them
+again (remote Nextcloud files had no HTTP cache at all through `nxr://`).
+**Decision.** `thumbs.rs` makes 256 px thumbnails (JPEG q80, PNG when the image has transparency,
+EXIF orientation applied) with the `image` crate, which Tauri already builds; only the JPEG, WebP
+and GIF decoders are new. Two LRU caches: 16 MB in memory, 64 MB on disk in the OS cache folder,
+trimmed by modified time (a disk hit refreshes it) down to 56 MB. The key hashes account, container,
+key, size and modified time, so edits invalidate. At most 4 thumbnails are made at once. The
+frontend keeps loaded elements (120 images, 8 video frames) and moves them into the new tiles on
+redraw, and requests the next screen's thumbnails at low priority. Formats the crate can't read
+(HEIC, TIFF) fall back to the file itself. Videos keep their live frame (no codec library).
+**Consequences.** Scrolling back is instant and costs no network. Thumbnails of remote files sit
+unencrypted in the user's cache folder, like any file manager's. 25 MB remote / 64 MB local caps
+on originals.

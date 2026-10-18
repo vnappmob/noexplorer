@@ -46,7 +46,7 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   menu.ts            Right-click menu      keyboard.ts  All shortcuts
   experimental.ts    Settings → Experimental (EXPERIMENTS list); features check `exp("key")` from state.ts
   fileops.ts         Rename / move / duplicate / undo (experimental file_ops)
-  thumbs.ts          Grid view thumbnails (experimental): <img>/<video> per visible tile, presigned links cached
+  thumbs.ts          Grid view thumbnails (experimental): backend thumbnails, loaded elements reused across redraws, next screen prefetched
   nav.ts             Tabs, back/forward history, favorites (experimental); recorded via `paneHooks.visited`
   backups.ts         Backup pairs (experimental): saved local ↔ remote folders, run = compare + upload_rel
   types.ts           Types mirrored from Rust     util.ts / files.ts / state.ts  helpers and global state
@@ -56,7 +56,8 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   provider.rs        `enum Remote`: one interface for all providers (ADR-025); Entry/BucketInfo
   s3.rs              S3 provider: client (path-style, checksums, per-bucket region), list, multipart, downloads
   webdav.rs          Nextcloud/WebDAV provider: own small client, chunked upload v2, shares, Login Flow v2
-  proxy.rs           nxr:// scheme: streams remote files to previews (Range, CORS) when there's no presigned URL
+  proxy.rs           nxr:// scheme: local files, remote previews without presigned URLs (Range, CORS), grid thumbnails; answers on the main thread
+  thumbs.rs          Grid thumbnails: 256 px JPEG/PNG, LRU caches in memory (16 MB) and on disk (64 MB, OS cache folder)
   azure.rs           Azure Blob provider (experimental): Shared Key signing, block uploads, SAS links
   sftp.rs            SFTP provider (experimental): the system `ssh` carries russh-sftp (your keys/agent/config)
   box_api.rs         Box provider (beta): BYO OAuth app, loopback sign-in, rotating refresh token, sessions
@@ -204,6 +205,7 @@ entry to `EXPERIMENTS` in `experimental.ts`, and gate the feature with `exp("key
 - **Compare must never call a file "verified" without reproducing the server's hash.** Unknown multipart part sizes and KMS ETags count as "same size".
 - **`quick-xml` 0.42 gives names as `&str`, and entities arrive as separate `GeneralRef` events** (`parse_multistatus` handles both).
 - **The grid view is the same virtualized list** (`Pane.drawGrid`): tiles are `.row.cell` with `data-i`, so selection, drag & drop and menus work unchanged. Thumbnails never use a canvas (remote links usually have no CORS).
+- **Answer custom-protocol requests on the main thread** (`proxy::respond`, [ADR-035](docs/DECISIONS.md#adr-035)). From a worker, a request WebKit stopped in between makes it throw an Objective-C exception, and release builds (`panic = "abort"`) die. Tauri's asset protocol does that, so it's off: local media goes through `nxr://` (`localSrc`).
 - **File lists are virtualized** ([ADR-021](docs/DECISIONS.md#adr-021)). Only rows near the viewport exist as `.row` elements. Read rows from `pane.view` / `pane.selected`, scroll with `selectIndex`, and keep every row the same height.
 - **There is no global account or bucket any more** ([ADR-029](docs/DECISIONS.md#adr-029)). Each remote view has its own; pass `view.where()` to every remote command. `remote` from `panes.ts` is a *live* binding to the last-focused view: read it at call time, never cache it in a module-level const.
 - **Never take the same `Mutex` twice in one expression or struct literal.** The first guard lives until the end of the statement, so the second `lock()` deadlocks (std mutexes aren't reentrant). This shipped in 0.4.4 inside `Job::event` and hung every transfer; `jobs::tests` guards it.

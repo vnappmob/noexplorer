@@ -23,6 +23,8 @@ Save “this folder ↔ that remote folder” once, then back it up in one click
 
 A list / grid button in each pane header. Images and videos show thumbnails, on this computer and remote. Arrow keys move around the grid.
 
+Image thumbnails are made once and kept in your system's cache folder (at most 64 MB; the least recently seen go first), so scrolling back and reopening a folder is instant. Remote images over 25 MB keep their icon.
+
 ## Tabs, history and favorites
 
 Back and forward with <kbd>⌘ [</kbd> <kbd>⌘ ]</kbd> (or your mouse's side buttons), tabs in each pane with <kbd>⌘ T</kbd> and <kbd>Ctrl Tab</kbd>, and a star in the path bar to save favorite folders. Favorites show up in the places menu, the account menu and <kbd>⌘ K</kbd>.

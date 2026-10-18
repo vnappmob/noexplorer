@@ -36,6 +36,7 @@ mod secrets;
 mod sftp;
 mod sizes;
 mod state;
+mod thumbs;
 mod tls;
 mod transfer;
 mod trash;
@@ -71,6 +72,7 @@ pub fn run() {
             secrets::init(app.handle());
             let settings = config::load_settings(app.handle());
             resume::init(app.handle());
+            thumbs::init(app.handle());
             let g = &settings.general;
             resume::set_speed_limit(if g.experimental.resume { g.speed_limit_kbps } else { 0 });
             app.state::<state::AppState>().set_settings(settings.clone());

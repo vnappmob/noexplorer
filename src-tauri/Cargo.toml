@@ -65,6 +65,8 @@ russh-sftp = "3"
 http = "1"
 aws-smithy-runtime-api = { version = "1", features = ["client", "http-1x"] }
 notify = "8.2.0"
+# Grid thumbnails (thumbs.rs): Tauri already builds `image` (PNG); JPEG/WebP/GIF add small decoders.
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
 
 
 [target.'cfg(unix)'.dependencies]

@@ -5,6 +5,10 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Grid view: image thumbnails are made once and cached (16 MB in memory, 64 MB on disk), pictures
+  stay put while you scroll, and the next screen loads ahead.
+
 ### Fixed
 - The app could quit suddenly while scrolling the grid view (a preview request cancelled at the
   wrong moment).

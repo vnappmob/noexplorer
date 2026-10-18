@@ -7,6 +7,7 @@
 //!
 //! Local files come through here too (`nxr://localhost/~local/f/<path>`, built in `files.ts`),
 //! instead of Tauri's asset protocol: that one answers from a worker thread, see [`respond`].
+//! Grid thumbnails are `nxr://localhost/~thumb/…` (thumbs.rs).
 
 use percent_encoding::percent_decode_str;
 use tauri::http::{Request, Response, StatusCode, header};
@@ -17,7 +18,7 @@ use crate::state::AppState;
 const RANGE_CAP: u64 = 8 * 1024 * 1024;
 const WHOLE_CAP: u64 = 512 * 1024 * 1024;
 /// The account segment of local-file URLs (account ids are UUIDs, so it can't collide).
-const LOCAL: &str = "~local";
+pub const LOCAL: &str = "~local";
 
 /// Answers a request on the main thread. WebKit stops a request there when its `<img>`/`<video>`
 /// goes away (the grid drops tiles as it scrolls), and wry only checks "still running?" right
@@ -65,8 +66,21 @@ pub async fn handle(app: AppHandle, req: Request<Vec<u8>>) -> Response<Vec<u8>> 
 
 async fn serve(app: &AppHandle, req: &Request<Vec<u8>>) -> Result<Response<Vec<u8>>, String> {
     let path = req.uri().path().trim_start_matches('/');
-    let mut parts = path.splitn(3, '/');
     let dec = |s: Option<&str>| percent_decode_str(s.unwrap_or("")).decode_utf8_lossy().into_owned();
+    if let Some(rest) = path.strip_prefix("~thumb/") {
+        let mut parts = rest.splitn(3, '/');
+        let (account, container, key) = (dec(parts.next()), dec(parts.next()), dec(parts.next()));
+        let stamp = req.uri().query().unwrap_or("");
+        let b = crate::thumbs::get(app, &account, &container, &key, stamp).await?;
+        // The URL carries the file's size and modified time, so a cached answer never goes stale.
+        return Response::builder()
+            .header(header::CONTENT_TYPE, crate::thumbs::mime(&b))
+            .header(header::CACHE_CONTROL, "max-age=31536000, immutable")
+            .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+            .body(b.to_vec())
+            .map_err(|e| e.to_string());
+    }
+    let mut parts = path.splitn(3, '/');
     let (account, container, key) = (dec(parts.next()), dec(parts.next()), dec(parts.next()));
     let range = req.headers().get(header::RANGE).and_then(|v| v.to_str().ok()).and_then(parse_range);
     let (start, end, cap) = match range {
@@ -101,7 +115,12 @@ async fn serve(app: &AppHandle, req: &Request<Vec<u8>>) -> Result<Response<Vec<u
 }
 
 /// Up to `cap` bytes of a local file from `start` (to `end` inclusive), plus its size.
-async fn read_local(path: &str, start: u64, end: Option<u64>, cap: u64) -> Result<(Vec<u8>, Option<u64>), String> {
+pub(crate) async fn read_local(
+    path: &str,
+    start: u64,
+    end: Option<u64>,
+    cap: u64,
+) -> Result<(Vec<u8>, Option<u64>), String> {
     use tokio::io::{AsyncReadExt, AsyncSeekExt};
     let mut f = tokio::fs::File::open(path).await.map_err(|e| e.to_string())?;
     let total = f.metadata().await.map_err(|e| e.to_string())?.len();

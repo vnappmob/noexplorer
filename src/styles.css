@@ -1120,6 +1120,10 @@ button:focus-visible,
 .cell .tile.has-thumb .thumb {
   opacity: 1;
 }
+/* A thumbnail moved back in after a redraw (thumbs.ts `kept`) shows at once. */
+.cell .tile.instant .thumb {
+  transition: none;
+}
 .row.cell.sel .tile {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

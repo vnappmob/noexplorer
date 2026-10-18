@@ -38,7 +38,8 @@ This is the deep reference. For orientation, read [AGENTS.md](../AGENTS.md) firs
 | `provider.rs` | Provider interface | `enum Remote` (static dispatch, ADR-025): `containers`, `list`, `list_all`, `link`, `read_head`, `mkdir`, `delete`, `upload_file`, `download_file`; `Entry`, `BucketInfo` |
 | `s3.rs` | S3 provider | `make_client(_in)` (path-style, checksums), `detect_bucket_region`, `S3` (per-bucket region cache, `client_for`), multipart upload, streamed `.part` downloads, tuning constants |
 | `webdav.rs` | Nextcloud / WebDAV provider | `Dav` (own client: PROPFIND/GET Range/PUT/MKCOL/DELETE/MOVE), Nextcloud chunked upload v2 and OCS shares, `parse_multistatus`, Login Flow v2 (`nextcloud_login`, `cancel_login`), shared `http()` client (ADR-026) |
-| `proxy.rs` | Preview proxy | The `nxr://` scheme: streams `Remote::read_range` to the webview with Range + CORS for providers without presigned URLs |
+| `proxy.rs` | Preview proxy | The `nxr://` scheme: streams `Remote::read_range` to the webview with Range + CORS for providers without presigned URLs, local files (`~local`) and grid thumbnails (`~thumb`); answers on the main thread (ADR-035) |
+| `thumbs.rs` | Grid thumbnails | 256 px JPEG/PNG thumbnails, LRU caches in memory (16 MB) and on disk (64 MB) (ADR-036) |
 | `box_api.rs` | Box provider (beta) | `BoxCom`: token refresh with rotation (keychain), path → ID cache, multipart and session uploads with SHA-1, versions, trash deletes, shared links; `box_login` (loopback OAuth) (ADR-027) |
 | `compare.rs` | Compare folders | `compare` / `diff`: local walk (junk, symlinks), `Remote::list_files` with hashes, pairing, parallel hash checks (MD5 / multipart ETag / SHA-1), `"compare-progress"` (ADR-028) |
 | `state.rs` | Shared state | `AppState { settings, remotes, cancels }`. **`remote(account)`** returns the cached `Arc<Remote>` for a profile id (active when `None`); `set_settings()` drops the clients of changed accounts only |
