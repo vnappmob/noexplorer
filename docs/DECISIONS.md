@@ -614,3 +614,64 @@ removed from `release.yml` (Windows builds in the matrix again, unsigned), along
 `.signpath/` and the `latest.json` merge script. Windows stays unsigned until there's budget for
 a certificate; Tauri's own `bundle.windows` signing would be used then, which needs none of that
 machinery (docs/RELEASING.md → Windows signing).
+
+<a id="adr-031"></a>
+
+## ADR-031: Experimental features behind Settings → Experimental
+Accepted · 2026-10-18
+
+**Context.** A batch of large features (file operations, resumable transfers, backup pairs, grid,
+tabs, three providers, native look, Vietnamese UI) landed at once, mostly tested against local
+servers and a browser harness rather than daily use.
+**Decision.** Each ships behind its own toggle in Settings → Experimental (`general.experimental`
+in config, `exp("key")` in the frontend), **off by default**. Turning one off hides its UI again;
+data it created (favorites, backup pairs, pinned certificates) stays. A feature graduates when it
+has had real-world use, by deleting its `exp()` checks.
+**Consequences.** Existing users see no change until they opt in. Code paths stay in every build
+(the toggle is a runtime switch, not a Cargo feature), so CI compiles and tests them all.
+
+<a id="adr-032"></a>
+
+## ADR-032: Self-signed HTTPS by certificate pinning
+Accepted · 2026-10-18
+
+**Context.** NAS boxes and home servers often use self-signed certificates. The usual "ignore
+certificate errors" switch disables protection against interception for that account.
+**Decision.** Pin one certificate per account: the form reads the server's SHA-256 fingerprint,
+the user compares and confirms, `Profile.cert_pin` keeps it. A custom rustls verifier accepts that
+exact certificate and sends everything else to the platform verifier (`tls.rs`). WebDAV uses it
+directly; the AWS SDK's TLS can't take a verifier, so pinned S3 accounts swap the SDK's HTTP
+client for reqwest (`PinnedHttpClient`). TLS is never switched off.
+**Consequences.** A renewed self-signed certificate needs trusting again (by design). Tested
+against a Caddy proxy with an untrusted CA, including a multipart upload through the swapped
+client.
+
+<a id="adr-033"></a>
+
+## ADR-033: Google Cloud Storage, Azure Blob and SFTP
+Accepted · 2026-10-18
+
+**Decision.**
+- GCS is an S3 preset (XML API with HMAC keys); nothing new in Rust.
+- Azure Blob is a `Remote` variant over its REST API with Shared Key signing (`azure.rs`),
+  reusing reqwest, hmac and sha2 from the tree. Tested against Azurite.
+- SFTP runs the system `ssh` (`-s sftp`, BatchMode, `StrictHostKeyChecking=accept-new`) and speaks
+  SFTP over its stdio with `russh-sftp`. A pure-Rust SSH stack (russh) would add 76 crates; this
+  adds 5, and the user's keys, agent, `~/.ssh/config` and `known_hosts` apply as in a terminal.
+**Consequences.** SFTP needs OpenSSH installed (macOS, Linux, Windows 10+ have it) and has no
+password login yet. Tested against atmoz/sftp.
+
+<a id="adr-034"></a>
+
+## ADR-034: Website on Astro + Starlight
+Accepted · 2026-10-18
+
+**Context.** The docs were pre-built HTML from a small generator: fast, but a full page load per
+click, no search, and hand-made SEO.
+**Decision.** `site/` is an Astro project (its own `package.json`): the home page is an Astro page,
+the docs are Markdown rendered by Starlight (Pagefind search, sitemap, dark mode), with link
+prefetch on hover. `wrangler.jsonc`'s `build.command` builds it during `wrangler deploy`, so
+Cloudflare Workers Builds needed no dashboard change. CI builds the site too.
+**Consequences.** The site needs `npm ci` in `site/` to build (Cloudflare does it). Old
+`/docs/<page>` URLs redirect to `/docs/<page>/`.
+
