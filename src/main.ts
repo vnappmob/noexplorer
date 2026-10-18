@@ -1,6 +1,7 @@
 // Entry point: wires DOM events to the modules and boots the app.
 // Module map: see docs/ARCHITECTURE.md ("Frontend").
 
+import { fillThumbs } from "./thumbs";
 import { setupBackups } from "./backups";
 import { setupFileOps } from "./fileops";
 import { setupExperimental } from "./experimental";
@@ -26,6 +27,7 @@ import { $, fail, store } from "./util";
 // Remote files preview on Enter; local files open in their default app.
 paneHooks.openFile = (p, e) => (p.isRemote ? openPreview(p, e) : openItem(p, e));
 paneHooks.listed = (p) => !p.isRemote && requestSizes();
+paneHooks.drawn = fillThumbs;
 // Each remote view (ADR-029): DOM events, its account/bucket chips, split/close buttons.
 paneHooks.created = (p) => {
   bindPane(p);
@@ -88,6 +90,11 @@ function bindPane(p: Pane) {
   p.q(".up").onclick = () => p.up();
   p.q(".refresh").onclick = () => p.load(true);
   p.q(".mkdir-btn").onclick = () => mkdir(p);
+  // Grid view (experimental): the header button flips list ⇄ grid; the experiment can come and go.
+  p.q(".view-btn").onclick = () => p.setMode(p.isGrid ? "list" : "grid");
+  p.applyMode();
+  window.addEventListener("experimental", () => (p.applyMode(), p.render()));
+  window.addEventListener("settings-loaded", () => (p.applyMode(), p.render()));
   p.q(".copy-path").onclick = () => copyPath(p);
   const filter = p.q<HTMLInputElement>(".filter");
   filter.addEventListener("input", () => {

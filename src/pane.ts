@@ -4,7 +4,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { kindOf } from "./files";
 import { icon } from "./icons";
-import { app } from "./state";
+import { app, exp } from "./state";
 import type { BucketInfo, Crumb, Item, LocalListing, Profile, SortBy } from "./types";
 import { $, esc, fail, fmtDate, fmtSize, plural, store } from "./util";
 
@@ -21,6 +21,8 @@ const FILE_ICON: Record<string, string> = {
 
 /** Rows kept in the DOM beyond the visible ones, on each side (see `drawRows`). */
 const OVERSCAN = 15;
+/** Grid view (experimental): grid rows kept beyond the visible ones. */
+const GRID_OVERSCAN = 3;
 
 export const paneHooks = {
   /** Enter / double-click on a file. */
@@ -33,6 +35,8 @@ export const paneHooks = {
   listed: (_p: Pane): void => {},
   /** "Try again" on a remote view's error: reconnect the account (settings.ts loadBuckets). */
   retry: (_p: Pane): void => {},
+  /** Grid view: tiles were (re)drawn; fill their thumbnails (thumbs.ts). */
+  drawn: (_p: Pane): void => {},
 };
 
 /** Shown in a remote view's list instead of rows: an account being connected, or why it failed. */
@@ -79,6 +83,10 @@ export class Pane {
   bucket = "";
   /** Containers of `account` (the bucket picker). */
   buckets: BucketInfo[] = [];
+  /** List or grid (experimental "grid"), per pane kind. */
+  mode: "list" | "grid";
+  /** Grid view: tiles per row (measured in `drawRows`). */
+  cols = 1;
   /** Keys being deleted in the background: shown dimmed until the job ends (actions.ts). */
   pending = new Set<string>();
   /** Bumped on every account switch, so a slow answer for the previous account is dropped. */
@@ -92,6 +100,7 @@ export class Pane {
   ) {
     this.el = el;
     this.list = this.q(".list");
+    this.mode = store.get(`${kind}.view`) === "grid" ? "grid" : "list";
     this.sortBy = (store.get(`${kind}.sortBy`) as SortBy) || "name";
     this.sortDir = store.get(`${kind}.sortDir`) === "desc" ? -1 : 1;
     // Watermark: a fixed background behind the rows (the list is transparent and sits above it),
@@ -113,6 +122,32 @@ export class Pane {
       if (b?.dataset.notice === "retry") paneHooks.retry(this);
       else if (b?.dataset.notice === "top") this.go("");
     });
+  }
+
+  /** Grid view is on (and allowed: the experiment can be turned off later). */
+  get isGrid() {
+    return this.mode === "grid" && exp("grid");
+  }
+
+  /** Switches between list and grid (experimental), keeping the selection in view. */
+  setMode(mode: "list" | "grid") {
+    this.mode = mode;
+    store.set(`${this.kind}.view`, mode);
+    this.rowH = 0;
+    this.applyMode();
+    this.render();
+    const i = this.cursor();
+    if (i >= 0) this.reveal(i);
+  }
+
+  /** Header button and list class follow the mode and the experiment. */
+  applyMode() {
+    const b = this.q<HTMLButtonElement>(".view-btn");
+    b.hidden = !exp("grid");
+    b.innerHTML = icon(this.isGrid ? "list" : "grid");
+    b.title = this.isGrid ? "List view" : "Grid view";
+    this.list.classList.toggle("grid", this.isGrid);
+    this.el.classList.toggle("grid-mode", this.isGrid);
   }
 
   /** `.loading` on the pane (the bar under the column header), only for slow work. */
@@ -363,11 +398,54 @@ export class Pane {
     </div>`;
   }
 
+  /** Grid view tile: same `.row` element (selection, drag & drop, menus work unchanged). */
+  private cellHtml(i: number) {
+    const e = this.view[i];
+    const k = e.dir ? "" : kindOf(e.name);
+    const thumb = k === "image" || k === "video" ? ` data-thumb="${k}"` : "";
+    return `<div class="row cell${this.selected.has(e.key) ? " sel" : ""}${this.pending.has(e.key) ? " deleting" : ""}" data-i="${i}"${e.dir ? ` data-dir="${esc(e.key)}"` : ""}${thumb}>
+      <span class="tile"><span class="ico${e.dir ? " dir" : ""}">${icon(e.dir ? "folder" : FILE_ICON[k])}</span></span>
+      <span class="cname" title="${esc(e.name)}">${esc(e.name)}</span>
+      <span class="csize">${e.dir ? (e.calc ? fmtSize(e.size) : "") : fmtSize(e.size)}</span>
+    </div>`;
+  }
+
+  /** Grid view: like `drawRows`, by rows of `cols` tiles. */
+  private drawGrid(force: boolean) {
+    const box = this.rowsEl!;
+    const n = this.view.length;
+    const cell = parseFloat(getComputedStyle(this.list).getPropertyValue("--cell")) || 132;
+    const cols = Math.max(1, Math.floor((this.list.clientWidth - 16) / cell));
+    if (cols !== this.cols) ((this.cols = cols), (force = true));
+    box.style.setProperty("--cols", String(cols));
+    if (!this.rowH) {
+      box.innerHTML = this.cellHtml(0);
+      this.rowH = box.firstElementChild!.getBoundingClientRect().height || cell;
+      force = true;
+    }
+    const h = this.rowH;
+    const rows = Math.ceil(n / cols);
+    const top = this.list.scrollTop - box.offsetTop;
+    const first = Math.max(0, Math.floor(top / h));
+    const end = Math.min(rows, Math.ceil((top + this.list.clientHeight) / h));
+    if (!force && first * cols >= this.win[0] && Math.min(n, end * cols) <= this.win[1]) return;
+    const a = Math.max(0, first - GRID_OVERSCAN) * cols;
+    const b = Math.min(n, (end + GRID_OVERSCAN) * cols);
+    this.win = [a, b];
+    box.style.height = `${rows * h}px`;
+    box.style.paddingTop = `${(a / cols) * h}px`;
+    let html = "";
+    for (let i = a; i < b; i++) html += this.cellHtml(i);
+    box.innerHTML = html;
+    paneHooks.drawn(this);
+  }
+
   /** Puts the rows around the viewport in the DOM. Skipped while the visible rows are already
    * there, so scrolling rebuilds the window only every ~OVERSCAN rows. `force` = rows changed. */
   private drawRows(force = false) {
     const box = this.rowsEl;
     if (!box) return;
+    if (this.isGrid) return this.drawGrid(force);
     const n = this.view.length;
     if (!this.rowH) {
       box.innerHTML = this.rowHtml(0);
@@ -393,7 +471,7 @@ export class Pane {
   private reveal(i: number) {
     if (!this.rowsEl || !this.rowH) return;
     const l = this.list;
-    const top = this.rowsEl.offsetTop + i * this.rowH;
+    const top = this.rowsEl.offsetTop + (this.isGrid ? Math.floor(i / this.cols) : i) * this.rowH;
     if (top < l.scrollTop) l.scrollTop = top;
     else if (top + this.rowH > l.scrollTop + l.clientHeight) l.scrollTop = top + this.rowH - l.clientHeight;
     this.drawRows();

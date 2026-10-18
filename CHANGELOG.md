@@ -20,6 +20,8 @@ versions: [SemVer](https://semver.org/).
   certificate is accepted; everything else is still checked normally.
 - Experimental **backup pairs**: save "this folder ↔ that remote folder" and back it up in one
   click from the Backups button or ⌘K. It compares the two and uploads what's missing or changed.
+- Experimental **thumbnail grid**: a list/grid button in each pane header. Images and videos
+  show thumbnails, on this computer and remote; arrow keys move around the grid.
 
 ## [0.4.9] - 2026-10-17
 

@@ -46,6 +46,7 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   menu.ts            Right-click menu      keyboard.ts  All shortcuts
   experimental.ts    Settings → Experimental (EXPERIMENTS list); features check `exp("key")` from state.ts
   fileops.ts         Rename / move / duplicate / undo (experimental file_ops)
+  thumbs.ts          Grid view thumbnails (experimental): <img>/<video> per visible tile, presigned links cached
   backups.ts         Backup pairs (experimental): saved local ↔ remote folders, run = compare + upload_rel
   types.ts           Types mirrored from Rust     util.ts / files.ts / state.ts  helpers and global state
 index.html           All markup (panes, dialogs, preview)      src/styles.css  All styles (light and dark)
@@ -200,6 +201,7 @@ entry to `EXPERIMENTS` in `experimental.ts`, and gate the feature with `exp("key
 - **Box has no test account here**: `box_roundtrip_against_mock` (in `box_api.rs`) is the safety net. Keep the mock in step with any API change, and say "beta" until a real run is confirmed.
 - **Compare must never call a file "verified" without reproducing the server's hash.** Unknown multipart part sizes and KMS ETags count as "same size".
 - **`quick-xml` 0.42 gives names as `&str`, and entities arrive as separate `GeneralRef` events** (`parse_multistatus` handles both).
+- **The grid view is the same virtualized list** (`Pane.drawGrid`): tiles are `.row.cell` with `data-i`, so selection, drag & drop and menus work unchanged. Thumbnails never use a canvas (remote links usually have no CORS).
 - **File lists are virtualized** ([ADR-021](docs/DECISIONS.md#adr-021)). Only rows near the viewport exist as `.row` elements. Read rows from `pane.view` / `pane.selected`, scroll with `selectIndex`, and keep every row the same height.
 - **There is no global account or bucket any more** ([ADR-029](docs/DECISIONS.md#adr-029)). Each remote view has its own; pass `view.where()` to every remote command. `remote` from `panes.ts` is a *live* binding to the last-focused view: read it at call time, never cache it in a module-level const.
 - **Never take the same `Mutex` twice in one expression or struct literal.** The first guard lives until the end of the statement, so the second `lock()` deadlocks (std mutexes aren't reentrant). This shipped in 0.4.4 inside `Job::event` and hung every transfer; `jobs::tests` guards it.

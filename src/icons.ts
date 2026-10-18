@@ -43,6 +43,8 @@ export const ICONS: Record<string, string> = {
   play: svg('<path d="M8 5l11 7-11 7z"/>'),
   cloud: svg('<path d="M7 18a5 5 0 1 1 .9-9.9A6 6 0 0 1 19 10a4 4 0 0 1-1 8z"/>'),
   bucket: svg('<path d="M4 7h16l-2 12a2 2 0 0 1-2 1.7H8A2 2 0 0 1 6 19z"/><ellipse cx="12" cy="7" rx="8" ry="2.5"/>'),
+  grid: svg('<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>'),
+  list: svg('<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>'),
   folder: svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
   image: svg(
     '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5L5 20"/>',

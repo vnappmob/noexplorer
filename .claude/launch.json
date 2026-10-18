@@ -4,8 +4,26 @@
     {
       "name": "website",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["wrangler", "dev", "--port", "8765", "--ip", "127.0.0.1"],
+      "runtimeArgs": [
+        "wrangler",
+        "dev",
+        "--port",
+        "8765",
+        "--ip",
+        "127.0.0.1"
+      ],
       "port": 8765
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--port",
+        "14321",
+        "--strictPort"
+      ],
+      "port": 14321
     }
   ]
 }

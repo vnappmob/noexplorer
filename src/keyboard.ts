@@ -60,6 +60,19 @@ function onKey(ev: KeyboardEvent) {
     case ev.key === "Enter" || (ev.key === "ArrowDown" && mod):
       if (sel.length === 1) p.activate(sel[0]);
       break;
+    // Grid view (experimental): arrows move around the grid; Tab still switches panes.
+    case p.isGrid && !mod && (ev.key === "ArrowLeft" || ev.key === "ArrowRight"):
+      p.selectIndex(
+        i < 0 ? 0 : Math.max(0, Math.min(p.view.length - 1, i + (ev.key === "ArrowLeft" ? -1 : 1))),
+        ev.shiftKey,
+      );
+      break;
+    case p.isGrid && !mod && (ev.key === "ArrowDown" || ev.key === "ArrowUp"):
+      p.selectIndex(
+        i < 0 ? 0 : Math.max(0, Math.min(p.view.length - 1, i + (ev.key === "ArrowUp" ? -p.cols : p.cols))),
+        ev.shiftKey,
+      );
+      break;
     case ev.key === "ArrowDown": {
       const from = ev.shiftKey ? p.view.findLastIndex((e) => p.selected.has(e.key)) : i;
       p.selectIndex(i < 0 ? 0 : from + 1, ev.shiftKey);
