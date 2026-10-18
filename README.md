@@ -129,6 +129,8 @@ shortcuts, FAQ and [privacy](https://noexplorer.vnappmob.com/docs/privacy).
 | `⌘L` | Type a path |
 | `⌘\` · `⌘W` | Split the remote side (another account below) · close the focused remote view |
 | `⌘R` · `⌘F` · `⌘,` | Refresh · Filter · Settings |
+| `F2` · `⌘Z` | Rename · undo the last rename / move / duplicate *(experimental)* |
+| `⌘[` `⌘]` · `⌘T` · `Ctrl+Tab` | Back / forward · new tab · next tab *(experimental)* |
 
 ## Limitations
 

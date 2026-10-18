@@ -1,6 +1,7 @@
 // Entry point: wires DOM events to the modules and boots the app.
 // Module map: see docs/ARCHITECTURE.md ("Frontend").
 
+import { bindNav, favoritesMenuItems, visited } from "./nav";
 import { fillThumbs } from "./thumbs";
 import { setupBackups } from "./backups";
 import { setupFileOps } from "./fileops";
@@ -28,6 +29,7 @@ import { $, fail, store } from "./util";
 paneHooks.openFile = (p, e) => (p.isRemote ? openPreview(p, e) : openItem(p, e));
 paneHooks.listed = (p) => !p.isRemote && requestSizes();
 paneHooks.drawn = fillThumbs;
+paneHooks.visited = visited;
 // Each remote view (ADR-029): DOM events, its account/bucket chips, split/close buttons.
 paneHooks.created = (p) => {
   bindPane(p);
@@ -90,6 +92,7 @@ function bindPane(p: Pane) {
   p.q(".up").onclick = () => p.up();
   p.q(".refresh").onclick = () => p.load(true);
   p.q(".mkdir-btn").onclick = () => mkdir(p);
+  bindNav(p); // tabs, back/forward, favorites (experimental)
   // Grid view (experimental): the header button flips list ⇄ grid; the experiment can come and go.
   p.q(".view-btn").onclick = () => p.setMode(p.isGrid ? "list" : "grid");
   p.applyMode();
@@ -139,7 +142,10 @@ function openPlacesMenu() {
             : "folder";
     return { label: name, sub: r.path, icon: ic, checked: local.cwd === r.path, run: () => local.go(r.path) };
   });
-  openMenu($("places-chip"), items, { width: 260 });
+  const favs = favoritesMenuItems("local", (f) => local.go(f.path));
+  openMenu($("places-chip"), favs.length ? [{ header: "Favorites" }, ...favs, { sep: true }, ...items] : items, {
+    width: 260,
+  });
 }
 
 function bindPreview() {

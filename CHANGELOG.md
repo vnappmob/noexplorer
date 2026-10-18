@@ -22,6 +22,9 @@ versions: [SemVer](https://semver.org/).
   click from the Backups button or ⌘K. It compares the two and uploads what's missing or changed.
 - Experimental **thumbnail grid**: a list/grid button in each pane header. Images and videos
   show thumbnails, on this computer and remote; arrow keys move around the grid.
+- Experimental **tabs, history and favorites**: back and forward (⌘[ ⌘], or the mouse's side
+  buttons), tabs in each pane (⌘T, Ctrl+Tab, ⌘W), and a star in the path bar to save favorite
+  folders, listed in the places menu, the account menu and ⌘K.
 
 ## [0.4.9] - 2026-10-17
 

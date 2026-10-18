@@ -1,5 +1,6 @@
 // Global keyboard shortcuts. The full table is in README.md — update both together.
 
+import { back, closeTab, cycleTab, forward, newTab, tabCount } from "./nav";
 import { deleteRemote, openItem, transfer, trashLocal } from "./actions";
 import { active, closeView, cyclePane, local, remote, remotes, switchTo } from "./panes";
 import { closePreview, openPreview, previewStep, pv, pvItem } from "./preview";
@@ -36,6 +37,16 @@ function onKey(ev: KeyboardEvent) {
     if (ev.key === "F2" && active.selectedItems().length === 1)
       return (ev.preventDefault(), renameItem(active, active.selectedItems()[0]));
     if (mod && ev.key.toLowerCase() === "z" && !ev.shiftKey) return (ev.preventDefault(), undo());
+  }
+  // Tabs and history (experimental): ⌘[ ⌘] back / forward, ⌘T new tab, Ctrl+Tab next tab, and ⌘W
+  // closes a tab before it closes a remote view.
+  if (exp("tabs")) {
+    if (mod && ev.key === "[") return (ev.preventDefault(), back(active));
+    if (mod && ev.key === "]") return (ev.preventDefault(), forward(active));
+    if (mod && !ev.shiftKey && ev.key.toLowerCase() === "t") return (ev.preventDefault(), newTab(active));
+    if (ev.ctrlKey && ev.key === "Tab" && tabCount(active) > 1)
+      return (ev.preventDefault(), cycleTab(active, ev.shiftKey ? -1 : 1));
+    if (mod && ev.key.toLowerCase() === "w" && tabCount(active) > 1) return (ev.preventDefault(), closeTab(active));
   }
   if (ev.key === "Tab" && !inInput) return (ev.preventDefault(), cyclePane(ev.shiftKey));
   // Remote views (ADR-029): ⌘\ splits the focused view, ⌘W closes it (never the last one).

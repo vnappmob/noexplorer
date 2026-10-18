@@ -35,6 +35,8 @@ export const paneHooks = {
   listed: (_p: Pane): void => {},
   /** "Try again" on a remote view's error: reconnect the account (settings.ts loadBuckets). */
   retry: (_p: Pane): void => {},
+  /** A listing succeeded (history and tabs, nav.ts). */
+  visited: (_p: Pane): void => {},
   /** Grid view: tiles were (re)drawn; fill their thumbnails (thumbs.ts). */
   drawn: (_p: Pane): void => {},
 };
@@ -225,6 +227,7 @@ export class Pane {
     }
     this.render();
     paneHooks.listed(this);
+    paneHooks.visited(this);
   }
 
   private async loadRemote(seq: number) {

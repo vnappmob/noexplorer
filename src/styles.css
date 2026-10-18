@@ -997,6 +997,62 @@ body.dragging * {
   }
 }
 
+/* Tabs (experimental, nav.ts): a strip above the pane header when a pane has 2+ tabs. */
+.tabbar {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: none;
+}
+.ptab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 180px;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: var(--fs-sm);
+  color: var(--fg2);
+  background: var(--bg2);
+  cursor: pointer;
+}
+.ptab.on {
+  color: var(--fg);
+  background: var(--bg);
+  border-color: var(--accent);
+}
+.ptab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tab-x {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.tab-x:hover {
+  background: var(--hover);
+}
+.tab-x svg {
+  width: 12px;
+  height: 12px;
+}
+.fav-btn.on svg {
+  fill: #f5b301;
+  stroke: #f5b301;
+}
+
 /* Grid view (experimental): tiles are `.row.cell`, laid out by `.rows` (pane.ts drawGrid). */
 .list.grid {
   --cell: calc(var(--fs) * 9.4);

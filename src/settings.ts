@@ -1,6 +1,7 @@
 // Settings dialog (Accounts / General / Appearance / About tabs), the account picker and the
 // bucket picker in the remote pane header.
 
+import { favoritesMenuItems, openFavorite } from "./nav";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -393,6 +394,8 @@ export function openProfileMenu(v: Pane, anchor = v.q(".profile-chip")) {
       run: () => p.id !== v.account && setViewAccount(v, p.id),
     });
   }
+  const favs = favoritesMenuItems("remote", (f) => openFavorite(f, v));
+  if (favs.length) items.push({ header: "Favorites" }, ...favs);
   if (app.settings.profiles.length) items.push({ sep: true });
   items.push({ label: "Add account…", icon: "plus", run: addAccount });
   items.push({ label: "Manage accounts", icon: "sliders", badge: "⌘,", run: () => openSettings("accounts") });
