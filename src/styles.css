@@ -997,6 +997,28 @@ body.dragging * {
   }
 }
 
+/* Keyboard focus is always visible (mouse clicks don't show it: :focus-visible). */
+button:focus-visible,
+[role="menuitem"]:focus-visible,
+.chip:focus-visible,
+.ptab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.list:focus-visible {
+  outline: none;
+}
+.list:focus-visible .row.sel {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* Native window look (experimental, native.ts): the window material shows behind the panes. */
+html.native,
+html.native body {
+  --ground: transparent;
+  background: transparent;
+}
+
 /* Tabs (experimental, nav.ts): a strip above the pane header when a pane has 2+ tabs. */
 .tabbar {
   display: flex;

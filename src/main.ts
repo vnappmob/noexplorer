@@ -1,6 +1,8 @@
 // Entry point: wires DOM events to the modules and boots the app.
 // Module map: see docs/ARCHITECTURE.md ("Frontend").
 
+import { setupI18n } from "./i18n";
+import { setupNativeLook } from "./native";
 import { bindNav, favoritesMenuItems, visited } from "./nav";
 import { fillThumbs } from "./thumbs";
 import { setupBackups } from "./backups";
@@ -174,6 +176,8 @@ async function main() {
   setupExperimental();
   setupFileOps();
   setupBackups();
+  setupNativeLook();
+  setupI18n();
   setupKeyboard();
   window.addEventListener("focus", () => local.load(true)); // pick up changes made outside the app
   setActive(local);

@@ -102,6 +102,10 @@ export class Pane {
   ) {
     this.el = el;
     this.list = this.q(".list");
+    // Screen readers: a list of files you can select several of.
+    this.list.setAttribute("role", "listbox");
+    this.list.setAttribute("aria-multiselectable", "true");
+    this.list.setAttribute("aria-label", kind === "local" ? "Files on this computer" : "Remote files");
     this.mode = store.get(`${kind}.view`) === "grid" ? "grid" : "list";
     this.sortBy = (store.get(`${kind}.sortBy`) as SortBy) || "name";
     this.sortDir = store.get(`${kind}.sortDir`) === "desc" ? -1 : 1;
@@ -406,7 +410,7 @@ export class Pane {
     const known = !e.dir || e.calc;
     const skipped = !known && this.sizesSettled;
     const size = known ? fmtSize(e.size) : skipped ? "—" : "";
-    return `<div class="row${this.selected.has(e.key) ? " sel" : ""}${this.pending.has(e.key) ? " deleting" : ""}" data-i="${i}"${e.dir ? ` data-dir="${esc(e.key)}"` : ""}>
+    return `<div class="row${this.selected.has(e.key) ? " sel" : ""}${this.pending.has(e.key) ? " deleting" : ""}" role="option" aria-selected="${this.selected.has(e.key)}" data-i="${i}"${e.dir ? ` data-dir="${esc(e.key)}"` : ""}>
       <span class="name"><span class="ico${e.dir ? " dir" : ""}">${icon(e.dir ? "folder" : FILE_ICON[kindOf(e.name)])}</span><span>${esc(e.name)}</span></span>
       <span class="size${e.calc ? " calc" : ""}"${skipped ? ' title="Not scanned automatically (another disk, or a private folder you haven’t opened yet). Click Σ to scan it."' : e.partial ? ' title="Some folders inside were skipped. Click Σ to include them."' : ""}>${size}</span>
       <span class="date">${fmtDate(e.modified)}</span>
@@ -418,7 +422,7 @@ export class Pane {
     const e = this.view[i];
     const k = e.dir ? "" : kindOf(e.name);
     const thumb = k === "image" || k === "video" ? ` data-thumb="${k}"` : "";
-    return `<div class="row cell${this.selected.has(e.key) ? " sel" : ""}${this.pending.has(e.key) ? " deleting" : ""}" data-i="${i}"${e.dir ? ` data-dir="${esc(e.key)}"` : ""}${thumb}>
+    return `<div class="row cell${this.selected.has(e.key) ? " sel" : ""}${this.pending.has(e.key) ? " deleting" : ""}" role="option" aria-selected="${this.selected.has(e.key)}" data-i="${i}"${e.dir ? ` data-dir="${esc(e.key)}"` : ""}${thumb}>
       <span class="tile"><span class="ico${e.dir ? " dir" : ""}">${icon(e.dir ? "folder" : FILE_ICON[k])}</span></span>
       <span class="cname" title="${esc(e.name)}">${esc(e.name)}</span>
       <span class="csize">${e.dir ? (e.calc ? fmtSize(e.size) : "") : fmtSize(e.size)}</span>
@@ -512,7 +516,9 @@ export class Pane {
   /** Repaints selection highlight without re-rendering rows. */
   paint() {
     this.list.querySelectorAll<HTMLElement>(".row").forEach((r) => {
-      r.classList.toggle("sel", this.selected.has(this.view[+r.dataset.i!].key));
+      const sel = this.selected.has(this.view[+r.dataset.i!].key);
+      r.classList.toggle("sel", sel);
+      r.setAttribute("aria-selected", String(sel));
     });
     this.updateStatus();
   }

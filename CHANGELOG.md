@@ -27,6 +27,12 @@ versions: [SemVer](https://semver.org/).
   folders, listed in the places menu, the account menu and ⌘K.
 - Experimental **more storage types**: Google Cloud Storage (S3-compatible API with HMAC keys),
   Azure Blob Storage, and SFTP (through your `ssh` setup: keys, agent and ~/.ssh/config).
+- Experimental **native window look** (Windows 11 Mica, macOS translucency) and **Vietnamese
+  interface**.
+
+### Accessibility
+- File lists are announced as lists with their selection, notifications are read out, and
+  keyboard focus is always visible.
 
 ## [0.4.9] - 2026-10-17
 
