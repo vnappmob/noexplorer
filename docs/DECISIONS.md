@@ -677,3 +677,22 @@ Cloudflare Workers Builds needed no dashboard change. CI builds the site too.
 **Consequences.** The site needs `npm ci` in `site/` to build (Cloudflare does it). Old
 `/docs/<page>` URLs redirect to `/docs/<page>/`.
 
+<a id="adr-035"></a>
+
+## ADR-035: Custom-protocol answers go out on the main thread; local media through nxr://
+Accepted · 2026-10-18
+
+**Context.** 0.4.12 aborted while scrolling the grid. wry answers a custom-protocol request with
+`didReceiveResponse`/`didReceiveData`/`didFinish` after checking the request is still running,
+but WebKit stops requests on the main thread (a tile scrolled away) while the answer came from a
+tokio worker. A stop between the check and the answer makes WebKit throw an Objective-C
+exception; wry catches it with `objc2::exception::catch`, which can't work under
+`panic = "abort"` (a foreign unwind into abort-mode Rust aborts). Tauri's own asset protocol,
+used for local thumbnails, answers from a worker the same way.
+**Decision.** `nxr://` hands its answer to the main thread (`proxy::respond`), so the check and
+the answer can't be split by a stop. Local files are served by `nxr://localhost/~local/f/<path>`
+(`files.ts` `localSrc`) with Range support; the asset protocol and the `protocol-asset` feature
+are removed.
+**Consequences.** One scheme for every preview. Answers wait for a free main-thread slot (they're
+small and cheap to hand over). Switching the release profile to `panic = "unwind"` would make
+wry's catch work too; that is a profile change for the maintainer to approve.

@@ -57,10 +57,14 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        // Previews of providers without presigned URLs (WebDAV) stream through nxr:// (proxy.rs).
+        // Local files and previews of providers without presigned URLs stream through nxr://
+        // (proxy.rs), answered on the main thread (`proxy::respond`).
         .register_asynchronous_uri_scheme_protocol("nxr", |ctx, request, responder| {
             let app = ctx.app_handle().clone();
-            tauri::async_runtime::spawn(async move { responder.respond(proxy::handle(app, request).await) });
+            tauri::async_runtime::spawn(async move {
+                let res = proxy::handle(app.clone(), request).await;
+                proxy::respond(&app, responder, res);
+            });
         })
         .manage(state::AppState::default())
         .setup(|app| {

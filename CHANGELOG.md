@@ -5,6 +5,10 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- The app could quit suddenly while scrolling the grid view (a preview request cancelled at the
+  wrong moment).
+
 ## [0.4.12] - 2026-10-18
 
 ### Changed

@@ -1,5 +1,9 @@
 // File-type detection used for icons and the quick-look preview.
 
+/** URL of a local file for <img>/<video> (proxy.rs, the same nxr:// scheme remote previews use). */
+export const localSrc = (path: string) =>
+  `${navigator.userAgent.includes("Windows") ? "http://nxr.localhost" : "nxr://localhost"}/~local/f/${encodeURIComponent(path)}`;
+
 export const ext = (name: string) => (name.includes(".") ? name.split(".").pop()!.toLowerCase() : "");
 
 /** Extension lists per preview kind. `text` must match `util::is_text_like` in Rust. */

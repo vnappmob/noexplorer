@@ -171,7 +171,8 @@ becomes `unique_path` → `GetObject` is streamed into `name.part` and renamed o
 
 **Preview (Space)**
 Remote image/video/audio/pdf: `presign(inline=true)` → a media element's `src`.
-Local media: `convertFileSrc(path)` (asset protocol). Text, local or remote: first 512 KB as a
+Local media: `localSrc(path)` (`nxr://localhost/~local/f/…`, served by `proxy.rs`; Tauri's asset
+protocol is off, ADR-035). Text, local or remote: first 512 KB as a
 `<pre>` filled through `textContent`. Anything else shows "Open with default app"
 (`open_object`/`open_local`).
 
@@ -294,9 +295,9 @@ Imports go one way to avoid cycles: `main → (actions, dnd, keyboard, menu, set
 - Secrets (S3 secret keys, Nextcloud app passwords, WebDAV passwords) live in the OS keychain
   (ADR-020) and never reach the UI: commands return redacted settings, and Nextcloud sign-in
   stores the app password without passing it through the webview (ADR-026).
-- The webview only loads local app assets, presigned S3 URLs, `asset://` local files and
-  `nxr://` previews (remote files streamed by `proxy.rs` for WebDAV/Nextcloud, ADR-026).
-  `csp` is `null` and the asset protocol scope is `**` so local preview works anywhere. That is
+- The webview only loads local app assets, presigned S3 URLs and `nxr://` previews (remote
+  files streamed by `proxy.rs` for WebDAV/Nextcloud, ADR-026, and local files, ADR-035).
+  `csp` is `null` and `nxr://` serves any local path so local preview works anywhere. That is
   acceptable because no third-party content is rendered as HTML: PDFs are forced to
   `application/pdf`, and text goes in through `textContent`. Tightening this is on the
   [roadmap](ROADMAP.md).

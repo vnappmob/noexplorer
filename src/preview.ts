@@ -1,8 +1,8 @@
-// Quick-look modal. Remote media is streamed via a presigned URL; local media via Tauri's
-// asset protocol (`convertFileSrc`); text is read (first 512 KB) through a backend command.
+// Quick-look modal. Remote media is streamed via a presigned URL; local media via the
+// nxr:// scheme (`localSrc`, proxy.rs); text is read (first 512 KB) through a backend command.
 
-import { convertFileSrc, invoke } from "@tauri-apps/api/core";
-import { ext, ICON, kindOf } from "./files";
+import { invoke } from "@tauri-apps/api/core";
+import { ext, ICON, kindOf, localSrc } from "./files";
 import type { Pane } from "./pane";
 import { active } from "./panes";
 import type { Item } from "./types";
@@ -36,7 +36,7 @@ export async function openPreview(p: Pane, e: Item) {
     if (k === "image" || k === "video" || k === "audio" || k === "pdf") {
       const url = p.isRemote
         ? await invoke<string>("presign", { ...p.where(), key: e.key, secs: 3600, inline: true })
-        : convertFileSrc(e.key);
+        : localSrc(e.key);
       if (!same()) return;
       const u = esc(url);
       body.innerHTML =

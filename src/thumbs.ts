@@ -1,9 +1,10 @@
 // Grid view thumbnails (experimental "grid"). Tiles of images and videos show the file itself:
-// local files through the asset protocol, remote ones through the same short-lived link quick
+// local files through nxr:// (proxy.rs), remote ones through the same short-lived link quick
 // look uses. The browser does the decoding (no canvas: remote links usually have no CORS), and
 // only tiles near the viewport exist (the grid is virtualized), so only those load.
 
-import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
+import { localSrc } from "./files";
 import type { Pane } from "./pane";
 
 /** Remote images bigger than this keep their icon (a thumbnail would download the whole file). */
@@ -13,7 +14,7 @@ const LINK_TTL = 50 * 60 * 1000;
 const links = new Map<string, { url: string; at: number }>();
 
 async function srcFor(p: Pane, key: string): Promise<string> {
-  if (!p.isRemote) return convertFileSrc(key);
+  if (!p.isRemote) return localSrc(key);
   const id = `${p.account}|${p.bucket}|${key}`;
   const hit = links.get(id);
   if (hit && Date.now() - hit.at < LINK_TTL) return hit.url;
