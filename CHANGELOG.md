@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.13] - 2026-10-18
+
 ### Changed
 - Grid view: image thumbnails are made once and cached (16 MB in memory, 64 MB on disk), pictures
   stay put while you scroll, and the next screen loads ahead.

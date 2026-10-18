@@ -3049,7 +3049,7 @@ dependencies = [
 
 [[package]]
 name = "noexplorer"
-version = "0.4.12"
+version = "0.4.13"
 dependencies = [
  "auto-launch",
  "aws-credential-types",
