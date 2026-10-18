@@ -39,11 +39,6 @@ export const EXPERIMENTS: { key: keyof Experimental; title: string; desc: string
     title: "More storage types",
     desc: "SFTP, Google Cloud Storage and Azure Blob Storage in the account form.",
   },
-  {
-    key: "native_look",
-    title: "Native window look",
-    desc: "Windows 11 Mica and macOS translucency behind the panes.",
-  },
 ];
 
 /** Fills the Experimental tab (index.html #exp-form). */

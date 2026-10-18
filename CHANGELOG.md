@@ -5,6 +5,10 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+- The experimental native window look (Windows 11 Mica, macOS translucency). The window is
+  opaque again on every platform.
+
 ## [0.4.11] - 2026-10-18
 
 ### Fixed

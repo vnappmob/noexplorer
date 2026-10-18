@@ -38,8 +38,7 @@
           "requireLiteralLeadingDot": false
         }
       }
-    },
-    "macOSPrivateApi": true
+    }
   },
   "bundle": {
     "active": true,

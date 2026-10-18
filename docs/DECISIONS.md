@@ -623,7 +623,7 @@ machinery (docs/RELEASING.md → Windows signing).
 Accepted · 2026-10-18
 
 **Context.** A batch of large features (file operations, resumable transfers, backup pairs, grid,
-tabs, three providers, native look, and a Vietnamese UI since removed) landed at once, mostly tested against local
+tabs, three providers, and a native look and a Vietnamese UI, both since removed) landed at once, mostly tested against local
 servers and a browser harness rather than daily use.
 **Decision.** Each ships behind its own toggle in Settings → Experimental (`general.experimental`
 in config, `exp("key")` in the frontend), **off by default**. Turning one off hides its UI again;

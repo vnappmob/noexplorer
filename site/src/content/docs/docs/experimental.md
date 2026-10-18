@@ -34,7 +34,3 @@ Google Cloud Storage, Azure Blob Storage and SFTP in the account form. See [Conn
 ## Self-signed HTTPS
 
 Lets an account trust its server's own certificate, after you compare its fingerprint. See [Connect your storage](/docs/accounts/#self-signed-https).
-
-## Native window look
-
-Windows 11 Mica and macOS translucency behind the panes.

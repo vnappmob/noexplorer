@@ -126,8 +126,6 @@ pub struct Experimental {
     pub tabs: bool,
     /// SFTP, Google Cloud Storage and Azure Blob accounts.
     pub providers: bool,
-    /// Native window material (Windows Mica, macOS vibrancy).
-    pub native_look: bool,
 }
 
 /// Everything in `config.json`. Mirrors `Settings` in `src/types.ts`.

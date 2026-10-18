@@ -41,7 +41,6 @@ export type Experimental = {
   grid: boolean;
   tabs: boolean;
   providers: boolean;
-  native_look: boolean;
 };
 
 /** `config::Settings` — everything in config.json. */

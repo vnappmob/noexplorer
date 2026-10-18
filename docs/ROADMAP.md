@@ -51,7 +51,7 @@ virtualized lists (ADR-021) · tray account switcher.
 **Experimental (Settings → Experimental, off by default, ADR-031), 2026-10-18:** rename / move /
 duplicate with undo on both sides (parts of 1 and 2), tabs / history / favorites (3), resumable
 transfers with pause and a speed limit, backup pairs, thumbnail grid, self-signed HTTPS
-(ADR-032), Google Cloud Storage / Azure Blob / SFTP (ADR-033), native window look. (A Vietnamese UI shipped too and was removed: it froze the window, and the UI stays English.)
+(ADR-032), Google Cloud Storage / Azure Blob / SFTP (ADR-033). (A native window look and a Vietnamese UI shipped too and were removed at the maintainer's request.)
 Next for them: real-world runs, then graduating each one out of Experimental.
 
 1. **Local file operations**: rename (F2 / click-to-rename), duplicate, copy/move between local
