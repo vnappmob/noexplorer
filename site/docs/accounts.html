@@ -111,6 +111,27 @@
           </li>
         </ol>
 
+        <h2>More storage types <small>(experimental)</small></h2>
+        <p>Turn on <b>Settings → Experimental → More storage types</b> to add these to the provider list.</p>
+        <h3>Google Cloud Storage</h3>
+        <p>
+          Uses Google's S3-compatible API. In the Cloud console:
+          <b>Cloud Storage → Settings → Interoperability → Create a key</b>. Endpoint
+          <code>https://storage.googleapis.com</code>, region <code>auto</code>, and the key's access ID and secret.
+        </p>
+        <h3>Azure Blob Storage</h3>
+        <p>
+          Endpoint <code>https://&lt;account&gt;.blob.core.windows.net</code>, the storage account name, and one of its
+          keys (<b>Storage account → Security + networking → Access keys</b>). Containers show up like buckets.
+        </p>
+        <h3>SFTP</h3>
+        <p>
+          Enter an address like <code>sftp://me@nas.local/volume1/backups</code>. NoExplorer connects with the
+          <code>ssh</code> command, so your SSH keys, agent and <code>~/.ssh/config</code> apply. Passwords aren't
+          supported yet: set up key login first. A server you've never connected to is remembered on first use; a
+          changed server key is refused.
+        </p>
+
         <nav class="pager" aria-label="Next and previous">
           <a class="prev" href="/docs/">← Getting started</a> <a class="next" href="/docs/transfers">Moving files →</a>
         </nav>

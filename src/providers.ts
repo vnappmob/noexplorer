@@ -4,7 +4,11 @@
 
 import type { Profile, ProviderKind } from "./types";
 
-export type ProviderId = "custom" | "aws" | "r2" | "b2" | "wasabi" | "do" | "nextcloud" | "webdav" | "box";
+export type ProviderId =
+  "custom" | "aws" | "r2" | "b2" | "wasabi" | "do" | "nextcloud" | "webdav" | "box" | "gcs" | "azure" | "sftp";
+
+/** Shown in the provider picker only with Settings → Experimental → More storage types. */
+export const EXPERIMENTAL_PROVIDERS: ProviderId[] = ["gcs", "azure", "sftp"];
 
 type Preset = {
   label: string;
@@ -122,6 +126,40 @@ export const PRESETS: Record<ProviderId, Preset> = {
     pathStyle: true,
     matches: () => false,
   },
+  // Experimental (Settings → Experimental → More storage types).
+  gcs: {
+    kind: "s3",
+    label: "Google Cloud Storage",
+    hint: "Uses the S3-compatible XML API with an HMAC key: Cloud Storage → Settings → Interoperability → Create a key. Endpoint https://storage.googleapis.com, region auto.",
+    endpointPlaceholder: "https://storage.googleapis.com",
+    endpointRequired: true,
+    regionPlaceholder: "auto",
+    region: "auto",
+    pathStyle: true,
+    matches: (h) => h === "storage.googleapis.com",
+  },
+  azure: {
+    kind: "azure",
+    label: "Azure Blob Storage",
+    hint: "Storage account → Security + networking → Access keys. Endpoint https://<account>.blob.core.windows.net, the storage account name and one of its keys.",
+    endpointPlaceholder: "https://<account>.blob.core.windows.net",
+    endpointRequired: true,
+    regionPlaceholder: "",
+    region: "",
+    pathStyle: true,
+    matches: () => false,
+  },
+  sftp: {
+    kind: "sftp",
+    label: "SFTP",
+    hint: "Logs in with your SSH keys or agent through the ssh command (your ~/.ssh/config applies). Passwords aren't supported yet. Example: sftp://me@nas.local/volume1/backups",
+    endpointPlaceholder: "sftp://user@host:22/folder",
+    endpointRequired: true,
+    regionPlaceholder: "",
+    region: "",
+    pathStyle: true,
+    matches: () => false,
+  },
 };
 
 export function endpointHost(endpoint: string) {
@@ -131,9 +169,10 @@ export function endpointHost(endpoint: string) {
 
 /** Which preset an existing account looks like (S3 with an empty endpoint = AWS). */
 export function guessProvider(p: Pick<Profile, "endpoint"> & { kind?: ProviderKind }): ProviderId {
-  if (p.kind === "nextcloud" || p.kind === "webdav" || p.kind === "box") return p.kind;
+  if (p.kind === "nextcloud" || p.kind === "webdav" || p.kind === "box" || p.kind === "azure" || p.kind === "sftp")
+    return p.kind;
   const h = endpointHost(p.endpoint);
-  for (const id of ["aws", "r2", "b2", "wasabi", "do"] as const) if (PRESETS[id].matches(h)) return id;
+  for (const id of ["aws", "r2", "b2", "wasabi", "do", "gcs"] as const) if (PRESETS[id].matches(h)) return id;
   return "custom";
 }
 
@@ -141,6 +180,8 @@ export function guessProvider(p: Pick<Profile, "endpoint"> & { kind?: ProviderKi
 export function describeAccount(p: Profile) {
   const id = guessProvider(p);
   if (id === "box") return "Box";
+  if (id === "sftp") return `SFTP · ${endpointHost(p.endpoint)}`;
+  if (id === "azure") return `Azure · ${endpointHost(p.endpoint).split(".")[0]}`;
   if (id === "nextcloud" || id === "webdav") return `${PRESETS[id].label} · ${endpointHost(p.endpoint)}`;
   if (id === "aws") return p.region ? `AWS S3 · ${p.region}` : "AWS S3";
   const host = endpointHost(p.endpoint);
@@ -149,3 +190,5 @@ export function describeAccount(p: Profile) {
 
 /** Is this account S3 (buckets, regions, path-style)? */
 export const isS3 = (p: Pick<Profile, "kind"> | null | undefined) => !p?.kind || p.kind === "s3";
+/** Accounts with several containers (a bucket picker): S3 buckets, Azure containers. */
+export const hasContainers = (p: Pick<Profile, "kind"> | null | undefined) => isS3(p) || p?.kind === "azure";

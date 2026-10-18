@@ -29,7 +29,7 @@ serde_json = "1"
 aws-sdk-s3 = { version = "1.152.0", default-features = false, features = ["rt-tokio", "behavior-version-latest", "default-https-client"] }
 aws-credential-types = { version = "1.3.0", features = ["hardcoded-credentials"] }
 aws-smithy-types = { version = "1.8.1", features = ["http-body-1-x"] }
-tokio = { version = "1.53.3", features = ["rt-multi-thread", "fs", "io-util", "sync", "macros"] }
+tokio = { version = "1.53.3", features = ["rt-multi-thread", "fs", "io-util", "sync", "macros", "process"] }
 futures = "0.3.34"
 walkdir = "2.5.0"
 mime_guess = "2.0.5"
@@ -57,6 +57,11 @@ keyring = "4.2.0"
 # for pinned accounts. All already built for reqwest / the AWS SDK.
 rustls-platform-verifier = "0.7"
 sha2 = "0.11"
+# Azure Blob (azure.rs): Shared Key signatures; already built for the AWS SDK.
+hmac = "0.13"
+# SFTP (sftp.rs, experimental): the SFTP protocol only; SSH itself is the system `ssh` command
+# (your keys, agent, ~/.ssh/config and known_hosts).
+russh-sftp = "3"
 http = "1"
 aws-smithy-runtime-api = { version = "1", features = ["client", "http-1x"] }
 notify = "8.2.0"

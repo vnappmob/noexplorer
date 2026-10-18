@@ -234,7 +234,17 @@ export class Pane {
     paneHooks.moved(this);
     const kind = this.profile()?.kind ?? "s3";
     this.q(".scheme").textContent =
-      kind === "s3" ? "s3://" : kind === "nextcloud" ? "nextcloud://" : kind === "box" ? "box://" : "dav://";
+      kind === "s3"
+        ? "s3://"
+        : kind === "nextcloud"
+          ? "nextcloud://"
+          : kind === "box"
+            ? "box://"
+            : kind === "azure"
+              ? "azure://"
+              : kind === "sftp"
+                ? "sftp://"
+                : "dav://";
     this.crumbs = [{ name: this.bucket || "—", path: "" }];
     let acc = "";
     for (const p of this.cwd.split("/").filter(Boolean)) {
@@ -281,6 +291,8 @@ export class Pane {
     if (p.kind === "nextcloud") return `${base}/remote.php/dav/files/${encodeURIComponent(p.access_key)}/${this.cwd}`;
     if (p.kind === "webdav") return `${base}/${this.cwd}`;
     if (p.kind === "box") return `box://${this.cwd}`;
+    if (p.kind === "azure") return `${base}/${this.bucket}/${this.cwd}`;
+    if (p.kind === "sftp") return `${base}/${this.cwd}`;
     return `s3://${this.bucket}/${this.cwd}`;
   }
 

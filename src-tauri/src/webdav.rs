@@ -656,7 +656,7 @@ impl FormExt for RequestBuilder {
     }
 }
 
-fn net_err(e: reqwest::Error) -> String {
+pub(crate) fn net_err(e: reqwest::Error) -> String {
     let msg = if e.is_connect() {
         "Can't reach the server (check the address and your connection)".to_string()
     } else if e.is_timeout() {
@@ -742,7 +742,7 @@ pub(crate) fn days_from_civil(y: i64, m: u32, d: u32) -> i64 {
 }
 
 /// RFC 1123 (`Wed, 16 Oct 2026 10:01:02 GMT`) → Unix millis.
-fn parse_http_date(s: &str) -> Option<i64> {
+pub(crate) fn parse_http_date(s: &str) -> Option<i64> {
     let p: Vec<&str> = s.split_whitespace().collect();
     let (d, mon, y, t) = (p.get(1)?.parse::<u32>().ok()?, *p.get(2)?, p.get(3)?.parse::<i64>().ok()?, p.get(4)?);
     let m = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]

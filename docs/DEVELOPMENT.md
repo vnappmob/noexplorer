@@ -103,6 +103,18 @@ docker run -d --name nx-caddy -p 8443:8443 -p 8444:8444 -v /tmp/Caddyfile:/etc/c
 Then add `NOEXPLORER_TEST_TLS_S3=https://localhost:8443 NOEXPLORER_TEST_TLS_DAV=https://localhost:8444`
 to the S3 + Nextcloud test variables.
 
+### Azure and SFTP tests
+
+```bash
+docker run -d --name nx-azurite -p 10000:10000 mcr.microsoft.com/azure-storage/azurite \
+  azurite-blob --blobHost 0.0.0.0 --skipApiVersionCheck --loose
+ssh-keygen -q -t ed25519 -N "" -f /tmp/nx-sftp-key
+docker run -d --name nx-sftp -p 2222:22 -v /tmp/nx-sftp-key.pub:/home/demo/.ssh/keys/id.pub:ro atmoz/sftp demo::1001::upload
+```
+
+Then add `NOEXPLORER_TEST_AZURITE=http://127.0.0.1:10000/devstoreaccount1`,
+`NOEXPLORER_TEST_SFTP=sftp://demo@127.0.0.1:2222/upload` and `NOEXPLORER_TEST_SFTP_KEY=/tmp/nx-sftp-key`.
+
 ## Manual test checklist (before a release, or after UI changes)
 
 Run against `dev-s3.sh` **and**, before a release, against a real MinIO.

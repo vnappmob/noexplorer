@@ -50,7 +50,8 @@ and you're done.
   files means **Move to Trash** (recoverable).
 - **Self-hosted friendly**: path-style requests are on by default, and the connection test
   works even when the key can't list buckets.
-- **S3, Nextcloud, WebDAV and Box (beta)**: AWS, R2, B2, Wasabi, MinIO… plus Nextcloud/ownCloud
+- **S3, Nextcloud, WebDAV and Box (beta)**, plus Google Cloud Storage, Azure Blob and SFTP as
+  experimental options: AWS, R2, B2, Wasabi, MinIO… plus Nextcloud/ownCloud
   (sign in through the browser), any WebDAV server or NAS, and Box with your own app. Previews and
   transfers work the same way everywhere.
 - **Compare folders**: after a backup, see exactly what's missing or different on each side.

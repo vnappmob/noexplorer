@@ -255,6 +255,10 @@ pub fn multipart_remove(upload_id: &str) {
     }
 }
 
+/// Tests that change the global speed limit take turns.
+#[cfg(test)]
+pub(crate) static LIMIT_TEST: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -286,6 +290,7 @@ mod tests {
 
     #[tokio::test]
     async fn throttle_paces_bytes() {
+        let _turn = LIMIT_TEST.lock().await;
         set_speed_limit(100); // 100 KB/s
         let t = Instant::now();
         for _ in 0..3 {

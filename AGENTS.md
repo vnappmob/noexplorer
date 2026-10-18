@@ -57,6 +57,8 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   s3.rs              S3 provider: client (path-style, checksums, per-bucket region), list, multipart, downloads
   webdav.rs          Nextcloud/WebDAV provider: own small client, chunked upload v2, shares, Login Flow v2
   proxy.rs           nxr:// scheme: streams remote files to previews (Range, CORS) when there's no presigned URL
+  azure.rs           Azure Blob provider (experimental): Shared Key signing, block uploads, SAS links
+  sftp.rs            SFTP provider (experimental): the system `ssh` carries russh-sftp (your keys/agent/config)
   box_api.rs         Box provider (beta): BYO OAuth app, loopback sign-in, rotating refresh token, sessions
   compare.rs         Compare local vs remote folders: missing/changed/junk, checksum verify (ETag/SHA-1)
   secrets.rs         Secret keys in the OS credential store (Keychain / Credential Manager / Secret Service)

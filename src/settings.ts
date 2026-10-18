@@ -10,7 +10,14 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { appearance, setTextSize, setTheme, type Theme } from "./appearance";
 import { addView, MAX_VIEWS, remote, remotes, savedViews, saveViews, switchTo } from "./panes";
 import { type Pane, paneHooks } from "./pane";
-import { describeAccount, guessProvider, isS3, PRESETS, type ProviderId } from "./providers";
+import {
+  describeAccount,
+  EXPERIMENTAL_PROVIDERS,
+  guessProvider,
+  hasContainers,
+  PRESETS,
+  type ProviderId,
+} from "./providers";
 import { activeProfile, app, exp } from "./state";
 import { openMenu, type MenuItem } from "./popover";
 import type { BucketInfo, General, Profile, Settings } from "./types";
@@ -79,6 +86,9 @@ function editAccount(p: Profile | null) {
   secret.required = !p;
   secret.placeholder = p ? (p.keychain ? "Saved in your system keychain" : "Saved") + " · type to replace" : "";
   const provider = p ? guessProvider(p) : "custom";
+  syncProviderOptions();
+  if (EXPERIMENTAL_PROVIDERS.includes(provider) && !$("acct-provider").querySelector(`option[value="${provider}"]`))
+    $<HTMLSelectElement>("acct-provider").add(new Option(PRESETS[provider].label, provider));
   $<HTMLSelectElement>("acct-provider").value = provider;
   applyPreset(provider, false);
   // Nextcloud can sign in through the browser instead: no password to type.
@@ -114,16 +124,37 @@ function applyPreset(id: ProviderId, fill: boolean) {
     : "Opens your browser. Or enter a user name and an app password below.";
   $("acct-endpoint-row").hidden = box;
   endpoint.required = pr.endpointRequired && !box;
-  $("lbl-endpoint").textContent = s3 ? "Endpoint" : pr.kind === "nextcloud" ? "Server address" : "WebDAV URL";
-  $("lbl-access").textContent = s3 ? "Access key" : box ? "Client ID" : "User name";
+  const azure = pr.kind === "azure";
+  const sftp = pr.kind === "sftp";
+  $("lbl-endpoint").textContent = s3
+    ? "Endpoint"
+    : pr.kind === "nextcloud" || sftp
+      ? "Server address"
+      : azure
+        ? "Blob endpoint"
+        : "WebDAV URL";
+  $("lbl-access").textContent = s3
+    ? "Access key"
+    : box
+      ? "Client ID"
+      : azure
+        ? "Storage account name"
+        : sftp
+          ? "User name (optional)"
+          : "User name";
   $("lbl-secret").textContent = s3
     ? "Secret key"
     : box
       ? "Client secret"
-      : pr.kind === "nextcloud"
-        ? "App password"
-        : "Password";
-  input("access_key").required = pr.kind !== "nextcloud";
+      : azure
+        ? "Account key"
+        : pr.kind === "nextcloud"
+          ? "App password"
+          : "Password";
+  input("access_key").required = pr.kind !== "nextcloud" && !sftp;
+  // SFTP logs in with SSH keys: no secret to type.
+  input("secret_key").closest("label")!.hidden = sftp;
+  if (sftp) input("secret_key").required = false;
   if (!fill) return;
   if (guessProvider({ endpoint: endpoint.value }) !== id || !s3) endpoint.value = "";
   input("region").value = pr.region;
@@ -146,6 +177,20 @@ function readForm(): Profile {
     path_style: f.get("path_style") === "on",
     cert_pin: v("cert_pin"),
   };
+}
+
+// ---------- experimental providers ----------
+
+/** Adds or removes GCS / Azure / SFTP in the provider picker (Safari can't hide <option>s). */
+function syncProviderOptions() {
+  const sel = $<HTMLSelectElement>("acct-provider");
+  const on = exp("providers");
+  for (const id of EXPERIMENTAL_PROVIDERS) {
+    const opt = sel.querySelector<HTMLOptionElement>(`option[value="${id}"]`);
+    // Keep an option the open account already uses, even with the experiment off.
+    if (!on && opt && sel.value !== id) opt.remove();
+    if (on && !opt) sel.add(new Option(`${PRESETS[id].label} (experimental)`, id));
+  }
 }
 
 // ---------- self-signed HTTPS (experimental) ----------
@@ -195,10 +240,9 @@ async function testAccount(): Promise<boolean> {
   setMsg("Testing…");
   try {
     const b = await invoke<string[]>("test_profile", { profile: readForm() });
-    const what =
-      readForm().kind === "s3"
-        ? `${plural(b.length, "bucket")}: ${b.slice(0, 8).join(", ")}${b.length > 8 ? "…" : ""}`
-        : "files are reachable";
+    const what = hasContainers(readForm())
+      ? `${plural(b.length, readForm().kind === "azure" ? "container" : "bucket")}: ${b.slice(0, 8).join(", ")}${b.length > 8 ? "…" : ""}`
+      : "files are reachable";
     setMsg(`✓ Connected · ${what}`, "ok");
     return true;
   } catch (e) {
@@ -341,8 +385,8 @@ export function renderPickers(v: Pane) {
   v.q(".profile-label").textContent = p ? p.name : "Add account";
   v.q(".profile-sub").textContent = p && describeAccount(p) !== p.name ? describeAccount(p) : "";
   v.q(".bucket-label").textContent = v.bucket || (p ? "No bucket" : "—");
-  // WebDAV/Nextcloud/Box have a single container: no bucket picker to show.
-  const buckets = !!p && isS3(p);
+  // WebDAV/Nextcloud/Box/SFTP have a single container: no bucket picker to show.
+  const buckets = !!p && hasContainers(p);
   const chip = v.q(".bucket-chip");
   chip.hidden = !buckets;
   chip.previousElementSibling!.toggleAttribute("hidden", !buckets); // the › between the chips
@@ -537,6 +581,7 @@ export function setupSettings() {
   input("endpoint").addEventListener("input", renderCert);
   $("acct-provider").addEventListener("change", renderCert);
   $("acct-cert-btn").onclick = onCertButton;
+  window.addEventListener("experimental", syncProviderOptions);
   $<HTMLSelectElement>("acct-provider").addEventListener("change", (ev) =>
     applyPreset((ev.target as HTMLSelectElement).value as ProviderId, true),
   );

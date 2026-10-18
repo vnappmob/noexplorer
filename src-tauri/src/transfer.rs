@@ -647,9 +647,13 @@ mod tests {
             std::fs::write(dir.join(format!("f{i}.bin")), &mb).unwrap();
         }
 
-        // Speed limit: 3 × 1 MB at 1 MB/s takes about 2-3 s (the first window is free).
+        // Speed limit: 3 × 1 MB at 1 MB/s takes about 2-3 s (the first window is free). Only jobs
+        // started with the experiment on are limited.
+        let turn = crate::resume::LIMIT_TEST.lock().await;
         crate::resume::set_speed_limit(1024);
-        let job = std::sync::Arc::new(Job::untracked("up", "t".into(), "", bucket, ""));
+        let mut j = Job::untracked("up", "t".into(), "", bucket, "");
+        j.resume = true;
+        let job = std::sync::Arc::new(j);
         let t = std::time::Instant::now();
         futures::future::join_all((0..3).map(|i| {
             let (c, job, p) = (c.clone(), job.clone(), dir.join(format!("f{i}.bin")));
@@ -658,6 +662,7 @@ mod tests {
         .await;
         let took = t.elapsed().as_secs_f64();
         crate::resume::set_speed_limit(0);
+        drop(turn);
         assert!((1.8..6.0).contains(&took), "3 MB at 1 MB/s took {took}s");
 
         // Pause: nothing moves while paused, and the upload finishes after resuming.

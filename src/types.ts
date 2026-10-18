@@ -2,7 +2,7 @@
 // referenced in each comment.
 
 /** `config::ProviderKind` — which provider an account uses. */
-export type ProviderKind = "s3" | "nextcloud" | "webdav" | "box";
+export type ProviderKind = "s3" | "nextcloud" | "webdav" | "box" | "azure" | "sftp";
 
 /** `config::Profile` — one remote account. */
 export type Profile = {

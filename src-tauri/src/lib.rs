@@ -19,6 +19,7 @@
 //! single-instance. Launch at login is our own [`autostart`] module (started with `--hidden`).
 
 mod autostart;
+mod azure;
 mod box_api;
 mod compare;
 mod config;
@@ -32,6 +33,7 @@ mod resume;
 mod s3;
 mod scan;
 mod secrets;
+mod sftp;
 mod sizes;
 mod state;
 mod tls;

@@ -28,6 +28,12 @@ pub enum ProviderKind {
     /// Box with the user's own OAuth app: `access_key` = client ID, `secret_key` = client secret,
     /// refresh token in the keychain (`box_api.rs`).
     Box,
+    /// Azure Blob Storage (experimental): `access_key` = storage account name, `secret_key` =
+    /// account key (`azure.rs`).
+    Azure,
+    /// SFTP (experimental): `endpoint` = `sftp://user@host:port/path`; login with SSH keys / agent
+    /// through the system `ssh` (`sftp.rs`).
+    Sftp,
 }
 
 /// One remote account. Mirrors `Profile` in `src/types.ts`.

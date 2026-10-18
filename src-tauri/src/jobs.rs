@@ -52,13 +52,17 @@ pub struct Flow {
     done: Arc<AtomicU64>,
     cancel: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
+    /// The speed limit applies (the job started with experimental `resume` on).
+    limited: bool,
 }
 
 impl Flow {
     /// `n` more bytes moved: count them, keep to the speed limit, and wait while paused.
     pub async fn flow(&self, n: u64) {
         self.done.fetch_add(n, Ordering::Relaxed);
-        crate::resume::throttle(n).await;
+        if self.limited {
+            crate::resume::throttle(n).await;
+        }
         while self.paused.load(Ordering::Relaxed) && !self.cancel.load(Ordering::Relaxed) {
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
         }
@@ -70,7 +74,9 @@ impl Flow {
         while self.paused.load(Ordering::Relaxed) && !self.cancel.load(Ordering::Relaxed) {
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
         }
-        crate::resume::throttle(n).await;
+        if self.limited {
+            crate::resume::throttle(n).await;
+        }
     }
 
     pub fn cancelled(&self) -> bool {
@@ -148,7 +154,12 @@ impl Job {
 
     /// Progress, cancel and pause handles, for work that outlives a borrow of the job.
     pub fn flow_handle(&self) -> Flow {
-        Flow { done: self.bytes_done.clone(), cancel: self.cancel.clone(), paused: self.paused.clone() }
+        Flow {
+            done: self.bytes_done.clone(),
+            cancel: self.cancel.clone(),
+            paused: self.paused.clone(),
+            limited: self.resume,
+        }
     }
 
     /// `n` more bytes moved (progress, speed limit, pause). See [`Flow::flow`].

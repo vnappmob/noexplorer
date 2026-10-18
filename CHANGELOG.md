@@ -25,6 +25,8 @@ versions: [SemVer](https://semver.org/).
 - Experimental **tabs, history and favorites**: back and forward (⌘[ ⌘], or the mouse's side
   buttons), tabs in each pane (⌘T, Ctrl+Tab, ⌘W), and a star in the path bar to save favorite
   folders, listed in the places menu, the account menu and ⌘K.
+- Experimental **more storage types**: Google Cloud Storage (S3-compatible API with HMAC keys),
+  Azure Blob Storage, and SFTP (through your `ssh` setup: keys, agent and ~/.ssh/config).
 
 ## [0.4.9] - 2026-10-17
 
