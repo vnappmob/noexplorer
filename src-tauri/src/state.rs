@@ -14,6 +14,8 @@ pub struct AppState {
     remotes: Mutex<HashMap<String, (Profile, Arc<Remote>)>>,
     /// Cancel flags of running jobs, keyed by job id.
     pub cancels: Mutex<HashMap<String, Arc<AtomicBool>>>,
+    /// Pause flags of running jobs (experimental `resume`), keyed by job id.
+    pub pauses: Mutex<HashMap<String, Arc<AtomicBool>>>,
 }
 
 impl AppState {

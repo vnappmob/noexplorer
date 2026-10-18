@@ -24,7 +24,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::config::{Profile, ProviderKind, normalize_endpoint};
 use crate::jobs::Job;
-use crate::provider::{BucketInfo, Entry};
+use crate::provider::{BucketInfo, Entry, drop_part, open_part, part_path, resume_offset};
 use crate::util::file_name;
 
 /// Nextcloud: files above this go through chunked upload v2, in chunks of this size.
@@ -466,12 +466,21 @@ impl Dav {
         if let Some(dir) = path.parent() {
             tokio::fs::create_dir_all(dir).await.map_err(|e| e.to_string())?;
         }
-        let mut tmp = path.as_os_str().to_owned();
-        tmp.push(".part");
-        let tmp = PathBuf::from(tmp);
-        let r = ok(self.send(self.req(Method::GET, &self.url(key))).await.map_err(net_err)?).await?;
+        let tmp = part_path(path);
+        let offset = resume_offset(&tmp, job).await;
+        let mut req = self.req(Method::GET, &self.url(key));
+        if offset > 0 {
+            req = req.header("Range", format!("bytes={offset}-"));
+        }
+        let r = self.send(req).await.map_err(net_err)?;
+        if offset > 0 && r.status() == StatusCode::RANGE_NOT_SATISFIABLE {
+            job.bytes_done.fetch_add(offset, Ordering::Relaxed);
+            return tokio::fs::rename(&tmp, path).await.map_err(|e| e.to_string());
+        }
+        let partial = offset > 0 && r.status() == StatusCode::PARTIAL_CONTENT;
+        let r = ok(r).await?;
         let mut body = r.bytes_stream();
-        let f = tokio::fs::File::create(&tmp).await.map_err(|e| e.to_string())?;
+        let f = open_part(&tmp, partial, offset, job).await?;
         let mut w = tokio::io::BufWriter::with_capacity(1 << 20, f);
         let res: Result<(), String> = async {
             while let Some(chunk) = body.try_next().await.map_err(net_err)? {
@@ -479,7 +488,7 @@ impl Dav {
                     return Err("cancelled".into());
                 }
                 w.write_all(&chunk).await.map_err(|e| e.to_string())?;
-                job.bytes_done.fetch_add(chunk.len() as u64, Ordering::Relaxed);
+                job.flow(chunk.len() as u64).await;
             }
             w.flush().await.map_err(|e| e.to_string())
         }
@@ -488,7 +497,7 @@ impl Dav {
         match res {
             Ok(()) => tokio::fs::rename(&tmp, path).await.map_err(|e| e.to_string()),
             Err(e) => {
-                let _ = tokio::fs::remove_file(&tmp).await;
+                drop_part(&tmp, job, &e).await;
                 Err(e)
             }
         }
@@ -502,14 +511,14 @@ pub(crate) fn file_stream(
     len: u64,
     job: &Job,
 ) -> impl futures::Stream<Item = Result<Vec<u8>, std::io::Error>> + Send + 'static {
-    let (done, cancel) = job.progress_handles();
+    let fl = job.flow_handle();
     futures::stream::unfold((None::<tokio::fs::File>, len), move |(f, left)| {
-        let (path, done, cancel) = (path.clone(), done.clone(), cancel.clone());
+        let (path, fl) = (path.clone(), fl.clone());
         async move {
             if left == 0 {
                 return None;
             }
-            if cancel.load(Ordering::Relaxed) {
+            if fl.cancelled() {
                 return Some((Err(std::io::Error::other("cancelled")), (None, 0)));
             }
             let mut f = match f {
@@ -530,7 +539,7 @@ pub(crate) fn file_stream(
             let mut buf = vec![0u8; (1 << 20).min(left as usize)];
             match f.read_exact(&mut buf).await {
                 Ok(_) => {
-                    done.fetch_add(buf.len() as u64, Ordering::Relaxed);
+                    fl.flow(buf.len() as u64).await;
                     let n = buf.len() as u64;
                     Some((Ok(buf), (Some(f), left - n)))
                 }

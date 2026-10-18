@@ -1174,6 +1174,27 @@ button.lane-box:hover,
   box-shadow: var(--shadow-pop);
   overflow: hidden;
 }
+/* "N transfers didn't finish · Resume / Dismiss" (experimental resume) */
+#act-resume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--accent-soft);
+}
+#act-resume .resume-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+#act-resume small {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 #act-top {
   display: flex;
   align-items: center;

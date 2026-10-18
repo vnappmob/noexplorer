@@ -8,7 +8,7 @@
 //! - Locations are `(container, key)`. S3: container = bucket; WebDAV: one container ("Files").
 //!   Folder keys end with `/`, and keys are `/`-separated paths relative to the container.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
@@ -238,4 +238,40 @@ where
         }
     }
     Ok(out)
+}
+
+// ---------- `.part` files for downloads (shared by every provider) ----------
+
+/// Where a download of `path` is written until it's complete (then renamed, ADR-006).
+pub(crate) fn part_path(path: &Path) -> PathBuf {
+    let mut tmp = path.as_os_str().to_owned();
+    tmp.push(".part");
+    PathBuf::from(tmp)
+}
+
+/// Bytes already in the `.part` to continue from: only for resumable jobs (experimental `resume`).
+pub(crate) async fn resume_offset(tmp: &Path, job: &Job) -> u64 {
+    if !job.resume {
+        return 0;
+    }
+    tokio::fs::metadata(tmp).await.map(|m| m.len()).unwrap_or(0)
+}
+
+/// Opens the `.part` for writing: appended to when the server honored the range (`partial`),
+/// otherwise from scratch. Bytes kept from before count as progress.
+pub(crate) async fn open_part(tmp: &Path, partial: bool, offset: u64, job: &Job) -> Result<tokio::fs::File, String> {
+    if partial {
+        job.bytes_done.fetch_add(offset, std::sync::atomic::Ordering::Relaxed);
+        tokio::fs::OpenOptions::new().append(true).open(tmp).await.map_err(|e| e.to_string())
+    } else {
+        tokio::fs::File::create(tmp).await.map_err(|e| e.to_string())
+    }
+}
+
+/// After a failed download: keep the `.part` when it can be resumed (network trouble in a resumable
+/// job), otherwise remove it.
+pub(crate) async fn drop_part(tmp: &Path, job: &Job, err: &str) {
+    if !(job.resume && !job.cancelled() && crate::resume::transient(err)) {
+        let _ = tokio::fs::remove_file(tmp).await;
+    }
 }

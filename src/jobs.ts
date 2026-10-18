@@ -8,9 +8,9 @@ import { listen } from "@tauri-apps/api/event";
 import { icon } from "./icons";
 import { local, remotes } from "./panes";
 import { openRemote } from "./settings";
-import { app } from "./state";
+import { app, exp } from "./state";
 import type { Pane } from "./pane";
-import type { JobEvent } from "./types";
+import type { JobEvent, PendingJob } from "./types";
 import { $, esc, fail, fmtSize, plural, toast } from "./util";
 
 type JobView = JobEvent & { speed: number; lastBytes: number; lastAt: number };
@@ -57,6 +57,7 @@ const numbersOf = (j: JobView) => {
     if (j.status === "done") return `${done} · ${plural(j.files_total, "item")}`;
     return j.status === "cancelled" ? `Stopped · ${j.files_done} done` : "Failed";
   }
+  if (j.status === "running" && j.paused) return `Paused · ${fmtSize(j.bytes_done)} / ${fmtSize(j.bytes_total)}`;
   return j.status === "running"
     ? j.files_total
       ? `${fmtSize(j.bytes_done)} / ${fmtSize(j.bytes_total)}${j.speed > 0 ? ` · ${fmtSize(j.speed)}/s` : ""}`
@@ -68,6 +69,34 @@ const numbersOf = (j: JobView) => {
         : "Failed";
 };
 
+/** Pause / resume for a running transfer (experimental resume). */
+const pauseBtn = (j: JobView) =>
+  exp("resume") && j.status === "running" && !isItemJob(j)
+    ? `<button class="ib" data-pause="${j.id}" data-on="${!j.paused}" title="${j.paused ? "Resume" : "Pause"}" aria-label="${j.paused ? "Resume" : "Pause"} transfer">${icon(j.paused ? "play" : "pause")}</button>`
+    : "";
+
+// ---------- interrupted transfers (experimental resume) ----------
+
+let interrupted: PendingJob[] = [];
+
+function renderResume() {
+  const box = $("act-resume");
+  box.hidden = !interrupted.length;
+  if (!interrupted.length) return;
+  const n = interrupted.length;
+  box.innerHTML = `<div class="resume-text"><b>${n === 1 ? "A transfer" : `${n} transfers`} didn't finish</b>
+      <small>${esc(interrupted.map((p) => p.label).join(", "))}</small></div>
+    <button data-resume-all="1" class="primary">Resume</button>
+    <button data-resume-dismiss="1">Dismiss</button>`;
+}
+
+/** At startup: offer to resume transfers the app was closed (or crashed) in the middle of. */
+export async function checkInterrupted() {
+  if (!exp("resume")) return;
+  interrupted = await invoke<PendingJob[]>("interrupted_jobs").catch(() => []);
+  scheduleRender();
+}
+
 // ---------- activity card ----------
 
 let hideTimer = 0;
@@ -75,9 +104,11 @@ let hideTimer = 0;
 function renderCard() {
   const all = [...jobs.values()].reverse(); // newest first
   const card = $("activity");
+  renderResume();
+  $("act-top").hidden = !all.length;
   if (!all.length) {
-    card.hidden = true;
-    document.body.classList.remove("has-activity");
+    card.hidden = !interrupted.length;
+    document.body.classList.toggle("has-activity", !!interrupted.length);
     return;
   }
   const running = all.filter((j) => j.status === "running");
@@ -101,7 +132,7 @@ function renderCard() {
       <div class="bar2"><i style="width:${pct(focus).toFixed(1)}%"></i></div>
     </div>
     ${others ? `<span class="act-more">${others}</span>` : ""}
-    ${
+    ${pauseBtn(focus)}${
       focus.status === "running"
         ? `<button class="ib" data-cancel="${focus.id}" title="Cancel" aria-label="Cancel transfer">${icon("x")}</button>`
         : `<button class="ib" data-dismiss="1" title="Dismiss" aria-label="Dismiss">${icon("x")}</button>`
@@ -125,7 +156,7 @@ function renderList(all = [...jobs.values()].reverse()) {
       const err = j.error ? `<div class="meta err">${esc(j.error)}</div>` : "";
       const ctl =
         j.status === "running"
-          ? `<button class="ib" data-cancel="${j.id}" title="Cancel" aria-label="Cancel">${icon("x")}</button>`
+          ? `${pauseBtn(j)}<button class="ib" data-cancel="${j.id}" title="Cancel" aria-label="Cancel">${icon("x")}</button>`
           : j.kind === "down" && j.dest && j.files_done
             ? `<button data-reveal="${esc(j.dest)}">Show</button>`
             : "";
@@ -457,6 +488,19 @@ export async function setupJobs() {
   $("activity").addEventListener("click", (ev) => {
     const t = (ev.target as HTMLElement).closest<HTMLElement>("button");
     if (t?.dataset.cancel) return void invoke("cancel", { id: t.dataset.cancel });
+    if (t?.dataset.pause) return void invoke("pause", { id: t.dataset.pause, on: t.dataset.on === "true" });
+    if (t?.dataset.resumeAll) {
+      const all = interrupted;
+      interrupted = [];
+      scheduleRender();
+      return void Promise.all(all.map((p) => invoke("resume_job", { id: p.id }))).catch(fail);
+    }
+    if (t?.dataset.resumeDismiss) {
+      const all = interrupted;
+      interrupted = [];
+      scheduleRender();
+      return void all.forEach((p) => invoke("dismiss_interrupted", { id: p.id }));
+    }
     if (t?.dataset.reveal) return void invoke("reveal", { path: t.dataset.reveal }).catch(fail);
     if (t?.dataset.dismiss) {
       for (const [id, j] of jobs) if (j.status !== "running") jobs.delete(id);

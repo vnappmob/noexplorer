@@ -28,6 +28,7 @@ mod local;
 mod provider;
 mod proxy;
 mod remote;
+mod resume;
 mod s3;
 mod scan;
 mod secrets;
@@ -62,6 +63,9 @@ pub fn run() {
         .setup(|app| {
             secrets::init(app.handle());
             let settings = config::load_settings(app.handle());
+            resume::init(app.handle());
+            let g = &settings.general;
+            resume::set_speed_limit(if g.experimental.resume { g.speed_limit_kbps } else { 0 });
             app.state::<state::AppState>().set_settings(settings.clone());
             // Clean previews left over from earlier sessions.
             let _ = std::fs::remove_dir_all(transfer::temp_root());
@@ -119,6 +123,10 @@ pub fn run() {
             fileops::move_local,
             fileops::duplicate_local,
             fileops::remote_move,
+            resume::interrupted_jobs,
+            resume::dismiss_interrupted,
+            resume::resume_job,
+            resume::pause,
             sizes::stop_sizes,
             trash::trash_local,
             local::read_local_text,

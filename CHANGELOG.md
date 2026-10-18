@@ -11,6 +11,10 @@ versions: [SemVer](https://semver.org/).
   right-click menu has Move to… and Duplicate, dragging onto a folder in the same pane moves
   there, and ⌘Z undoes the last one. Nothing is ever overwritten; remote moves run on the
   server (S3 copies objects over 5 GB in parts).
+- Experimental **resumable transfers**: failed files retry on their own (network trouble only),
+  running transfers can be paused, an optional speed limit applies to everything, and transfers
+  cut short by quitting or a crash can be resumed on the next launch. Resumed downloads continue
+  their `.part` files, and big S3 uploads continue from the parts already on the server.
 
 ## [0.4.9] - 2026-10-17
 

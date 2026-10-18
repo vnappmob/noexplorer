@@ -94,6 +94,10 @@ means the active account (ADR-025).
 | `rename_local` | `path, name` | new path | fileops | Same-folder rename; refuses a taken name |
 | `move_local` | `paths, dest` | `{done, errors}` | fileops | Same-disk move; refuses taken names, other disks and moving a folder into itself |
 | `duplicate_local` | `paths` | `{done, errors}` | fileops | Copies next to the original as "name copy.ext" (symlinks skipped) |
+| `pause` | `id, on` | – | resume | Pauses / resumes a running job (data flow waits in `Flow`) |
+| `interrupted_jobs` | – | `PendingJob[]` | resume | Transfers journaled in `pending.json` that didn't finish (not running now) |
+| `resume_job` | `id` | job id | resume | Starts it again with `resume: true`: uploads skip remote files with the same size, downloads skip complete files and continue `.part` files |
+| `dismiss_interrupted` | `id` | – | resume | Forgets an interrupted transfer |
 | `upload` | `bucket, prefix, paths` | job id | transfer | `paths` are absolute local files or folders. Folders keep their structure |
 | `download` | `bucket, prefix, items[{key,size}], dest?` | job id | transfer | Writes to `dest` (the left pane's folder), else to the configured or OS Downloads folder |
 | `open_object` | `bucket, key` | – | transfer | Downloads to `$TMP/noexplorer/<uuid>/` and opens with the default app |
@@ -115,6 +119,7 @@ The TS mirror is `JobEvent` in `src/types.ts`.
   "account": "profile-id", "bucket": "demo", "prefix": "backups/",   // remote side (copy: the destination)
   "src_account": null, "src_bucket": null,         // copy: the source view (for the beam)
   "src_dir": "/Users/me/Projects",                 // upload: local folder; copy: source prefix (lanes)
+  "paused": false,                                 // experimental resume: paused from the UI
   "files_done": 3, "files_total": 5, "bytes_done": 123, "bytes_total": 456,
   "status": "running" | "done" | "error" | "cancelled",
   "error": null | "2 errors. First: x.bin: …",     // per-file failures don't stop the job

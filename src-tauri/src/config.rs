@@ -388,6 +388,7 @@ pub fn set_active_profile(app: AppHandle, state: State<'_, AppState>, id: String
 #[tauri::command]
 pub fn save_general(app: AppHandle, state: State<'_, AppState>, general: General) -> Result<Settings, String> {
     let mut s = state.settings();
+    crate::resume::set_speed_limit(if general.experimental.resume { general.speed_limit_kbps } else { 0 });
     s.general = general;
     commit(&app, &state, s)
 }

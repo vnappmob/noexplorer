@@ -6,7 +6,9 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 
 use futures::{StreamExt, stream};
-use serde::Deserialize;
+use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
 
@@ -64,18 +66,57 @@ pub async fn upload(
     bucket: String,
     prefix: String,
     paths: Vec<String>,
+    resume: Option<bool>,
 ) -> Result<String, String> {
     let c = state.remote(account.as_deref())?;
     let label = job_label(paths.iter().map(|p| file_name(&p.replace('\\', "/"))).collect());
-    let job = Job::new(&app, "up", label, c.account(), &bucket, &prefix);
+    let job = Job::new(&app, "up", label.clone(), c.account(), &bucket, &prefix);
+    if job.resume {
+        crate::resume::pending_add(crate::resume::PendingJob {
+            id: job.id.clone(),
+            kind: "up".into(),
+            label,
+            account: account.clone(),
+            bucket: bucket.clone(),
+            prefix: prefix.clone(),
+            paths: paths.clone(),
+            items: vec![],
+            dest: None,
+        });
+    }
+    let resuming = resume.unwrap_or(false);
     *job.src_dir.lock().unwrap() =
         paths.first().and_then(|p| Path::new(p).parent()).map(|d| d.to_string_lossy().into_owned());
     let id = job.id.clone();
     let j = job.clone();
     job.spawn(app, async move {
-        let files = tokio::task::spawn_blocking(move || collect_uploads(&paths, &prefix)).await.unwrap_or_default();
+        let roots: Vec<String> = paths
+            .iter()
+            .map(|p| {
+                let base = file_name(&p.replace('\\', "/"));
+                if Path::new(p).is_dir() { format!("{prefix}{base}/") } else { format!("{prefix}{base}") }
+            })
+            .collect();
+        let mut files = tokio::task::spawn_blocking(move || collect_uploads(&paths, &prefix)).await.unwrap_or_default();
         j.files_total.store(files.len() as u64, Ordering::Relaxed);
         j.bytes_total.store(files.iter().map(|f| f.2).sum(), Ordering::Relaxed);
+        if resuming {
+            // Resuming an interrupted upload: what's already there with the same size is done.
+            let mut have = HashMap::new();
+            for r in &roots {
+                for e in c.list_files(&bucket, r).await.unwrap_or_default() {
+                    have.insert(e.key, e.size);
+                }
+            }
+            files.retain(|(_, k, s)| {
+                let done = have.get(k) == Some(s);
+                if done {
+                    j.files_done.fetch_add(1, Ordering::Relaxed);
+                    j.bytes_done.fetch_add(*s, Ordering::Relaxed);
+                }
+                !done
+            });
+        }
         stream::iter(files)
             .for_each_concurrent(FILE_CONCURRENCY, |(path, key, size)| {
                 let (c, j, bucket) = (c.clone(), j.clone(), bucket.clone());
@@ -83,7 +124,8 @@ pub async fn upload(
                     if j.cancelled() {
                         return;
                     }
-                    match c.upload_file(&bucket, &key, &path, size, &j).await {
+                    let up = || c.upload_file(&bucket, &key, &path, size, &j);
+                    match crate::resume::retry(j.resume, || j.cancelled(), up).await {
                         Ok(()) => {
                             j.files_done.fetch_add(1, Ordering::Relaxed);
                         }
@@ -186,7 +228,8 @@ pub async fn download_rel(
                     if j.cancelled() {
                         return;
                     }
-                    match c.download_file(&bucket, &key, &path, &j).await {
+                    let down = || c.download_file(&bucket, &key, &path, &j);
+                    match crate::resume::retry(j.resume, || j.cancelled(), down).await {
                         Ok(()) => {
                             j.files_done.fetch_add(1, Ordering::Relaxed);
                         }
@@ -258,7 +301,7 @@ pub async fn copy_remote(
                     }
                     let res: Result<(), String> = async {
                         if same && src.copy_within((&sb, &key), (&db, &dst_key), size).await? {
-                            j.bytes_done.fetch_add(size, Ordering::Relaxed);
+                            j.flow(size).await;
                             return Ok(());
                         }
                         let tmp = tmp_root.join(uuid::Uuid::new_v4().to_string());
@@ -286,7 +329,7 @@ pub async fn copy_remote(
     Ok(id)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct DlItem {
     /// Object key; a key ending in `/` downloads the whole folder. For `download_rel`: the path
     /// relative to its `prefix`.
@@ -304,6 +347,7 @@ fn default_download_dir(state: &AppState) -> PathBuf {
 /// Starts a download job. Paths are relative to the current remote `prefix`, written under
 /// `dest` (the left pane's folder). Top-level names that already exist get a ` (n)` suffix.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // Tauri commands take their arguments flat
 pub async fn download(
     app: AppHandle,
     state: State<'_, AppState>,
@@ -312,6 +356,7 @@ pub async fn download(
     prefix: String,
     items: Vec<DlItem>,
     dest: Option<String>,
+    resume: Option<bool>,
 ) -> Result<String, String> {
     let c = state.remote(account.as_deref())?;
     let dest = match dest.filter(|d| !d.trim().is_empty()) {
@@ -319,37 +364,78 @@ pub async fn download(
         None => default_download_dir(&state),
     };
     let label = job_label(items.iter().map(|i| file_name(&i.key)).collect());
-    let job = Job::new(&app, "down", label, c.account(), &bucket, &prefix);
+    let job = Job::new(&app, "down", label.clone(), c.account(), &bucket, &prefix);
+    if job.resume {
+        crate::resume::pending_add(crate::resume::PendingJob {
+            id: job.id.clone(),
+            kind: "down".into(),
+            label,
+            account: account.clone(),
+            bucket: bucket.clone(),
+            prefix: prefix.clone(),
+            paths: vec![],
+            items: items.clone(),
+            dest: Some(dest.to_string_lossy().into_owned()),
+        });
+    }
+    let resuming = resume.unwrap_or(false);
+    // Where a file goes. Normally never next to an existing name (`unique_path`). When resuming, a
+    // file already there with the right size is done (None), and a `.part` next to it continues.
+    let target = move |p: PathBuf, size: u64| -> Option<PathBuf> {
+        if !resuming {
+            return Some(unique_path(p));
+        }
+        match std::fs::metadata(&p) {
+            Ok(m) if m.len() == size => None,
+            Ok(_) => Some(unique_path(p)),
+            Err(_) => Some(p),
+        }
+    };
     *job.local_dir.lock().unwrap() = Some(dest.to_string_lossy().to_string());
     let id = job.id.clone();
     let j = job.clone();
     job.spawn(app, async move {
         // Resolve folders into files; map each to a local path under `dest`.
         let mut files: Vec<(String, u64, PathBuf)> = vec![];
+        let mut skipped: Vec<u64> = vec![]; // resuming: files already complete
         let mut reveal: Option<PathBuf> = None;
         for it in items {
             let rel = it.key.strip_prefix(&prefix).unwrap_or(&it.key).to_string();
             if it.key.ends_with('/') {
-                let root = unique_path(dest.join(safe_rel(&rel)));
+                // Resuming continues in the same folder; otherwise a new one never mixes with old files.
+                let root = if resuming { dest.join(safe_rel(&rel)) } else { unique_path(dest.join(safe_rel(&rel))) };
                 reveal.get_or_insert(root.clone());
                 match c.list_all(&bucket, &it.key).await {
                     Ok(objs) => {
                         for (k, size) in objs.into_iter().filter(|(k, _)| !k.ends_with('/')) {
                             let sub = safe_rel(&k[it.key.len()..]);
-                            files.push((k, size, root.join(sub)));
+                            match target(root.join(sub), size) {
+                                Some(p) => files.push((k, size, p)),
+                                None => skipped.push(size),
+                            }
                         }
                     }
                     Err(e) => j.fail(&rel, e),
                 }
             } else {
-                let p = unique_path(dest.join(safe_rel(&file_name(&rel))));
-                reveal.get_or_insert(p.clone());
-                files.push((it.key, it.size, p));
+                let p = dest.join(safe_rel(&file_name(&rel)));
+                match target(p.clone(), it.size) {
+                    Some(p) => {
+                        reveal.get_or_insert(p.clone());
+                        files.push((it.key, it.size, p));
+                    }
+                    None => {
+                        reveal.get_or_insert(p);
+                        skipped.push(it.size);
+                    }
+                }
             }
         }
         *j.dest.lock().unwrap() = reveal.map(|p| p.to_string_lossy().to_string());
-        j.files_total.store(files.len() as u64, Ordering::Relaxed);
-        j.bytes_total.store(files.iter().map(|f| f.1).sum(), Ordering::Relaxed);
+        j.files_total.store((files.len() + skipped.len()) as u64, Ordering::Relaxed);
+        j.bytes_total.store(files.iter().map(|f| f.1).chain(skipped.iter().copied()).sum(), Ordering::Relaxed);
+        j.files_done.store(skipped.len() as u64, Ordering::Relaxed);
+        j.bytes_done.store(skipped.iter().sum(), Ordering::Relaxed);
         stream::iter(files)
             .for_each_concurrent(FILE_CONCURRENCY, |(key, _, path)| {
                 let (c, j, bucket) = (c.clone(), j.clone(), bucket.clone());
@@ -480,6 +566,132 @@ mod tests {
         let before = c.list_all(bucket, "rt/").await.unwrap().len();
         assert_eq!(c.delete(bucket, vec!["rt/".into()], None).await.unwrap(), before + 1); // + the "rt/" key
         assert!(c.list_all(bucket, "rt/").await.unwrap().is_empty());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// Resumable transfers against dev S3 (see `s3_roundtrip` for the env vars): a multipart upload
+    /// continues from the parts already on the server, and a download continues its `.part`.
+    #[tokio::test]
+    async fn s3_resume() {
+        let Ok(endpoint) = std::env::var("NOEXPLORER_TEST_ENDPOINT") else {
+            eprintln!("skipping s3_resume: NOEXPLORER_TEST_ENDPOINT not set");
+            return;
+        };
+        let cfg = Profile {
+            endpoint,
+            access_key: std::env::var("NOEXPLORER_TEST_KEY").unwrap(),
+            secret_key: std::env::var("NOEXPLORER_TEST_SECRET").unwrap(),
+            ..Default::default()
+        };
+        let bucket = "noexplorer-test";
+        let s3 = make_client(&cfg);
+        let _ = s3.create_bucket().bucket(bucket).send().await;
+        let c = Remote::new(&cfg);
+        let dir = tmp_dir();
+        crate::resume::init_dir(dir.join("cfg"));
+
+        // 20 MB → three 8 MB parts. The "interrupted" upload already sent part 1 and was journaled.
+        let data: Vec<u8> = (0..(20 * 1024 * 1024 + 7)).map(|i| (i * 13 % 251) as u8).collect();
+        let f = dir.join("big.bin");
+        std::fs::write(&f, &data).unwrap();
+        let key = "rs/big.bin";
+        let up = s3.create_multipart_upload().bucket(bucket).key(key).send().await.unwrap();
+        let id = up.upload_id().unwrap().to_string();
+        s3.upload_part()
+            .bucket(bucket)
+            .key(key)
+            .upload_id(&id)
+            .part_number(1)
+            .body(aws_sdk_s3::primitives::ByteStream::from(data[..8 * 1024 * 1024].to_vec()))
+            .send()
+            .await
+            .unwrap();
+        crate::resume::multipart_put(c.account(), bucket, key, data.len() as u64, &f, &id);
+
+        let mut job = Job::untracked("up", "t".into(), "", bucket, "");
+        job.resume = true;
+        c.upload_file(bucket, key, &f, data.len() as u64, &job).await.unwrap();
+        assert!(crate::resume::multipart_find(c.account(), bucket, key, data.len() as u64, &f).is_none());
+
+        // A download that stopped after 5 MB continues from its .part.
+        let out = dir.join("out/big.bin");
+        std::fs::create_dir_all(dir.join("out")).unwrap();
+        std::fs::write(dir.join("out/big.bin.part"), &data[..5 * 1024 * 1024]).unwrap();
+        c.download_file(bucket, key, &out, &job).await.unwrap();
+        assert!(std::fs::read(&out).unwrap() == data, "resumed download differs");
+        assert!(!dir.join("out/big.bin.part").exists());
+
+        c.delete(bucket, vec!["rs/".into()], None).await.unwrap();
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// Pause, speed limit and the interrupted-transfer journal, against dev S3.
+    #[tokio::test]
+    async fn s3_pause_limit_journal() {
+        let Ok(endpoint) = std::env::var("NOEXPLORER_TEST_ENDPOINT") else {
+            eprintln!("skipping s3_pause_limit_journal: NOEXPLORER_TEST_ENDPOINT not set");
+            return;
+        };
+        let cfg = Profile {
+            endpoint,
+            access_key: std::env::var("NOEXPLORER_TEST_KEY").unwrap(),
+            secret_key: std::env::var("NOEXPLORER_TEST_SECRET").unwrap(),
+            ..Default::default()
+        };
+        let bucket = "noexplorer-test";
+        let _ = make_client(&cfg).create_bucket().bucket(bucket).send().await;
+        let c = std::sync::Arc::new(Remote::new(&cfg));
+        let dir = tmp_dir();
+        let mb: Vec<u8> = vec![7u8; 1024 * 1024];
+        for i in 0..3 {
+            std::fs::write(dir.join(format!("f{i}.bin")), &mb).unwrap();
+        }
+
+        // Speed limit: 3 × 1 MB at 1 MB/s takes about 2-3 s (the first window is free).
+        crate::resume::set_speed_limit(1024);
+        let job = std::sync::Arc::new(Job::untracked("up", "t".into(), "", bucket, ""));
+        let t = std::time::Instant::now();
+        futures::future::join_all((0..3).map(|i| {
+            let (c, job, p) = (c.clone(), job.clone(), dir.join(format!("f{i}.bin")));
+            async move { c.upload_file(bucket, &format!("pl/f{i}.bin"), &p, 1024 * 1024, &job).await.unwrap() }
+        }))
+        .await;
+        let took = t.elapsed().as_secs_f64();
+        crate::resume::set_speed_limit(0);
+        assert!((1.8..6.0).contains(&took), "3 MB at 1 MB/s took {took}s");
+
+        // Pause: nothing moves while paused, and the upload finishes after resuming.
+        let job = std::sync::Arc::new(Job::untracked("up", "t".into(), "", bucket, ""));
+        job.set_paused(true);
+        let task = {
+            let (c, job, p) = (c.clone(), job.clone(), dir.join("f0.bin"));
+            tokio::spawn(async move { c.upload_file(bucket, "pl/paused.bin", &p, 1024 * 1024, &job).await })
+        };
+        tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+        assert_eq!(job.bytes_done.load(Ordering::Relaxed), 0, "moved while paused");
+        assert!(!task.is_finished());
+        job.set_paused(false);
+        task.await.unwrap().unwrap();
+        assert_eq!(job.bytes_done.load(Ordering::Relaxed), 1024 * 1024);
+
+        // Journal: an entry stays until removed (the job's end removes it unless it failed).
+        crate::resume::init_dir(dir.join("cfg"));
+        crate::resume::pending_add(crate::resume::PendingJob {
+            id: "j1".into(),
+            kind: "up".into(),
+            label: "f0.bin".into(),
+            account: None,
+            bucket: bucket.into(),
+            prefix: "pl/".into(),
+            paths: vec![dir.join("f0.bin").to_string_lossy().into_owned()],
+            items: vec![],
+            dest: None,
+        });
+        assert_eq!(crate::resume::pending_list().len(), 1);
+        crate::resume::pending_remove("j1");
+        assert!(crate::resume::pending_list().is_empty());
+
+        c.delete(bucket, vec!["pl/".into()], None).await.unwrap();
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

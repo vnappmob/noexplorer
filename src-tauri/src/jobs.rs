@@ -40,6 +40,42 @@ pub struct Job {
     /// Folder the files come from: the local folder (uploads) or the source prefix (copies). The
     /// transfer lanes show it when the panes have moved elsewhere. Downloads come from `prefix`.
     pub src_dir: Mutex<Option<String>>,
+    /// Set from the UI (`resume::pause`); data flow waits while it's on.
+    paused: Arc<AtomicBool>,
+    /// Experimental `resume` was on when the job started: retries, `.part` continuation, journals.
+    pub resume: bool,
+}
+
+/// What moving data needs from its job, without borrowing it (streams must be `'static`).
+#[derive(Clone)]
+pub struct Flow {
+    done: Arc<AtomicU64>,
+    cancel: Arc<AtomicBool>,
+    paused: Arc<AtomicBool>,
+}
+
+impl Flow {
+    /// `n` more bytes moved: count them, keep to the speed limit, and wait while paused.
+    pub async fn flow(&self, n: u64) {
+        self.done.fetch_add(n, Ordering::Relaxed);
+        crate::resume::throttle(n).await;
+        while self.paused.load(Ordering::Relaxed) && !self.cancel.load(Ordering::Relaxed) {
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        }
+    }
+
+    /// Before sending `n` bytes in one request (a small file, a multipart part): wait while paused,
+    /// then for the speed limit's share. Progress is counted afterwards with `count`.
+    pub async fn gate(&self, n: u64) {
+        while self.paused.load(Ordering::Relaxed) && !self.cancel.load(Ordering::Relaxed) {
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        }
+        crate::resume::throttle(n).await;
+    }
+
+    pub fn cancelled(&self) -> bool {
+        self.cancel.load(Ordering::Relaxed)
+    }
 }
 
 /// Payload of the `"job"` event. Mirrors `JobEvent` in `src/types.ts`.
@@ -64,6 +100,8 @@ pub struct JobEvent {
     src_bucket: Option<String>,
     /// Uploads and copies: the folder the files come from.
     src_dir: Option<String>,
+    /// Paused from the UI (experimental `resume`).
+    paused: bool,
 }
 
 impl Job {
@@ -86,6 +124,8 @@ impl Job {
             local_dir: Mutex::new(None),
             src: Mutex::new(None),
             src_dir: Mutex::new(None),
+            paused: Arc::new(AtomicBool::new(false)),
+            resume: false,
         }
     }
 
@@ -98,14 +138,32 @@ impl Job {
         bucket: &str,
         prefix: &str,
     ) -> Arc<Job> {
-        let job = Job::untracked(kind, label, account, bucket, prefix);
-        app.state::<AppState>().cancels.lock().unwrap().insert(job.id.clone(), job.cancel.clone());
+        let mut job = Job::untracked(kind, label, account, bucket, prefix);
+        let st = app.state::<AppState>();
+        job.resume = st.settings().general.experimental.resume;
+        st.cancels.lock().unwrap().insert(job.id.clone(), job.cancel.clone());
+        st.pauses.lock().unwrap().insert(job.id.clone(), job.paused.clone());
         Arc::new(job)
     }
 
-    /// Progress counter and cancel flag, for work that outlives a borrow of the job.
-    pub fn progress_handles(&self) -> (Arc<AtomicU64>, Arc<AtomicBool>) {
-        (self.bytes_done.clone(), self.cancel.clone())
+    /// Progress, cancel and pause handles, for work that outlives a borrow of the job.
+    pub fn flow_handle(&self) -> Flow {
+        Flow { done: self.bytes_done.clone(), cancel: self.cancel.clone(), paused: self.paused.clone() }
+    }
+
+    /// `n` more bytes moved (progress, speed limit, pause). See [`Flow::flow`].
+    pub async fn flow(&self, n: u64) {
+        self.flow_handle().flow(n).await
+    }
+
+    #[cfg(test)]
+    pub fn set_paused(&self, on: bool) {
+        self.paused.store(on, Ordering::Relaxed);
+    }
+
+    /// Pause and speed limit before a whole request. See [`Flow::gate`].
+    pub async fn gate(&self, n: u64) {
+        self.flow_handle().gate(n).await
     }
 
     pub fn cancelled(&self) -> bool {
@@ -151,6 +209,7 @@ impl Job {
             src_account,
             src_bucket,
             src_dir: self.src_dir.lock().unwrap().clone(),
+            paused: self.paused.load(Ordering::Relaxed),
         }
     }
 
@@ -182,7 +241,13 @@ impl Job {
                 "error"
             };
             job.publish(&app, status);
-            app.state::<AppState>().cancels.lock().unwrap().remove(&job.id);
+            let st = app.state::<AppState>();
+            st.cancels.lock().unwrap().remove(&job.id);
+            st.pauses.lock().unwrap().remove(&job.id);
+            // A finished or cancelled transfer has nothing left to resume (errors stay resumable).
+            if job.resume && status != "error" {
+                crate::resume::pending_remove(&job.id);
+            }
         });
     }
 }

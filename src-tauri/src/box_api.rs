@@ -14,7 +14,7 @@
 //!   expiring open shared link.
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -28,7 +28,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::config::Profile;
 use crate::jobs::Job;
-use crate::provider::{BucketInfo, Entry};
+use crate::provider::{BucketInfo, Entry, drop_part, open_part, part_path, resume_offset};
 use crate::secrets::{OsStore, SecretStore};
 use crate::webdav::http;
 
@@ -591,7 +591,7 @@ impl BoxCom {
                                     .body(buf.clone())
                             })
                             .await?;
-                        job.bytes_done.fetch_add(n, Ordering::Relaxed);
+                        job.flow(n).await;
                         Ok::<Value, String>(v["part"].clone())
                     }
                 })
@@ -636,13 +636,23 @@ impl BoxCom {
         if let Some(dir) = path.parent() {
             tokio::fs::create_dir_all(dir).await.map_err(|e| e.to_string())?;
         }
-        let mut tmp = path.as_os_str().to_owned();
-        tmp.push(".part");
-        let tmp = PathBuf::from(tmp);
+        let tmp = part_path(path);
+        let offset = resume_offset(&tmp, job).await;
         let url = self.api(&format!("files/{}/content", it.id));
-        let r = ok(self.send(|h| h.get(&url)).await?).await?;
+        let r = self
+            .send(|h| {
+                let b = h.get(&url);
+                if offset > 0 { b.header("Range", format!("bytes={offset}-")) } else { b }
+            })
+            .await?;
+        if offset > 0 && r.status() == StatusCode::RANGE_NOT_SATISFIABLE {
+            job.bytes_done.fetch_add(offset, Ordering::Relaxed);
+            return tokio::fs::rename(&tmp, path).await.map_err(|e| e.to_string());
+        }
+        let partial = offset > 0 && r.status() == StatusCode::PARTIAL_CONTENT;
+        let r = ok(r).await?;
         let mut body = r.bytes_stream();
-        let f = tokio::fs::File::create(&tmp).await.map_err(|e| e.to_string())?;
+        let f = open_part(&tmp, partial, offset, job).await?;
         let mut w = tokio::io::BufWriter::with_capacity(1 << 20, f);
         let res: Result<(), String> = async {
             while let Some(chunk) = body.try_next().await.map_err(net_err)? {
@@ -650,7 +660,7 @@ impl BoxCom {
                     return Err("cancelled".into());
                 }
                 w.write_all(&chunk).await.map_err(|e| e.to_string())?;
-                job.bytes_done.fetch_add(chunk.len() as u64, Ordering::Relaxed);
+                job.flow(chunk.len() as u64).await;
             }
             w.flush().await.map_err(|e| e.to_string())
         }
@@ -659,7 +669,7 @@ impl BoxCom {
         match res {
             Ok(()) => tokio::fs::rename(&tmp, path).await.map_err(|e| e.to_string()),
             Err(e) => {
-                let _ = tokio::fs::remove_file(&tmp).await;
+                drop_part(&tmp, job, &e).await;
                 Err(e)
             }
         }

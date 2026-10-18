@@ -7,7 +7,7 @@ import { calcSize, mkdir, openItem, transfer } from "./actions";
 import { applyAppearance, setupSplitter } from "./appearance";
 import { setupDnd, armDrag } from "./dnd";
 import { hydrateIcons } from "./icons";
-import { setupJobs, watchView } from "./jobs";
+import { checkInterrupted, setupJobs, watchView } from "./jobs";
 import { setupKeyboard } from "./keyboard";
 import { setupMenu, showMenu } from "./menu";
 import { copyPath, editPath, setupPalette } from "./palette";
@@ -171,6 +171,7 @@ async function main() {
   await initSettings();
   await localLoad;
   setupUpdater();
+  checkInterrupted();
   local.list.focus();
 }
 

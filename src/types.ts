@@ -123,6 +123,11 @@ export type JobEvent = {
   src_bucket: string | null;
   /** Uploads and copies: the folder the files come from (local path or source prefix). */
   src_dir: string | null;
+  /** Paused from the UI (experimental resume). */
+  paused: boolean;
 };
 
 export type SortBy = "name" | "size" | "modified";
+
+/** A transfer that didn't finish last time (resume.rs `PendingJob`). */
+export type PendingJob = { id: string; kind: "up" | "down"; label: string; bucket: string; prefix: string };

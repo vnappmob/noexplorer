@@ -10,7 +10,7 @@
 
 use std::collections::HashMap;
 use std::io::SeekFrom;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Mutex;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -27,7 +27,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 use crate::config::{Profile, effective_region, is_aws, normalize_endpoint};
 use crate::jobs::Job;
-use crate::provider::{BucketInfo, Entry};
+use crate::provider::{BucketInfo, Entry, drop_part, open_part, part_path, resume_offset};
 use crate::util::{err, file_name, is_text_like};
 
 pub const MULTIPART_THRESHOLD: u64 = 16 * 1024 * 1024;
@@ -453,6 +453,7 @@ impl S3 {
         let c = self.client_for(bucket).await;
         let ct = mime_guess::from_path(path).first_or_octet_stream().to_string();
         if size <= MULTIPART_THRESHOLD {
+            job.gate(size).await; // one request: pause and speed limit before it, progress after
             let body = ByteStream::from_path(path).await.map_err(err)?;
             c.put_object().bucket(bucket).key(key).content_type(ct).body(body).send().await.map_err(err)?;
             job.bytes_done.fetch_add(size, Ordering::Relaxed);
@@ -461,8 +462,36 @@ impl S3 {
 
         let part_size = MIN_PART_SIZE.max(size.div_ceil(MAX_PARTS));
         let parts = size.div_ceil(part_size);
-        let created = c.create_multipart_upload().bucket(bucket).key(key).content_type(ct).send().await.map_err(err)?;
-        let upload_id = created.upload_id().ok_or("Server returned no upload id")?.to_string();
+        // Resumable jobs continue an unfinished upload of this same file (journaled with its size
+        // and modification time), sending only the parts the server doesn't have yet.
+        let journal = job.resume;
+        let mut have: HashMap<i32, String> = HashMap::new();
+        let found = if journal { crate::resume::multipart_find(self.account(), bucket, key, size, path) } else { None };
+        let upload_id = match found {
+            Some(id) => match self.parts_of(&c, bucket, key, &id).await {
+                Ok(p) => {
+                    have = p;
+                    id
+                }
+                Err(_) => {
+                    crate::resume::multipart_remove(&id); // gone on the server: start over
+                    String::new()
+                }
+            },
+            None => String::new(),
+        };
+        let upload_id = if upload_id.is_empty() {
+            let created =
+                c.create_multipart_upload().bucket(bucket).key(key).content_type(ct).send().await.map_err(err)?;
+            let id = created.upload_id().ok_or("Server returned no upload id")?.to_string();
+            if journal {
+                crate::resume::multipart_put(self.account(), bucket, key, size, path, &id);
+            }
+            id
+        } else {
+            upload_id
+        };
+        let have = &have;
 
         let c = &c;
         let result: Result<(), String> = async {
@@ -475,11 +504,16 @@ impl S3 {
                         }
                         let offset = i * part_size;
                         let len = part_size.min(size - offset);
+                        let n = (i + 1) as i32;
+                        if let Some(etag) = have.get(&n) {
+                            job.bytes_done.fetch_add(len, Ordering::Relaxed); // sent before
+                            return Ok(CompletedPart::builder().part_number(n).e_tag(etag).build());
+                        }
+                        job.gate(len).await;
                         let mut f = tokio::fs::File::open(path).await.map_err(|e| e.to_string())?;
                         f.seek(SeekFrom::Start(offset)).await.map_err(|e| e.to_string())?;
                         let mut buf = vec![0u8; len as usize];
                         f.read_exact(&mut buf).await.map_err(|e| e.to_string())?;
-                        let n = (i + 1) as i32;
                         let r = c
                             .upload_part()
                             .bucket(bucket)
@@ -510,10 +544,48 @@ impl S3 {
         }
         .await;
 
-        if result.is_err() {
-            let _ = c.abort_multipart_upload().bucket(bucket).key(key).upload_id(&upload_id).send().await;
+        match &result {
+            Ok(()) => crate::resume::multipart_remove(&upload_id),
+            // Keep the parts for a resume after network trouble; otherwise free the server space.
+            Err(e) if journal && !job.cancelled() && crate::resume::transient(e) => {}
+            Err(_) => {
+                let _ = c.abort_multipart_upload().bucket(bucket).key(key).upload_id(&upload_id).send().await;
+                crate::resume::multipart_remove(&upload_id);
+            }
         }
         result
+    }
+
+    /// Parts already uploaded for `upload_id` (part number → ETag).
+    async fn parts_of(
+        &self,
+        c: &Client,
+        bucket: &str,
+        key: &str,
+        upload_id: &str,
+    ) -> Result<HashMap<i32, String>, String> {
+        let mut out = HashMap::new();
+        let mut marker: Option<String> = None;
+        loop {
+            let r = c
+                .list_parts()
+                .bucket(bucket)
+                .key(key)
+                .upload_id(upload_id)
+                .set_part_number_marker(marker.clone())
+                .send()
+                .await
+                .map_err(err)?;
+            for p in r.parts() {
+                if let (Some(n), Some(e)) = (p.part_number(), p.e_tag()) {
+                    out.insert(n, e.to_string());
+                }
+            }
+            match (r.is_truncated(), r.next_part_number_marker()) {
+                (Some(true), Some(m)) => marker = Some(m.to_string()),
+                _ => return Ok(out),
+            }
+        }
     }
 
     /// Streams one object to `path` via `path.part`, renaming on success.
@@ -522,12 +594,24 @@ impl S3 {
         if let Some(dir) = path.parent() {
             tokio::fs::create_dir_all(dir).await.map_err(|e| e.to_string())?;
         }
-        let mut tmp = path.as_os_str().to_owned();
-        tmp.push(".part");
-        let tmp = PathBuf::from(tmp);
-        let r = c.get_object().bucket(bucket).key(key).send().await.map_err(err)?;
+        let tmp = part_path(path);
+        let offset = resume_offset(&tmp, job).await;
+        let mut req = c.get_object().bucket(bucket).key(key);
+        if offset > 0 {
+            req = req.range(format!("bytes={offset}-"));
+        }
+        let r = match req.send().await {
+            Ok(r) => r,
+            // The .part already has every byte (nothing left to range over).
+            Err(e) if offset > 0 && e.raw_response().is_some_and(|r| r.status().as_u16() == 416) => {
+                job.bytes_done.fetch_add(offset, Ordering::Relaxed);
+                return tokio::fs::rename(&tmp, path).await.map_err(|e| e.to_string());
+            }
+            Err(e) => return Err(err(e)),
+        };
+        let partial = offset > 0 && r.content_range().is_some();
         let mut body = r.body;
-        let f = tokio::fs::File::create(&tmp).await.map_err(|e| e.to_string())?;
+        let f = open_part(&tmp, partial, offset, job).await?;
         let mut w = tokio::io::BufWriter::with_capacity(1 << 20, f);
         let res: Result<(), String> = async {
             while let Some(chunk) = body.try_next().await.map_err(err)? {
@@ -535,7 +619,7 @@ impl S3 {
                     return Err("cancelled".into());
                 }
                 w.write_all(&chunk).await.map_err(|e| e.to_string())?;
-                job.bytes_done.fetch_add(chunk.len() as u64, Ordering::Relaxed);
+                job.flow(chunk.len() as u64).await;
             }
             w.flush().await.map_err(|e| e.to_string())
         }
@@ -544,7 +628,7 @@ impl S3 {
         match res {
             Ok(()) => tokio::fs::rename(&tmp, path).await.map_err(|e| e.to_string()),
             Err(e) => {
-                let _ = tokio::fs::remove_file(&tmp).await;
+                drop_part(&tmp, job, &e).await;
                 Err(e)
             }
         }
