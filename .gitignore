@@ -27,5 +27,6 @@ dist-ssr
 src-tauri/target
 src-tauri/gen/schemas
 scripts/.dev-s3.json
+site/.astro
 .DS_Store
 .wrangler

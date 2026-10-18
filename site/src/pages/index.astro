@@ -1,3 +1,23 @@
+---
+// Home page: one message (local ↔ remote transfers), the app mockup, download, a few points and a
+// short feature grid. Detail lives in the docs (Starlight, /docs/). Keep it short (AGENTS.md).
+const site = "https://noexplorer.vnappmob.com/";
+const ld = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "NoExplorer",
+  description:
+    "A two-pane file manager: your computer on the left, your cloud storage on the right. Drag to upload or download. For S3, Nextcloud, WebDAV and Box.",
+  applicationCategory: "UtilitiesApplication",
+  operatingSystem: "macOS, Windows, Linux",
+  url: site,
+  downloadUrl: "https://github.com/vnappmob/noexplorer/releases/latest",
+  license: "https://opensource.org/licenses/MIT",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  author: { "@type": "Organization", name: "VNAppMob", url: "https://github.com/vnappmob" },
+};
+---
+
 <!doctype html>
 <html lang="en">
   <head>
@@ -8,22 +28,31 @@
       name="description"
       content="Your computer on the left, your cloud on the right. Drag to upload or download. Free and open source for macOS, Windows and Linux, for S3, Nextcloud, WebDAV and Box."
     />
+    <link rel="canonical" href={site} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={site} />
+    <meta property="og:site_name" content="NoExplorer" />
     <meta property="og:title" content="NoExplorer" />
     <meta
       property="og:description"
       content="Your computer on the left, your cloud on the right. Drag to upload or download."
     />
     <meta property="og:image" content="https://noexplorer.vnappmob.com/icon.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="NoExplorer" />
+    <meta name="twitter:description" content="Your computer on the left, your cloud on the right. Drag to upload or download." />
+    <meta name="keywords" content="S3 client, S3 file manager, MinIO client, Nextcloud client, WebDAV client, Box, dual-pane file manager, backup, macOS, Windows, Linux, open source" />
+    <script type="application/ld+json" set:html={JSON.stringify(ld)} />
     <meta name="theme-color" content="#0b0d12" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#fbfbfd" media="(prefers-color-scheme: light)" />
-    <link rel="icon" href="favicon.png" />
-    <link rel="preload" href="fonts/geist.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="stylesheet" href="style.css" />
-    <script src="app.js" defer></script>
+    <link rel="icon" href="/favicon.png" />
+    <link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/style.css" />
+    <script is:inline src="/app.js" defer></script>
   </head>
   <body>
     <header class="nav">
-      <a class="brand" href="/"><img src="icon.svg" alt="" width="28" height="28" />NoExplorer</a>
+      <a class="brand" href="/"><img src="/icon.svg" alt="" width="28" height="28" />NoExplorer</a>
       <nav>
         <a href="/docs/">Docs</a>
         <a href="https://github.com/vnappmob/noexplorer" class="gh">GitHub</a>
@@ -129,6 +158,31 @@
           <p>Downloads never overwrite your files, and Compare shows that everything arrived.</p>
         </div>
       </section>
+
+      <section class="more" aria-labelledby="more-title">
+        <h2 id="more-title">And the rest of what you'd expect</h2>
+        <ul class="features">
+          <li>
+            <a href="/docs/tools/#compare-folders"><b>Compare &amp; verify</b><span>See what's missing after a backup, checked by checksum.</span></a>
+          </li>
+          <li>
+            <a href="/docs/transfers/#several-accounts-at-once"><b>Cloud to cloud</b><span>Up to three accounts side by side; drag between them to copy.</span></a>
+          </li>
+          <li>
+            <a href="/docs/tools/#folder-sizes"><b>Folder sizes</b><span>Every folder's size as you browse, faster than ncdu.</span></a>
+          </li>
+          <li>
+            <a href="/docs/tools/#quick-look"><b>Quick look</b><span>Images, video, PDF and text, without downloading.</span></a>
+          </li>
+          <li>
+            <a href="/docs/accounts/"><b>Your storage</b><span>S3, R2, B2, Wasabi, MinIO, Nextcloud, WebDAV, Box.</span></a>
+          </li>
+          <li>
+            <a href="/docs/privacy/"><b>Private by design</b><span>Keys in your keychain, no accounts, no tracking.</span></a>
+          </li>
+        </ul>
+        <p class="more-link"><a href="/docs/">Read the docs →</a></p>
+      </section>
     </main>
 
     <footer>
@@ -136,8 +190,8 @@
         <a href="/docs/">Docs</a> · <a href="https://github.com/vnappmob/noexplorer">GitHub</a> ·
         <a href="https://github.com/vnappmob/noexplorer/releases">Releases</a> ·
         <a href="https://github.com/vnappmob/noexplorer/blob/main/CHANGELOG.md">Changelog</a> ·
-        <a href="/docs/privacy">Privacy</a> ·
-        <a href="/docs/code-signing">Code signing</a>
+        <a href="/docs/privacy/">Privacy</a> ·
+        <a href="/docs/code-signing/">Code signing</a>
       </p>
       <p class="muted">MIT License · Made by Kris Luu at <a href="https://github.com/vnappmob">VNAppMob</a></p>
     </footer>

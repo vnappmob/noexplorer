@@ -1,0 +1,15 @@
+{
+  "name": "noexplorer-site",
+  "private": true,
+  "type": "module",
+  "description": "noexplorer.vnappmob.com: the home page and the docs (Astro + Starlight). Separate from the app's packages.",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "0.42.6",
+    "astro": "7.4.0"
+  }
+}

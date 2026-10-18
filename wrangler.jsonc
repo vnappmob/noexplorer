@@ -1,12 +1,18 @@
 // Website hosting: Cloudflare Workers with static assets (no Worker script, just files).
 // Deployed by Cloudflare Workers Builds (Git integration) on push to main; see docs/RELEASING.md → "Website".
+// `wrangler deploy` (and `wrangler dev`) first runs the build below: the Astro site in /site
+// (home page + Starlight docs) → site/dist. No build settings are needed in the dashboard.
 // "name" must match the Worker name in the Cloudflare dashboard.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "noexplorer-site",
   "compatibility_date": "2026-10-01",
+  "build": {
+    "command": "npm ci --prefix site && npm run build --prefix site",
+    "watch_dir": "site/src"
+  },
   "assets": {
-    "directory": "./site",
+    "directory": "./site/dist",
     "not_found_handling": "404-page"
   },
   // vnappmob.com is a Cloudflare zone, so this creates the DNS record + certificate automatically.

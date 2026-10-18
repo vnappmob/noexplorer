@@ -21,6 +21,8 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
+      # The website (Astro + Starlight docs): a broken page or link config fails here, not on deploy.
+      - run: npm run site:build
 
   rust:
     name: Rust (fmt + clippy + tests incl. S3 round-trip)

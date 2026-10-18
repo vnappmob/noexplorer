@@ -92,7 +92,7 @@ When that day comes:
   certificate in the runner's store, or `signCommand` for a cloud signer). The updater
   signatures are then made from the signed files automatically. Guide:
   <https://v2.tauri.app/distribute/sign/windows/>.
-- Update the website's [code signing page](../site-src/docs/code-signing.html), the FAQ and the
+- Update the website's [code signing page](../site/src/content/docs/docs/code-signing.md), the FAQ and the
   README note.
 
 ## Website
@@ -116,9 +116,12 @@ When that day comes:
   4. Optional, under Settings → Build → Build watch paths: include `site/*` and
      `wrangler.jsonc`, so app-only commits don't trigger a deploy.
   5. Save and deploy, then open <https://noexplorer.vnappmob.com>.
-- **Docs pages are generated.** Edit `site-src/docs/<page>.html` (and `_layout.html` for the
-  frame), then run `npm run site:docs` and commit both. `npm run check` fails when `site/docs/`
-  is stale. New pages go in `PAGES` in `scripts/build-docs.mjs` (sidebar order).
+- **The site is an Astro project in `site/`** (its own `package.json`, nothing shared with the app):
+  the home page is `site/src/pages/index.astro` (static assets in `site/public/`), the docs are
+  Markdown in `site/src/content/docs/docs/` rendered by Starlight (search, sidebar from each page's
+  `sidebar.order`, sitemap). `npm run site:build` builds `site/dist`; CI builds it too.
+- `wrangler deploy` runs the build itself (`build.command` in `wrangler.jsonc`), so Cloudflare's
+  Workers Builds needs no build settings: its default deploy command does everything.
 - Manual deploy from a laptop, if ever needed: `npx wrangler login && npm run site:deploy`.
 - The download buttons call `https://api.github.com/repos/vnappmob/noexplorer/releases/latest`
-  and pick the asset by file extension. If the repo is renamed, update `REPO` in `site/app.js`.
+  and pick the asset by file extension. If the repo is renamed, update `REPO` in `site/public/app.js`.

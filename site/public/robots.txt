@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://noexplorer.vnappmob.com/sitemap-index.xml

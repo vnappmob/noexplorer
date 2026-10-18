@@ -78,8 +78,7 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   autostart.rs       Launch at login (LaunchAgent with bundle id, so macOS shows "NoExplorer")
   state.rs           AppState (settings, one Remote per account, cancel flags)    util.rs  pure helpers (tested)
 src-tauri/tauri.conf.json   Window, bundle and security settings (version comes from package.json)
-site/                Static website → Cloudflare Workers static assets (config: wrangler.jsonc); site/docs/ is generated
-site-src/docs/       Docs page sources → `npm run site:docs` (scripts/build-docs.mjs) → site/docs/
+site/                Website (Astro): home page src/pages/index.astro + docs src/content/docs/docs/*.md (Starlight) → site/dist
 assets/icon.svg      Icon source → icon.png (render 1024px), then `npx tauri icon assets/icon.png`
 scripts/dev-s3.sh    Local S3 server in Docker for dev and tests
 scripts/dev-nextcloud.sh  Local Nextcloud in Docker (user dev) for the WebDAV provider
@@ -152,7 +151,7 @@ Full detail, including the command table, event schema and data flows, is in [do
 **Add a UI action** (button, menu item, shortcut)
 - Implement the action in `actions.ts` and add a case to `paneAction()`.
 - There is no per-selection toolbar (removed in 0.3.1, ADR-019): selection actions belong in the right-click menu, a shortcut and the ⌘K palette (`palette.ts` `build()`). Pane-level tools (filter, refresh, …) go in the `.src` header row in `index.html`.
-- Menu item: add it in `menu.ts`. Shortcut: add it in `keyboard.ts`, then update the shortcut table in `README.md` and in `site-src/docs/shortcuts.html` (`npm run site:docs`).
+- Menu item: add it in `menu.ts`. Shortcut: add it in `keyboard.ts`, then update the shortcut table in `README.md` and in `site/src/content/docs/docs/shortcuts.md`.
 
 **Add a preview type:** add extensions in `files.ts` (`KIND`) and a render branch in `preview.ts`. Text types must also be added to `util::is_text_like` in Rust.
 
@@ -173,8 +172,8 @@ entry to `EXPERIMENTS` in `experimental.ts`, and gate the feature with `exp("key
 |---|---|
 | A command (add, rename, change args) | `lib.rs` handler list, ARCHITECTURE command table, `types.ts` |
 | A `"job"` event field | `jobs.rs` `JobEvent`, `types.ts` `JobEvent`, ARCHITECTURE event schema |
-| A shortcut | `keyboard.ts`, README table, `site-src/docs/shortcuts.html` (then `npm run site:docs`) |
-| A user-visible behavior or setting | The matching page in `site-src/docs/`, then `npm run site:docs` |
+| A shortcut | `keyboard.ts`, README table, `site/src/content/docs/docs/shortcuts.md` |
+| A user-visible behavior or setting | The matching docs page in `site/src/content/docs/docs/` |
 | Something a user would notice | `CHANGELOG.md` → `## [Unreleased]` |
 | An architectural choice or trade-off | Add an ADR to `docs/DECISIONS.md` |
 | Known limitations or the plan | `docs/ROADMAP.md` and the **Status** block above |

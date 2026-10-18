@@ -1,0 +1,33 @@
+/* Docs (Starlight) in the site's look: Geist, the app's blue. */
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/geist.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/geist-mono.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+:root {
+  --sl-font: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --sl-font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sl-color-accent-low: #1b2546;
+  --sl-color-accent: #6f94ff;
+  --sl-color-accent-high: #c7d5ff;
+}
+:root[data-theme="light"] {
+  --sl-color-accent-low: #e8eeff;
+  --sl-color-accent: #2f5bea;
+  --sl-color-accent-high: #16307d;
+}
+kbd {
+  font-family: var(--sl-font-mono);
+  font-size: 0.85em;
+  padding: 1px 6px;
+  border: 1px solid var(--sl-color-gray-5);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+}

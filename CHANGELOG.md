@@ -30,6 +30,10 @@ versions: [SemVer](https://semver.org/).
 - Experimental **native window look** (Windows 11 Mica, macOS translucency) and **Vietnamese
   interface**.
 
+### Website
+- The docs moved to a faster docs site with search (Starlight): pages load as you point at a link.
+- The home page lists the main features at the bottom, and has better search-engine metadata.
+
 ### Accessibility
 - File lists are announced as lists with their selection, notifications are read out, and
   keyboard focus is always visible.
