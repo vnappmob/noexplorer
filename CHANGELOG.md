@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.11] - 2026-10-18
+
 ### Fixed
 - Settings → Experimental lists one feature per row again (the items ran together on shared lines).
 
