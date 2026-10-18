@@ -3,6 +3,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { openCompare } from "./compare";
+import { duplicateItems, moveItems, renameItem } from "./fileops";
 import { noteJobItems } from "./jobs";
 import { requestSizes } from "./sizes";
 import { ask } from "@tauri-apps/plugin-dialog";
@@ -209,6 +210,9 @@ export function paneAction(p: Pane, act: string) {
     delete: () => (p.isRemote ? deleteRemote(p, sel) : trashLocal(sel)),
     size: () => calcSize(p),
     compare: () => openCompare(),
+    rename: () => one && renameItem(p, one),
+    move: () => moveItems(p, sel),
+    duplicate: () => duplicateItems(p, sel),
     split: () => splitView(p),
     "close-view": () => closeView(p),
     mkdir: () => mkdir(p),

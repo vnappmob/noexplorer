@@ -38,6 +38,8 @@ impl Line {
             "up" => "⬆",
             "delete" => "🗑",
             "copy" => "⇄",
+            "move" => "↪",
+            "dup" => "⧉",
             _ => "⬇",
         };
         let label: String = if self.label.chars().count() > 34 {

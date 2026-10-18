@@ -374,6 +374,48 @@ impl BoxCom {
         self.create_folder(parent, name, &format!("{prefix}{name}/")).await.map(|_| ())
     }
 
+    /// Copies or moves (`keep` = copy) `from` to `to`: Box's copy, or an update of the item's
+    /// name and parent folder. Box answers 409 when the target name is taken.
+    pub async fn transfer_within(
+        &self,
+        _container: &str,
+        from: &str,
+        to: &str,
+        keep: bool,
+        job: Option<&Job>,
+    ) -> Result<(), String> {
+        if let Some(j) = job {
+            j.files_total.store(1, Ordering::Relaxed);
+        }
+        let it = self.resolve(from).await?;
+        let to_name = to.trim_end_matches('/');
+        let (parent_path, name) = match to_name.rfind('/') {
+            Some(i) => (&to_name[..=i], &to_name[i + 1..]),
+            None => ("", to_name),
+        };
+        let parent = self.ensure_folder(parent_path).await?;
+        let kind = if it.dir { "folders" } else { "files" };
+        let body = json!({ "name": name, "parent": { "id": parent.to_string() } });
+        let r = if keep {
+            let url = self.api(&format!("{kind}/{}/copy", it.id));
+            self.send(|h| h.post(&url).json(&body)).await?
+        } else {
+            let url = self.api(&format!("{kind}/{}", it.id));
+            self.send(|h| h.put(&url).json(&body)).await?
+        };
+        if r.status() == StatusCode::CONFLICT {
+            return Err(format!("“{name}” already exists there"));
+        }
+        ok(r).await?;
+        if !keep {
+            self.ids.lock().unwrap().retain(|p, _| !p.starts_with(from));
+        }
+        if let Some(j) = job {
+            j.files_done.store(1, Ordering::Relaxed);
+        }
+        Ok(())
+    }
+
     /// Moves files and folders (recursively) to the Box trash. Returns how many went.
     pub async fn delete(&self, _container: &str, keys: Vec<String>, job: Option<&Job>) -> Result<usize, String> {
         let mut n = 0;
@@ -1153,13 +1195,62 @@ mod tests {
                         let _ = kind;
                         respond(204, b"", "")
                     }
-                    ("PUT", ["2.0", _kind, id]) => respond(
-                        200,
-                        json!({ "shared_link": { "url": format!("https://app.box.com/s/{id}") } })
-                            .to_string()
-                            .as_bytes(),
-                        "",
-                    ),
+                    ("PUT", ["2.0", _kind, id]) => {
+                        let v: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
+                        let nid: u64 = id.parse().unwrap();
+                        if v.get("shared_link").is_some() {
+                            respond(
+                                200,
+                                json!({ "shared_link": { "url": format!("https://app.box.com/s/{id}") } })
+                                    .to_string()
+                                    .as_bytes(),
+                                "",
+                            )
+                        } else {
+                            // Rename / move: new name and parent, 409 when the name is taken there.
+                            let parent: u64 = v["parent"]["id"].as_str().unwrap().parse().unwrap();
+                            let name = v["name"].as_str().unwrap().to_string();
+                            if m.child(parent, &name).is_some() {
+                                respond(409, br#"{"code":"item_name_in_use"}"#, "")
+                            } else {
+                                let n = m.nodes.get_mut(&nid).unwrap();
+                                n.parent = parent;
+                                n.name = name;
+                                respond(200, m.file_json(nid).to_string().as_bytes(), "")
+                            }
+                        }
+                    }
+                    ("POST", ["2.0", _kind, id, "copy"]) => {
+                        let v: Value = serde_json::from_slice(&body).unwrap();
+                        let parent: u64 = v["parent"]["id"].as_str().unwrap().parse().unwrap();
+                        let name = v["name"].as_str().unwrap().to_string();
+                        if m.child(parent, &name).is_some() {
+                            respond(409, br#"{"code":"item_name_in_use"}"#, "")
+                        } else {
+                            // Deep copy: the item, then everything under it.
+                            let src: u64 = id.parse().unwrap();
+                            let mut todo = vec![(src, parent, Some(name))];
+                            let mut top = 0;
+                            while let Some((from, to_parent, rename)) = todo.pop() {
+                                let n = &m.nodes[&from];
+                                let copy = Node {
+                                    parent: to_parent,
+                                    name: rename.unwrap_or_else(|| n.name.clone()),
+                                    dir: n.dir,
+                                    data: n.data.clone(),
+                                };
+                                let nid = m.id();
+                                if top == 0 {
+                                    top = nid;
+                                }
+                                let kids: Vec<u64> =
+                                    m.nodes.iter().filter(|(_, k)| k.parent == from).map(|(i, _)| *i).collect();
+                                m.nodes.insert(nid, copy);
+                                todo.extend(kids.into_iter().map(|k| (k, nid, None)));
+                            }
+                            respond(201, m.file_json(top).to_string().as_bytes(), "")
+                        }
+                    }
                     _ => respond(404, br#"{"message":"no route"}"#, ""),
                 }
             }
@@ -1229,6 +1320,12 @@ mod tests {
         assert!(b2.link("", "docs/n0.txt", 7 * 86_400, false).await.unwrap().contains("/s/"));
         b2.mkdir("", "docs/", "made").await.unwrap();
         assert!(b2.list("", "docs/").await.unwrap().iter().any(|e| e.key == "docs/made/"));
+        // Rename, copy, and Box's 409 for a taken name (file ops, experimental).
+        b2.transfer_within("", "docs/n0.txt", "docs/renamed.txt", false, None).await.unwrap();
+        assert!(b2.list("", "docs/").await.unwrap().iter().any(|e| e.key == "docs/renamed.txt"));
+        b2.transfer_within("", "docs/renamed.txt", "docs/made/renamed.txt", true, None).await.unwrap();
+        assert!(b2.list("", "docs/made/").await.unwrap().iter().any(|e| e.key == "docs/made/renamed.txt"));
+        assert!(b2.transfer_within("", "docs/renamed.txt", "docs/made/renamed.txt", true, None).await.is_err());
         assert_eq!(b2.delete("", vec!["docs/".into()], None).await.unwrap(), 1);
         assert!(state.lock().unwrap().nodes.is_empty(), "everything went to the (mock) trash");
         assert!(state.lock().unwrap().refreshes >= 3, "the expired token was refreshed");

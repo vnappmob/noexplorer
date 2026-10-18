@@ -13,6 +13,7 @@ import { describeAccount, guessProvider, isS3, PRESETS, type ProviderId } from "
 import { activeProfile, app } from "./state";
 import { openMenu, type MenuItem } from "./popover";
 import type { BucketInfo, General, Profile, Settings } from "./types";
+import { renderExperimental } from "./experimental";
 import { requestSizes, stopSizes } from "./sizes";
 import { checkForUpdates } from "./updater";
 import { $, esc, fail, plural } from "./util";
@@ -44,6 +45,7 @@ function showTab(tab: string) {
     .forEach((s) => (s.hidden = s.dataset.tab !== tab));
   if (tab === "appearance") syncAppearanceControls();
   if (tab === "general") syncGeneralControls();
+  if (tab === "experimental") renderExperimental();
   if (tab === "about") getVersion().then((v) => ($("about-version").textContent = v));
 }
 
@@ -267,6 +269,7 @@ async function onGeneralChange(ev: Event) {
       return;
     }
     const general: General = {
+      ...app.settings.general,
       run_in_background: box("run_in_background").checked,
       check_updates: box("check_updates").checked,
       auto_sizes: box("auto_sizes").checked,

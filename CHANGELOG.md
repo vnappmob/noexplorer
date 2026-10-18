@@ -5,6 +5,13 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Settings → Experimental**: new features ship here, off until you turn them on.
+- Experimental **rename, move and duplicate**, on this computer and on remotes: F2 renames, the
+  right-click menu has Move to… and Duplicate, dragging onto a folder in the same pane moves
+  there, and ⌘Z undoes the last one. Nothing is ever overwritten; remote moves run on the
+  server (S3 copies objects over 5 GB in parts).
+
 ## [0.4.9] - 2026-10-17
 
 ### Changed

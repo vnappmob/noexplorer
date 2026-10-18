@@ -51,7 +51,7 @@ export function toast(msg: string, isErr = false) {
 export const fail = (e: unknown) => toast(String(e), true);
 
 /** Text prompt using the #ask dialog (window.prompt isn't available in every webview). */
-export function askText(title: string, value = ""): Promise<string | null> {
+export function askText(title: string, value = "", selectStem = false): Promise<string | null> {
   const d = $<HTMLDialogElement>("ask");
   const input = $<HTMLInputElement>("ask-input");
   $("ask-title").textContent = title;
@@ -60,6 +60,9 @@ export function askText(title: string, value = ""): Promise<string | null> {
   $("ask-cancel").onclick = () => d.close("cancel");
   d.showModal();
   input.focus();
+  // Renaming: select the name without its extension, like Finder.
+  const dot = value.lastIndexOf(".");
+  if (selectStem) input.setSelectionRange(0, dot > 0 ? dot : value.length);
   return new Promise((resolve) => {
     d.addEventListener("close", () => resolve(d.returnValue === "ok" ? input.value : null), { once: true });
   });

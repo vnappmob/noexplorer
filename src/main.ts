@@ -1,6 +1,8 @@
 // Entry point: wires DOM events to the modules and boots the app.
 // Module map: see docs/ARCHITECTURE.md ("Frontend").
 
+import { setupFileOps } from "./fileops";
+import { setupExperimental } from "./experimental";
 import { calcSize, mkdir, openItem, transfer } from "./actions";
 import { applyAppearance, setupSplitter } from "./appearance";
 import { setupDnd, armDrag } from "./dnd";
@@ -155,6 +157,8 @@ async function main() {
   setupCompare();
   setupMenu();
   setupSettings();
+  setupExperimental();
+  setupFileOps();
   setupKeyboard();
   window.addEventListener("focus", () => local.load(true)); // pick up changes made outside the app
   setActive(local);

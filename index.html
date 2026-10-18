@@ -141,6 +141,7 @@
         <button type="button" data-tab="accounts" class="on">Accounts</button>
         <button type="button" data-tab="general">General</button>
         <button type="button" data-tab="appearance">Appearance</button>
+        <button type="button" data-tab="experimental">Experimental</button>
         <button type="button" data-tab="about">About</button>
         <span class="spacer"></span>
         <button type="button" id="settings-close" title="Close (Esc)">✕</button>
@@ -231,6 +232,16 @@
           </span>
         </label>
         <p class="hint">Changes apply instantly and are saved on this computer. Tip: drag the line between the panes to resize them; double-click it to reset.</p>
+      </section>
+
+      <section class="tab experimental" data-tab="experimental" hidden>
+        <p class="hint">Features still being tested. They're off until you turn them on, and may change.</p>
+        <form id="exp-form">
+          <div id="exp-list"></div>
+          <label class="field" id="speed-row" hidden>Speed limit (KB/s, empty = no limit)
+            <input id="speed-limit" type="number" min="0" step="100" placeholder="No limit" />
+          </label>
+        </form>
       </section>
 
       <section class="tab about" data-tab="about" hidden>

@@ -329,6 +329,41 @@ impl Dav {
     }
 
     /// Deletes files and folders (WebDAV deletes folders recursively). Returns how many were removed.
+    /// COPY or MOVE (`keep` = copy) `from` to `to` on the server, folders included (Depth
+    /// infinity). `Overwrite: F` makes the server refuse an existing target.
+    pub async fn transfer_within(
+        &self,
+        _container: &str,
+        from: &str,
+        to: &str,
+        keep: bool,
+        job: Option<&Job>,
+    ) -> Result<(), String> {
+        if let Some(j) = job {
+            j.files_total.store(1, Ordering::Relaxed);
+        }
+        let r = self
+            .send(
+                self.req(method(if keep { "COPY" } else { "MOVE" }), &self.url(from))
+                    .header("Destination", self.url(to))
+                    .header("Overwrite", "F")
+                    .header("Depth", "infinity"),
+            )
+            .await
+            .map_err(net_err)?;
+        if r.status() == StatusCode::PRECONDITION_FAILED {
+            return Err(format!("“{}” already exists there", crate::util::file_name(to)));
+        }
+        ok(r).await?;
+        if !keep {
+            self.made.lock().unwrap().retain(|m| !m.starts_with(from));
+        }
+        if let Some(j) = job {
+            j.files_done.store(1, Ordering::Relaxed);
+        }
+        Ok(())
+    }
+
     pub async fn delete(&self, _container: &str, keys: Vec<String>, job: Option<&Job>) -> Result<usize, String> {
         let mut n = 0;
         let total = keys.len() as u64;
@@ -884,6 +919,12 @@ mod tests {
         assert!(share.contains("/s/"), "public share link expected, got {share}");
         d.mkdir("Files", "rt/", "new folder").await.unwrap();
         assert!(d.list("Files", "rt/").await.unwrap().iter().any(|e| e.key == "rt/new folder/"));
+        // Move, copy a folder, and Overwrite: F (file ops, experimental).
+        d.transfer_within("Files", "rt/a b/c/small.txt", "rt/moved.txt", false, None).await.unwrap();
+        assert_eq!(d.read_head("Files", "rt/moved.txt", 3).await.unwrap(), b"sma");
+        d.transfer_within("Files", "rt/a b/", "rt/a b copy/", true, None).await.unwrap();
+        assert!(d.list("Files", "rt/").await.unwrap().iter().any(|e| e.key == "rt/a b copy/"));
+        assert!(d.transfer_within("Files", "rt/a b/", "rt/a b copy/", true, None).await.is_err(), "target exists");
         assert_eq!(d.delete("Files", vec!["rt/".into()], None).await.unwrap(), 1);
         assert!(d.list("Files", "rt/").await.is_err(), "rt/ should be gone");
         std::fs::remove_dir_all(dir).unwrap();

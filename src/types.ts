@@ -22,7 +22,26 @@ export type Profile = {
 };
 
 /** `config::General` — Settings → General. */
-export type General = { run_in_background: boolean; check_updates: boolean; auto_sizes: boolean };
+export type General = {
+  run_in_background: boolean;
+  check_updates: boolean;
+  auto_sizes: boolean;
+  experimental: Experimental;
+  /** KB/s, 0 = no limit (experimental.resume). */
+  speed_limit_kbps: number;
+};
+/** Settings → Experimental (all off by default). Mirrors `Experimental` in config.rs. */
+export type Experimental = {
+  file_ops: boolean;
+  resume: boolean;
+  self_signed: boolean;
+  backup_pairs: boolean;
+  grid: boolean;
+  tabs: boolean;
+  providers: boolean;
+  native_look: boolean;
+  vietnamese: boolean;
+};
 
 /** `config::Settings` — everything in config.json. */
 export type Settings = { profiles: Profile[]; active: string; download_dir: string; general: General };
@@ -85,7 +104,7 @@ export type LocalListing = { path: string; parent: string | null; crumbs: Crumb[
 /** `jobs::JobEvent` — payload of the `"job"` event. */
 export type JobEvent = {
   id: string;
-  kind: "up" | "down" | "copy" | "delete";
+  kind: "up" | "down" | "copy" | "delete" | "move" | "dup";
   label: string;
   /** Profile id of the remote account. */
   account: string;

@@ -10,9 +10,10 @@
 
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { transfer } from "./actions";
+import { moveItems } from "./fileops";
 import type { Pane } from "./pane";
 import { local, paneOf } from "./panes";
-import { activeProfile } from "./state";
+import { activeProfile, exp } from "./state";
 import type { Item } from "./types";
 import { $, plural } from "./util";
 
@@ -88,14 +89,23 @@ function setupInternalDrag() {
     g.style.left = `${ev.clientX + 14}px`;
     g.style.top = `${ev.clientY + 10}px`;
     const t = dropTargetAt(ev.clientX, ev.clientY);
-    drag.target = t && t.pane !== drag.from ? t : null; // only cross-pane drops
+    // Cross-pane drops copy. With file ops on, dropping on a folder (row or crumb) in the same pane
+    // moves there, but never onto one of the dragged items or into the folder they're already in.
+    const sameOk =
+      !!t?.el &&
+      exp("file_ops") &&
+      t.pane === drag.from &&
+      t.dir.replace(/[\\/]+$/, "") !== drag.from.cwd.replace(/[\\/]+$/, "") &&
+      !drag.items.some((e) => t.dir === e.key || t.dir.startsWith(e.key.replace(/[\\/]*$/, "/")));
+    drag.target = t && (t.pane !== drag.from || sameOk) ? t : null;
     highlight(drag.target);
   });
   document.addEventListener("mouseup", () => {
     if (!drag) return;
     const d = drag;
     endDrag();
-    if (d.active && d.target) transfer(d.from, d.items, d.target.dir, d.target.pane);
+    if (d.active && d.target && d.target.pane === d.from) moveItems(d.from, d.items, d.target.dir);
+    else if (d.active && d.target) transfer(d.from, d.items, d.target.dir, d.target.pane);
     else if (!d.active && d.collapseTo >= 0) d.from.selectIndex(d.collapseTo);
   });
   window.addEventListener("blur", endDrag);

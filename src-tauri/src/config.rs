@@ -79,12 +79,47 @@ pub struct General {
     pub check_updates: bool,
     /// Compute folder sizes in the local pane automatically (sizes.rs).
     pub auto_sizes: bool,
+    /// Settings → Experimental: features that ship off until the user turns them on.
+    pub experimental: Experimental,
+    /// Transfer speed cap in KB/s (0 = no limit). Used with `experimental.resume`.
+    pub speed_limit_kbps: u64,
 }
 
 impl Default for General {
     fn default() -> Self {
-        Self { run_in_background: true, check_updates: true, auto_sizes: true }
+        Self {
+            run_in_background: true,
+            check_updates: true,
+            auto_sizes: true,
+            experimental: Experimental::default(),
+            speed_limit_kbps: 0,
+        }
     }
+}
+
+/// Experimental features (all off by default). Mirrors `Experimental` in `src/types.ts`; the
+/// Settings tab lists them from `EXPERIMENTS` in `src/experimental.ts`.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[serde(default)]
+pub struct Experimental {
+    /// Rename, move, duplicate and undo, on both sides.
+    pub file_ops: bool,
+    /// Resumable transfers: continue after interruptions, retry, pause, speed limit.
+    pub resume: bool,
+    /// Accounts may trust their server's self-signed HTTPS certificate.
+    pub self_signed: bool,
+    /// Saved local ↔ remote folder pairs: Compare and upload in one click.
+    pub backup_pairs: bool,
+    /// Thumbnail grid view.
+    pub grid: bool,
+    /// Tabs, back/forward history and favorites.
+    pub tabs: bool,
+    /// SFTP, Google Cloud Storage and Azure Blob accounts.
+    pub providers: bool,
+    /// Native window material (Windows Mica, macOS vibrancy).
+    pub native_look: bool,
+    /// Vietnamese interface.
+    pub vietnamese: bool,
 }
 
 /// Everything in `config.json`. Mirrors `Settings` in `src/types.ts`.

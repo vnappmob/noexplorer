@@ -160,6 +160,26 @@ impl Remote {
     }
 
     /// Deletes files and folders (keys ending in `/`, recursively). Returns how many objects went.
+    /// Copies or moves (`keep` = copy) a file or folder to `to` within one container, on the
+    /// server. Never overwrites: an existing target is an error.
+    pub async fn transfer_within(
+        &self,
+        container: &str,
+        from: &str,
+        to: &str,
+        keep: bool,
+        job: Option<&Job>,
+    ) -> Result<(), String> {
+        if from.ends_with('/') && to.starts_with(from) {
+            return Err("A folder can't go inside itself".into());
+        }
+        match self {
+            Remote::S3(s) => s.transfer_within(container, from, to, keep, job).await,
+            Remote::Dav(d) => d.transfer_within(container, from, to, keep, job).await,
+            Remote::Box(b) => b.transfer_within(container, from, to, keep, job).await,
+        }
+    }
+
     /// Deletes files and folders (with everything inside). `job` gets the progress (files =
     /// objects or items) and can cancel between steps.
     pub async fn delete(&self, container: &str, keys: Vec<String>, job: Option<&Job>) -> Result<usize, String> {

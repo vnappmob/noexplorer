@@ -467,7 +467,18 @@ mod tests {
         let listed = c.list(bucket, "rt/folder/").await.unwrap();
         assert!(listed.iter().any(|e| e.dir && e.key == "rt/folder/sub/"));
 
-        assert_eq!(c.delete(bucket, vec!["rt/".into()], None).await.unwrap(), all.len() + 2);
+        // Rename, duplicate a folder, and never overwrite (file ops, experimental).
+        c.transfer_within(bucket, "rt/copy/xin chào #1.txt", "rt/copy/renamed.txt", false, None).await.unwrap();
+        let copy_dir = c.list_all(bucket, "rt/copy/").await.unwrap();
+        assert!(copy_dir.iter().any(|(k, _)| k == "rt/copy/renamed.txt"));
+        assert!(!copy_dir.iter().any(|(k, _)| k == "rt/copy/xin chào #1.txt"), "move removes the source");
+        c.transfer_within(bucket, "rt/folder/sub/", "rt/dup/", true, None).await.unwrap();
+        assert_eq!(c.read_head(bucket, "rt/dup/hello.txt", 3).await.unwrap(), b"xin");
+        assert!(c.transfer_within(bucket, "rt/folder/sub/", "rt/dup/", true, None).await.is_err(), "target exists");
+        assert!(c.transfer_within(bucket, "rt/folder/", "rt/folder/sub/x/", false, None).await.is_err());
+
+        let before = c.list_all(bucket, "rt/").await.unwrap().len();
+        assert_eq!(c.delete(bucket, vec!["rt/".into()], None).await.unwrap(), before + 1); // + the "rt/" key
         assert!(c.list_all(bucket, "rt/").await.unwrap().is_empty());
         std::fs::remove_dir_all(dir).unwrap();
     }

@@ -90,6 +90,10 @@ means the active account (ADR-025).
 | `read_text` | `bucket, key, max` | string | remote | Range GET `0..max`, decoded as lossy UTF-8 |
 | `mkdir` | `bucket, prefix, name` | – | remote | Writes an empty `prefix+name/` marker object |
 | `delete` | `account?, bucket, keys[]` | job id | remote | Background job (kind `delete`): folders with everything inside; progress in `files_done/files_total` (S3: per batch of up to 1000, WebDAV/Box: per item); cancellable between steps |
+| `remote_move` | `account?, bucket, pairs[[from,to]], copy` | job id | fileops | Rename / move (`copy` false) or duplicate (true) inside one container, server-side (`Remote::transfer_within`); job kind `move` / `dup`; never overwrites |
+| `rename_local` | `path, name` | new path | fileops | Same-folder rename; refuses a taken name |
+| `move_local` | `paths, dest` | `{done, errors}` | fileops | Same-disk move; refuses taken names, other disks and moving a folder into itself |
+| `duplicate_local` | `paths` | `{done, errors}` | fileops | Copies next to the original as "name copy.ext" (symlinks skipped) |
 | `upload` | `bucket, prefix, paths` | job id | transfer | `paths` are absolute local files or folders. Folders keep their structure |
 | `download` | `bucket, prefix, items[{key,size}], dest?` | job id | transfer | Writes to `dest` (the left pane's folder), else to the configured or OS Downloads folder |
 | `open_object` | `bucket, key` | – | transfer | Downloads to `$TMP/noexplorer/<uuid>/` and opens with the default app |
@@ -107,7 +111,7 @@ The TS mirror is `JobEvent` in `src/types.ts`.
 
 ```jsonc
 {
-  "id": "uuid", "kind": "up" | "down" | "copy" | "delete", "label": "a.txt, b.txt +3 more",
+  "id": "uuid", "kind": "up" | "down" | "copy" | "delete" | "move" | "dup", "label": "a.txt, b.txt +3 more",
   "account": "profile-id", "bucket": "demo", "prefix": "backups/",   // remote side (copy: the destination)
   "src_account": null, "src_bucket": null,         // copy: the source view (for the beam)
   "src_dir": "/Users/me/Projects",                 // upload: local folder; copy: source prefix (lanes)

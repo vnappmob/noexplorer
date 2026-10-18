@@ -44,6 +44,8 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   sizes.ts           Local folder sizes: request, apply "dir-sizes", live re-list, storage bar
   compare.ts         Compare dialog: run, tabs, verdict that explains count gaps, upload/download the diff
   menu.ts            Right-click menu      keyboard.ts  All shortcuts
+  experimental.ts    Settings → Experimental (EXPERIMENTS list); features check `exp("key")` from state.ts
+  fileops.ts         Rename / move / duplicate / undo (experimental file_ops)
   types.ts           Types mirrored from Rust     util.ts / files.ts / state.ts  helpers and global state
 index.html           All markup (panes, dialogs, preview)      src/styles.css  All styles (light and dark)
 src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
@@ -58,6 +60,7 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   remote.rs          Browsing commands (thin wrappers over Remote): buckets, list, presign, read_text, mkdir, delete
   transfer.rs        upload / download / open_object jobs (file concurrency; per-file work is the provider's)
   jobs.rs            Background Job + "job" progress events + cancel
+  fileops.rs         Rename / move / duplicate: local (never overwrite, same disk) and remote jobs (`Remote::transfer_within`)
   local.rs           Local filesystem commands for the left pane (+ volume_info for the storage bar)
   scan.rs            Parallel folder-size scanner (macOS getattrlistbulk fast path)
   sizes.rs           Live size index: background scans, watchers, "dir-sizes" events
@@ -149,6 +152,10 @@ Full detail, including the command table, event schema and data flows, is in [do
 **Tune transfer speed:** files in flight: `FILE_CONCURRENCY` in `transfer.rs`; S3 part size/concurrency: the constants at the top of `s3.rs`. Record the reason in ADR-005.
 
 **Add a provider:** add a `ProviderKind` variant (`config.rs`, `types.ts`), a module like `s3.rs` with the same methods, and a `Remote` variant whose `match` arms call it (`provider.rs`). Then the account form fields.
+
+**Add an experimental feature:** add a field to `Experimental` in `config.rs` and `types.ts`, an
+entry to `EXPERIMENTS` in `experimental.ts`, and gate the feature with `exp("key")`. Listen for the
+`"experimental"` window event if the UI must react when it's flipped.
 
 ## Keep docs in sync
 

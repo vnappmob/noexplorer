@@ -5,6 +5,8 @@ import { active, closeView, cyclePane, local, remote, remotes, switchTo } from "
 import { closePreview, openPreview, previewStep, pv, pvItem } from "./preview";
 import { openSettings, splitView } from "./settings";
 import { editPath, openPalette } from "./palette";
+import { renameItem, undo } from "./fileops";
+import { exp } from "./state";
 import { $ } from "./util";
 
 function onKey(ev: KeyboardEvent) {
@@ -29,6 +31,12 @@ function onKey(ev: KeyboardEvent) {
   if (mod && ev.key === "k") return (ev.preventDefault(), openPalette());
   if (mod && ev.key === "l") return (ev.preventDefault(), editPath(active));
   if (mod && ev.key === "f") return (ev.preventDefault(), active.toggleFilter(true));
+  // File ops (experimental): F2 renames, ⌘Z undoes the last rename / move / duplicate.
+  if (exp("file_ops") && !inInput) {
+    if (ev.key === "F2" && active.selectedItems().length === 1)
+      return (ev.preventDefault(), renameItem(active, active.selectedItems()[0]));
+    if (mod && ev.key.toLowerCase() === "z" && !ev.shiftKey) return (ev.preventDefault(), undo());
+  }
   if (ev.key === "Tab" && !inInput) return (ev.preventDefault(), cyclePane(ev.shiftKey));
   // Remote views (ADR-029): ⌘\ splits the focused view, ⌘W closes it (never the last one).
   if (mod && ev.key === "\\") return (ev.preventDefault(), splitView(remote));

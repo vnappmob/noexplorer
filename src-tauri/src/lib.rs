@@ -22,6 +22,7 @@ mod autostart;
 mod box_api;
 mod compare;
 mod config;
+mod fileops;
 mod jobs;
 mod local;
 mod provider;
@@ -114,6 +115,10 @@ pub fn run() {
             transfer::upload_rel,
             transfer::download_rel,
             transfer::copy_remote,
+            fileops::rename_local,
+            fileops::move_local,
+            fileops::duplicate_local,
+            fileops::remote_move,
             sizes::stop_sizes,
             trash::trash_local,
             local::read_local_text,

@@ -293,6 +293,111 @@ impl S3 {
         Ok(())
     }
 
+    /// Copies or moves (`keep` = copy) `from` to `to` in `bucket`, server-side: one object, or a
+    /// folder (`…/`) with everything in it. Objects over 5 GB go through multipart copy. Refuses to
+    /// overwrite an existing target. Progress: files = objects.
+    pub async fn transfer_within(
+        &self,
+        bucket: &str,
+        from: &str,
+        to: &str,
+        keep: bool,
+        job: Option<&Job>,
+    ) -> Result<(), String> {
+        let c = self.client_for(bucket).await;
+        if self.exists(bucket, to).await? {
+            return Err(format!("“{}” already exists there", file_name(to)));
+        }
+        let objs = if from.ends_with('/') {
+            self.list_all(bucket, from).await? // the marker object, if any, is one of them
+        } else {
+            let h = c.head_object().bucket(bucket).key(from).send().await.map_err(err)?;
+            vec![(from.to_string(), h.content_length().unwrap_or(0).max(0) as u64)]
+        };
+        if let Some(j) = job {
+            j.files_total.store(objs.len() as u64, Ordering::Relaxed);
+        }
+        for (k, size) in &objs {
+            if job.is_some_and(|j| j.cancelled()) {
+                return Err("cancelled".into());
+            }
+            let dst = format!("{to}{}", &k[from.len()..]);
+            if *size > 5 * 1024 * 1024 * 1024 {
+                self.copy_large(&c, bucket, k, &dst, *size).await?;
+            } else {
+                self.copy_within(bucket, k, bucket, &dst).await?;
+            }
+            if let Some(j) = job {
+                j.files_done.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+        if !keep {
+            self.delete(bucket, vec![from.to_string()], None).await?;
+        }
+        Ok(())
+    }
+
+    /// Is there an object at `key` (or, for `…/`, anything under it)?
+    async fn exists(&self, bucket: &str, key: &str) -> Result<bool, String> {
+        let c = self.client_for(bucket).await;
+        if key.ends_with('/') {
+            let r = c.list_objects_v2().bucket(bucket).prefix(key).max_keys(1).send().await.map_err(err)?;
+            return Ok(r.key_count().unwrap_or(0) > 0);
+        }
+        match c.head_object().bucket(bucket).key(key).send().await {
+            Ok(_) => Ok(true),
+            Err(e) if e.raw_response().is_some_and(|r| r.status().as_u16() == 404) => Ok(false),
+            Err(e) => Err(err(e)),
+        }
+    }
+
+    /// CopyObject stops at 5 GB: bigger objects are copied in parts (UploadPartCopy), server-side.
+    async fn copy_large(&self, c: &Client, bucket: &str, src: &str, dst: &str, size: u64) -> Result<(), String> {
+        let part = (512 * 1024 * 1024u64).max(size.div_ceil(10_000));
+        let up = c.create_multipart_upload().bucket(bucket).key(dst).send().await.map_err(err)?;
+        let id = up.upload_id().ok_or("no upload id")?.to_string();
+        let source = format!("{bucket}/{}", crate::webdav::enc_path(src));
+        let res: Result<Vec<CompletedPart>, String> = async {
+            let mut parts = vec![];
+            for (i, start) in (0..size).step_by(part as usize).enumerate() {
+                let end = (start + part).min(size) - 1;
+                let r = c
+                    .upload_part_copy()
+                    .bucket(bucket)
+                    .key(dst)
+                    .upload_id(&id)
+                    .part_number(i as i32 + 1)
+                    .copy_source(&source)
+                    .copy_source_range(format!("bytes={start}-{end}"))
+                    .send()
+                    .await
+                    .map_err(err)?;
+                let etag = r.copy_part_result().and_then(|p| p.e_tag()).unwrap_or_default().to_string();
+                parts.push(CompletedPart::builder().part_number(i as i32 + 1).e_tag(etag).build());
+            }
+            Ok(parts)
+        }
+        .await;
+        match res {
+            Ok(parts) => {
+                let done = CompletedMultipartUpload::builder().set_parts(Some(parts)).build();
+                c.complete_multipart_upload()
+                    .bucket(bucket)
+                    .key(dst)
+                    .upload_id(&id)
+                    .multipart_upload(done)
+                    .send()
+                    .await
+                    .map_err(err)?;
+                Ok(())
+            }
+            Err(e) => {
+                let _ = c.abort_multipart_upload().bucket(bucket).key(dst).upload_id(&id).send().await;
+                Err(e)
+            }
+        }
+    }
+
     /// Creates an empty `prefix/name/` marker object so the folder shows up while empty.
     pub async fn mkdir(&self, bucket: &str, prefix: &str, name: &str) -> Result<(), String> {
         let c = self.client_for(bucket).await;

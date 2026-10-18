@@ -21,47 +21,52 @@ const HIDE_AFTER = 8000; // ms after the last transfer finishes
 /** Transfers still running (the updater asks before restarting over them). */
 export const activeJobCount = () => [...jobs.values()].filter((j) => j.status === "running").length;
 
-// Deletes count items (objects), transfers count bytes.
-const pct = (j: JobView) =>
-  j.kind === "delete"
-    ? j.files_total
-      ? (j.files_done / j.files_total) * 100
-      : j.status === "done"
-        ? 100
-        : 0
-    : j.bytes_total
-      ? (j.bytes_done / j.bytes_total) * 100
-      : j.status === "done"
-        ? 100
-        : 0;
+/** Jobs that work on items inside one remote (delete, move, duplicate): counted in items, not
+ * bytes, and nothing moves between panes (no beam, no lane). */
+const ITEM_JOBS: Record<string, [doing: string, done: string]> = {
+  delete: ["Deleting", "Deleted"],
+  move: ["Moving", "Moved"],
+  dup: ["Duplicating", "Duplicated"],
+};
+const isItemJob = (j: { kind: string }) => j.kind in ITEM_JOBS;
+
+const pct = (j: JobView) => {
+  const [done, total] = isItemJob(j) ? [j.files_done, j.files_total] : [j.bytes_done, j.bytes_total];
+  return total ? (done / total) * 100 : j.status === "done" ? 100 : 0;
+};
 const whereOf = (j: JobView) =>
-  j.kind === "delete"
+  isItemJob(j)
     ? `in ${j.bucket}/${j.prefix}`
     : j.kind === "down"
       ? `→ ${j.local_dir ?? ""}`
       : `→ ${j.bucket}/${j.prefix}`;
-const ICON: Record<string, string> = { up: "arrowUp", down: "arrowDown", copy: "arrowRight", delete: "trash" };
-const GLYPH: Record<string, string> = { up: "↑", down: "↓", copy: "→", delete: "×" };
-const numbersOf = (j: JobView) =>
-  j.kind === "delete"
-    ? j.status === "running"
-      ? j.files_total
-        ? `Deleting · ${j.files_done} / ${plural(j.files_total, "item")}`
-        : "Finding items…"
-      : j.status === "done"
-        ? `Deleted · ${plural(j.files_total, "item")}`
-        : j.status === "cancelled"
-          ? `Stopped · ${j.files_done} deleted`
-          : "Failed"
-    : j.status === "running"
-      ? j.files_total
-        ? `${fmtSize(j.bytes_done)} / ${fmtSize(j.bytes_total)}${j.speed > 0 ? ` · ${fmtSize(j.speed)}/s` : ""}`
-        : "Preparing…"
-      : j.status === "done"
-        ? `Done · ${plural(j.files_done, "file")}`
-        : j.status === "cancelled"
-          ? "Cancelled"
-          : "Failed";
+const ICON: Record<string, string> = {
+  up: "arrowUp",
+  down: "arrowDown",
+  copy: "arrowRight",
+  delete: "trash",
+  move: "folder",
+  dup: "copy",
+};
+const GLYPH: Record<string, string> = { up: "↑", down: "↓", copy: "→", delete: "×", move: "↪", dup: "⧉" };
+const numbersOf = (j: JobView) => {
+  if (isItemJob(j)) {
+    const [doing, done] = ITEM_JOBS[j.kind];
+    if (j.status === "running")
+      return j.files_total ? `${doing} · ${j.files_done} / ${plural(j.files_total, "item")}` : "Finding items…";
+    if (j.status === "done") return `${done} · ${plural(j.files_total, "item")}`;
+    return j.status === "cancelled" ? `Stopped · ${j.files_done} done` : "Failed";
+  }
+  return j.status === "running"
+    ? j.files_total
+      ? `${fmtSize(j.bytes_done)} / ${fmtSize(j.bytes_total)}${j.speed > 0 ? ` · ${fmtSize(j.speed)}/s` : ""}`
+      : "Preparing…"
+    : j.status === "done"
+      ? `Done · ${plural(j.files_done, "file")}`
+      : j.status === "cancelled"
+        ? "Cancelled"
+        : "Failed";
+};
 
 // ---------- activity card ----------
 
@@ -231,7 +236,7 @@ function under(dir: string, cwd: string) {
  * the destination folder or a folder above it (the beam then aims at the row leading into it).
  */
 function placement(j: JobView): { from: Pane; to: Pane; dir: string } | null {
-  if (j.kind === "delete") return null;
+  if (isItemJob(j)) return null;
   let from: Pane | null, to: Pane | null, srcDir: string | null, dstDir: string | null;
   if (j.kind === "up") [from, to, srcDir, dstDir] = [local, viewFor(j.account, j.bucket), j.src_dir, j.prefix];
   else if (j.kind === "down") [from, to, srcDir, dstDir] = [viewFor(j.account, j.bucket), local, j.prefix, j.local_dir];
@@ -341,7 +346,7 @@ const laneEls = new Map<string, HTMLElement>();
 
 function renderLanes() {
   const box = $("lanes");
-  const show = [...jobs.values()].filter((j) => j.status === "running" && j.kind !== "delete" && !placement(j));
+  const show = [...jobs.values()].filter((j) => j.status === "running" && !isItemJob(j) && !placement(j));
   const keep = new Set(show.map((j) => j.id));
   for (const [id, el] of laneEls)
     if (!keep.has(id)) {
@@ -429,13 +434,15 @@ function onJob(ev: JobEvent) {
     // A finished delete un-dims only its own rows (the refresh below drops the deleted ones).
     if (ev.kind === "delete") for (const v of remotes) jobItems.get(ev.id)?.forEach((k) => v.pending.delete(k));
     jobItems.delete(ev.id);
-    // Refresh whichever pane is showing the destination.
-    // Refresh whichever views are showing the destination.
+    // Refresh the views showing the destination. A move changes two folders (source and target),
+    // so item jobs refresh every view on that bucket.
     if (ev.kind !== "down")
       for (const v of remotes)
-        if (v.account === ev.account && v.bucket === ev.bucket && ev.prefix.startsWith(v.cwd)) v.load(true);
+        if (v.account === ev.account && v.bucket === ev.bucket && (isItemJob(ev) || ev.prefix.startsWith(v.cwd)))
+          v.load(true);
     if (ev.kind === "down" && ev.local_dir?.startsWith(local.cwd)) local.load(true);
-    const verb = { up: "Uploaded", copy: "Copied", delete: "Deleted", down: "Downloaded" }[ev.kind];
+    const verbs: Record<string, string> = { up: "Uploaded", copy: "Copied", down: "Downloaded" };
+    const verb = ITEM_JOBS[ev.kind]?.[1] ?? verbs[ev.kind];
     if (ev.status === "done") toast(`${verb}: ${ev.label}`);
   }
   scheduleRender();
