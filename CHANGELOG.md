@@ -5,6 +5,9 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Grid view: file and folder icons are bigger, so they fill their tiles.
+
 ### Removed
 - The experimental native window look (Windows 11 Mica, macOS translucency). The window is
   opaque again on every platform.

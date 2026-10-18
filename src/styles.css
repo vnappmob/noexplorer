@@ -1101,9 +1101,11 @@ button:focus-visible,
   border-radius: 8px;
   overflow: hidden;
 }
+/* Icons fill about half the tile, so they read at the same weight as a thumbnail. */
 .cell .tile .ico svg {
-  width: calc(var(--fs) * 3);
-  height: calc(var(--fs) * 3);
+  width: calc(var(--fs) * 4.6);
+  height: calc(var(--fs) * 4.6);
+  stroke-width: 1.4;
 }
 .cell .tile .thumb {
   position: absolute;
