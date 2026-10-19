@@ -109,6 +109,7 @@ means the active account (ADR-025).
 | `mkdir_local` | `path, name` | – | local | Rejects `/`, `\`, `.`, `..` |
 | `open_local` | `path` | – | local | Opens with the OS default app |
 | `reveal` | `path` | – | local | Shows the item in Finder, Explorer or the Linux file manager |
+| `log_file` | – | `string` | diag | Path of the diagnostic log (created if missing), for Settings → About → Show log file |
 
 ## Events
 

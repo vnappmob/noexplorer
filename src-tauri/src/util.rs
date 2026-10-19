@@ -9,13 +9,27 @@ use aws_sdk_s3::error::DisplayErrorContext;
 /// pull `code`/`message` out of it, add a hint for common mistakes, and fall back to a
 /// truncated chain for anything else.
 pub fn err<E: std::error::Error>(e: E) -> String {
-    humanize(&format!("{}", DisplayErrorContext(e)))
+    let full = format!("{}", DisplayErrorContext(e));
+    crate::diag::log("s3", &full);
+    humanize(&full)
 }
 
 fn field<'a>(s: &'a str, name: &str) -> Option<&'a str> {
     let start = s.find(&format!("{name}: Some(\""))? + name.len() + 8;
     let end = s[start..].find("\")")? + start;
     Some(&s[start..end])
+}
+
+/// The `<Details>` of the server's error body, if the SDK kept the body (it prints it as bytes).
+fn details(full: &str) -> Option<String> {
+    let d = full.split("<Details>").nth(1)?.split("</Details>").next()?.trim();
+    let d =
+        d.replace("&quot;", "\"").replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
+    let d = d.replace("\\'", "'").replace("\\\"", "\"");
+    (!d.is_empty()).then(|| match d.char_indices().nth(300) {
+        Some((i, _)) => format!("{}…", &d[..i]),
+        None => d,
+    })
 }
 
 fn hint(code: &str, message: &str) -> Option<String> {
@@ -43,8 +57,12 @@ pub fn humanize(full: &str) -> String {
     if let Some(code) = field(full, "code") {
         let message = field(full, "message").unwrap_or("");
         let mut out = if message.is_empty() { code.to_string() } else { format!("{message} ({code})") };
+        // Google Cloud Storage explains its generic codes ("Invalid argument") in <Details>.
+        if let Some(d) = details(full).filter(|d| !message.contains(d.as_str())) {
+            out = format!("{out}: {d}");
+        }
         if let Some(h) = hint(code, message) {
-            out = format!("{out}. {h}");
+            out = format!("{}. {h}", out.trim_end_matches('.'));
         }
         return out;
     }
@@ -221,6 +239,9 @@ mod tests {
             humanize(sig),
             "The request signature we calculated does not match (SignatureDoesNotMatch). Check the secret key (and that the endpoint/region are right)."
         );
+
+        let gcs = r#"service error: unhandled error (InvalidArgument): Error { code: "InvalidArgument", message: "Invalid argument." } (ServiceError(ServiceError { source: Unhandled(Unhandled { source: ErrorMetadata { code: Some("InvalidArgument"), message: Some("Invalid argument."), extras: None } }), raw: Response { status: StatusCode(400), body: SdkBody { inner: Once(Some(b"<?xml version='1.0' encoding='UTF-8'?><Error><Code>InvalidArgument</Code><Message>Invalid argument.</Message><Details>Invalid query parameter(s): [x-id]</Details></Error>")) } } }))"#;
+        assert_eq!(humanize(gcs), "Invalid argument. (InvalidArgument): Invalid query parameter(s): [x-id]");
 
         let net =
             "dispatch failure: io error: error trying to connect: tcp connect error: Connection refused (os error 61)";

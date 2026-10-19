@@ -73,6 +73,7 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   scan.rs            Parallel folder-size scanner (macOS getattrlistbulk fast path)
   sizes.rs           Live size index: background scans, watchers, "dir-sizes" events
   trash.rs           Move to Trash (macOS / Windows / freedesktop), no extra crates
+  diag.rs            Diagnostic log: failed server requests (redacted) in the OS log folder; `log_file` command
   tray.rs            Tray/menu-bar icon: live transfer status, Show/Updates/Quit, hide-to-tray
   autostart.rs       Launch at login (LaunchAgent with bundle id, so macOS shows "NoExplorer")
   state.rs           AppState (settings, one Remote per account, cancel flags)    util.rs  pure helpers (tested)
@@ -134,6 +135,7 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **Drag between panes uses mouse events, not HTML5 drag-and-drop.** HTML5 DnD is broken on Windows while Tauri's file drop is enabled ([ADR-003](docs/DECISIONS.md#adr-003)).
 - **Escape every untrusted string before it goes into `innerHTML`** (file names, keys, errors), using `esc()`. Text previews use `textContent`.
 - **TLS is never switched off.** Self-signed servers are handled by pinning one certificate per account (`tls.rs`); don't add an "accept invalid certificates" option.
+- **The diagnostic log (`diag.rs`) gets server errors only through `diag::log`, which redacts signatures, key ids and tokens.** Never log a request's headers or a secret key; add new patterns to `redact` (and its test) when a provider echoes something sensitive.
 - **Secrets stay in the backend.** Secret keys live in the OS credential store (`secrets.rs`, [ADR-020](docs/DECISIONS.md#adr-020)); `config.json` (mode 600) holds them only when no store exists. Every command that returns `Settings` must return `config::redacted()`, and none goes into logs or errors.
 - **Never lose or rotate the updater signing key** (`~/.tauri/noexplorer-updater.key` on the maintainer's Mac, plus the repo secret `TAURI_SIGNING_PRIVATE_KEY`). Installed apps only accept updates signed by it; a new key means every user has to reinstall by hand ([ADR-015](docs/DECISIONS.md#adr-015)).
 - **Closing the window hides to the tray; it doesn't quit** (when `general.run_in_background` is on). Code that must run "on exit" has to handle `app.exit()` from the tray, not window close.

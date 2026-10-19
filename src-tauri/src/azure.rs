@@ -449,7 +449,11 @@ async fn ok(r: Response) -> Result<Response, String> {
     if st.is_success() {
         return Ok(r);
     }
+    let url = r.url().to_string();
     let body = r.text().await.unwrap_or_default();
+    if st.as_u16() != 404 {
+        crate::diag::log("azure", &format!("HTTP {} {url} {body}", st.as_u16()));
+    }
     let tag =
         |t: &str| body.split(&format!("<{t}>")).nth(1).and_then(|s| s.split(&format!("</{t}>")).next()).map(str::trim);
     let what = match st.as_u16() {

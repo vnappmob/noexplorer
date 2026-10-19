@@ -23,6 +23,7 @@ mod azure;
 mod box_api;
 mod compare;
 mod config;
+mod diag;
 mod fileops;
 mod jobs;
 mod local;
@@ -75,6 +76,7 @@ pub fn run() {
             let settings = config::load_settings(app.handle());
             resume::init(app.handle());
             thumbs::init(app.handle());
+            diag::init(app.handle());
             let g = &settings.general;
             resume::set_speed_limit(g.speed_limit_kbps);
             app.state::<state::AppState>().set_settings(settings.clone());
@@ -145,6 +147,7 @@ pub fn run() {
             local::mkdir_local,
             local::open_local,
             local::reveal,
+            diag::log_file,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

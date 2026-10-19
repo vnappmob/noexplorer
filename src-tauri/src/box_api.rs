@@ -863,7 +863,11 @@ async fn ok(r: Response) -> Result<Response, String> {
     if st.is_success() {
         return Ok(r);
     }
+    let url = r.url().to_string();
     let v: Value = r.json().await.unwrap_or(Value::Null);
+    if st.as_u16() != 404 {
+        crate::diag::log("box", &format!("HTTP {} {url} {v}", st.as_u16()));
+    }
     let msg = v["message"].as_str().or(v["error_description"].as_str()).unwrap_or("").to_string();
     let what = match st.as_u16() {
         401 => "Box sign-in expired. Sign in again in Settings → Accounts",

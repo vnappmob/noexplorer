@@ -38,3 +38,5 @@ That's so transfers can finish. Quit from the menu bar or tray icon, or turn off
 ### Something else is wrong
 
 Please [open an issue on GitHub](https://github.com/vnappmob/noexplorer/issues) with your system, the NoExplorer version (Settings → About) and what you did.
+
+When a server refuses something, its full answer is written to a log: **Settings → About → Show log file** opens its folder. Attach `noexplorer.log` to the issue. It never contains passwords or secret keys, and signatures, key ids and tokens are blanked out. It lists the names of the files involved, so look it over first.

@@ -20,6 +20,7 @@ Nothing else: no usage statistics, no crash reports, no information sent to VNAp
 - Passwords, secret keys and tokens, in your system's credential store.
 - Account settings, in the app's settings file (readable only by your user).
 - Layout and look preferences, in the app's local storage.
+- A log of failed requests (what the server answered, without passwords, keys or tokens), at most 1 MB. Settings → About → Show log file opens it. It's only sent anywhere if you attach it to a report yourself.
 
 ## This website
 

@@ -5,6 +5,11 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Error messages include the server's own explanation when it gives one (Google Cloud Storage puts
+  it in a separate field). Failed requests are also written to a log file, without passwords, keys
+  or tokens: **Settings → About → Show log file**, to attach to a bug report.
+
 ## [0.4.18] - 2026-10-19
 
 ### Fixed

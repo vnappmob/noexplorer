@@ -596,6 +596,11 @@ export function setupSettings() {
   dialog()
     .querySelectorAll<HTMLElement>(".check-updates")
     .forEach((b) => (b.onclick = () => checkForUpdates(true)));
+  // The diagnostic log (diag.rs), shown in Finder / Explorer so it can be attached to a report.
+  $("open-log").onclick = () =>
+    invoke<string>("log_file")
+      .then((path) => invoke("reveal", { path }))
+      .catch(fail);
   // About tab links open in the default browser.
   dialog().addEventListener("click", (ev) => {
     const url = (ev.target as HTMLElement).closest<HTMLElement>("[data-url]")?.dataset.url;
