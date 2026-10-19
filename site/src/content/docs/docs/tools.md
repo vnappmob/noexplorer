@@ -1,6 +1,6 @@
 ---
 title: Compare, sizes & more
-description: Compare folders with checksums, folder sizes, grid view, favorites, quick look, share links and the command palette.
+description: Search, Compare folders with checksums, folder sizes, grid view, favorites, quick look, share links and the command palette.
 sidebar:
   order: 4
 ---
@@ -35,6 +35,17 @@ Press <kbd>Space</kbd> to preview images, video, audio, PDF and text files, on e
 ## Share links
 
 Right-click a remote file and choose **Copy link**. Anyone with the link can download the file for 7 days (S3), or until the share expires (Nextcloud, Box).
+
+## Search
+
+Click the magnifier (or press <kbd>⌘ F</kbd>) and type: the folder filters as you type. Press <kbd>↵</kbd> to **search this folder and every folder below it** instead, on this computer or on a remote.
+
+- Results arrive as they're found, each with the folder it's in. On this computer, several folders are read at once: about 5× faster than `find` on a large system folder.
+- All words must be in the name, in any case: `report 2026`. Use `*` and `?` as wildcards (`*.pdf`, `IMG_????.jpg`), or `ext:pdf`.
+- Double-click a folder to open it, a file to open or preview it. Right-click → **Show in its folder**. Drag results to the other pane to copy them.
+- **Stop** ends a long search; <kbd>Esc</kbd> or ✕ goes back to the folder.
+- On this computer, other disks and private folders you haven't opened in NoExplorer (Desktop, Documents, Downloads…) are skipped, so a search never triggers a macOS permission prompt. Hidden files are included only when they're shown. A search stops at the first 10,000 matches.
+- On a remote, NoExplorer lists everything below the folder first, so a very large bucket takes a moment.
 
 ## Find anything
 

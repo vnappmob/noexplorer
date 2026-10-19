@@ -7,6 +7,7 @@ import { duplicateItems, moveItems, renameItem } from "./fileops";
 import { noteJobItems } from "./jobs";
 import { requestSizes } from "./sizes";
 import { ask } from "@tauri-apps/plugin-dialog";
+import { showInFolder } from "./search";
 import type { Pane } from "./pane";
 import { closeView, local, remote } from "./panes";
 import { splitView } from "./settings";
@@ -203,6 +204,8 @@ export function paneAction(p: Pane, act: string) {
     preview: () => one && !one.dir && openPreview(p, one),
     open: () => one && !one.dir && openItem(p, one),
     "open-dir": () => one && p.go(one.key),
+    "show-in-folder": () => one && showInFolder(p, one),
+    "end-search": () => p.load(),
     link: () => one && copyLink(p, one),
     "copy-path": () =>
       one && navigator.clipboard.writeText(p.isRemote ? `${p.bucket}/${one.key}` : one.key).then(() => toast("Copied")),

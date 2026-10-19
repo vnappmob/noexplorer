@@ -4,6 +4,7 @@
 import { bindStar, favoritesMenuItems, renderStar } from "./favorites";
 import { bindBack, leaving, visited } from "./history";
 import { bindTree, record } from "./tree";
+import { setupSearch, startSearch } from "./search";
 import { exp } from "./state";
 import { fillThumbs } from "./thumbs";
 import { setupBackups } from "./backups";
@@ -116,7 +117,12 @@ function bindPane(p: Pane) {
     p.render();
   });
   filter.addEventListener("blur", () => {
-    if (!filter.value) p.toggleFilter(false);
+    if (!filter.value && !p.search) p.toggleFilter(false);
+  });
+  // Enter searches every subfolder (search.ts); typing alone filters this folder.
+  filter.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") (ev.preventDefault(), startSearch(p, filter.value));
+    if (ev.key === "Escape" && p.search) (ev.preventDefault(), p.load());
   });
   p.q(".filter-btn").onclick = () => p.toggleFilter(filter.hidden !== false);
   // "⋯" in the header and in the selection bar open the same menu as a right-click.
@@ -183,6 +189,7 @@ async function main() {
   setupMenu();
   setupSettings();
   setupExperimental();
+  setupSearch();
   setupFileOps();
   setupBackups();
   setupKeyboard();

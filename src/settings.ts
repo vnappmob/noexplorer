@@ -24,6 +24,7 @@ import {
   type ProviderId,
 } from "./providers";
 import { activeProfile, app, exp } from "./state";
+import { icon } from "./icons";
 import { openMenu, type MenuItem } from "./popover";
 import type { BucketInfo, General, Profile, Settings } from "./types";
 import { renderExperimental } from "./experimental";
@@ -83,39 +84,74 @@ function renderAccountList() {
     );
 }
 
-// ---------- provider picker (new accounts, "Change provider") ----------
+// ---------- provider dropdown (in the form, so the dialog's top layer isn't a problem) ----------
 
-function renderPicker() {
-  const allowed = (id: ProviderId) => !EXPERIMENTAL_PROVIDERS.includes(id) || exp("box_beta");
-  $("acct-pick-grid").innerHTML = PICKER_GROUPS.map((g) => {
-    const ids = g.ids.filter(allowed);
-    if (!ids.length) return "";
-    return `<h4 class="set-h">${esc(g.title)}</h4><div class="pick-grid">${ids
-      .map(
-        (id) =>
-          `<button type="button" class="pick" data-provider="${id}">${badge(id)}<span><b>${esc(LOOK[id].name)}</b><small>${esc(LOOK[id].blurb)}</small></span></button>`,
-      )
-      .join("")}</div>`;
-  }).join("");
+const provMenu = () => $("acct-prov-menu");
+
+function renderProvButton(id: ProviderId) {
+  $("acct-prov-btn").innerHTML =
+    `${badge(id, true)}<span class="prov-name"><b>${esc(LOOK[id].name)}</b><small>${esc(LOOK[id].blurb)}</small></span>${icon("chevDown")}`;
 }
 
-/** Shows the provider grid instead of the form (a new account, or "Change provider"). */
-function showPicker(on: boolean) {
-  if (on) renderPicker();
-  $("acct-pick").hidden = !on;
-  form().hidden = on;
+function openProvMenu() {
+  const current = $<HTMLSelectElement>("acct-provider").value as ProviderId;
+  const allowed = (id: ProviderId) => !EXPERIMENTAL_PROVIDERS.includes(id) || exp("box_beta") || id === current;
+  provMenu().innerHTML = PICKER_GROUPS.map((g) => {
+    const ids = g.ids.filter(allowed);
+    if (!ids.length) return "";
+    return `<div class="prov-h">${esc(g.title)}</div>${ids
+      .map(
+        (id) =>
+          `<button type="button" class="prov-opt${id === current ? " on" : ""}" role="option" aria-selected="${id === current}" data-provider="${id}">${badge(id, true)}<span class="prov-name"><b>${esc(LOOK[id].name)}</b><small>${esc(LOOK[id].blurb)}</small></span>${id === current ? icon("check") : ""}</button>`,
+      )
+      .join("")}`;
+  }).join("");
+  provMenu().hidden = false;
+  $("acct-prov-btn").setAttribute("aria-expanded", "true");
+  provMenu().querySelector<HTMLElement>(".prov-opt.on")?.focus();
+}
+
+function closeProvMenu() {
+  provMenu().hidden = true;
+  $("acct-prov-btn").setAttribute("aria-expanded", "false");
 }
 
 function chooseProvider(id: ProviderId) {
+  closeProvMenu();
   const sel = $<HTMLSelectElement>("acct-provider");
   if (!sel.querySelector(`option[value="${id}"]`)) sel.add(new Option(PRESETS[id].label, id));
+  if (sel.value === id) return $("acct-prov-btn").focus();
   sel.value = id;
   applyPreset(id, true);
-  showPicker(false);
   renderCert();
   // A new S3 account usually needs its region; AWS and GCS find theirs.
   ($("acct-more") as HTMLDetailsElement).open = !editing && PRESETS[id].kind === "s3" && id !== "aws" && id !== "gcs";
   (PRESETS[id].endpointRequired ? input("endpoint") : input("access_key")).focus();
+}
+
+function bindProvMenu() {
+  $("acct-prov-btn").onclick = () => (provMenu().hidden ? openProvMenu() : closeProvMenu());
+  provMenu().addEventListener("click", (ev) => {
+    const id = (ev.target as HTMLElement).closest<HTMLElement>("[data-provider]")?.dataset.provider;
+    if (id) chooseProvider(id as ProviderId);
+  });
+  provMenu().addEventListener("keydown", (ev) => {
+    const opts = [...provMenu().querySelectorAll<HTMLElement>(".prov-opt")];
+    const i = opts.indexOf(document.activeElement as HTMLElement);
+    if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+      ev.preventDefault();
+      opts[Math.max(0, Math.min(opts.length - 1, i + (ev.key === "ArrowDown" ? 1 : -1)))]?.focus();
+    } else if (ev.key === "Escape") {
+      ev.preventDefault();
+      ev.stopPropagation(); // close the list, not the dialog
+      closeProvMenu();
+      $("acct-prov-btn").focus();
+    }
+  });
+  dialog().addEventListener("mousedown", (ev) => {
+    const t = ev.target as HTMLElement;
+    if (!provMenu().hidden && !t.closest("#acct-prov-menu, #acct-prov-btn")) closeProvMenu();
+  });
 }
 
 /** Loads `p` into the form (null = blank form for a new account). */
@@ -149,8 +185,10 @@ function editAccount(p: Profile | null) {
   setMsg("");
   renderAccountList();
   ($("acct-more") as HTMLDetailsElement).open = false;
-  showPicker(!p);
+  closeProvMenu();
+  // A new account starts on the storage list; an existing one on its name.
   if (p) (f.elements.namedItem("name") as HTMLInputElement).focus();
+  else openProvMenu();
 }
 
 const input = (name: string) => form().elements.namedItem(name) as HTMLInputElement;
@@ -169,6 +207,7 @@ function syncAzurePlaceholder() {
 function applyPreset(id: ProviderId, fill: boolean) {
   const pr = PRESETS[id];
   $("acct-badge").innerHTML = badge(id);
+  renderProvButton(id);
   $("acct-kind").textContent = LOOK[id].name;
   const s3 = pr.kind === "s3";
   $("acct-hint").textContent = pr.hint;
@@ -687,11 +726,7 @@ export function setupSettings() {
   $("acct-nc-cancel").onclick = () => invoke("cancel_login");
   $("acct-delete").onclick = deleteAccount;
   $("acct-add").onclick = () => editAccount(null);
-  $("acct-change").onclick = () => showPicker(true);
-  $("acct-pick-grid").addEventListener("click", (ev) => {
-    const id = (ev.target as HTMLElement).closest<HTMLElement>("[data-provider]")?.dataset.provider;
-    if (id) chooseProvider(id as ProviderId);
-  });
+  bindProvMenu();
   // Self-signed HTTPS (experimental): the certificate row follows the address and provider.
   input("endpoint").addEventListener("input", renderCert);
   $("acct-provider").addEventListener("change", renderCert);

@@ -36,7 +36,7 @@
         <header class="src">
           <button class="chip" id="places-chip" aria-haspopup="menu"><span class="chip-ico" data-icon="drive"></span><span class="chip-label">This computer</span><span class="chip-sub" id="places-sub"></span><span class="chev" data-icon="chevDown"></span></button>
           <span class="grow"></span>
-          <input class="filter" type="search" placeholder="Filter…" spellcheck="false" aria-label="Filter this folder" hidden />
+          <input class="filter" type="search" placeholder="Filter · ↵ search subfolders" spellcheck="false" aria-label="Filter this folder, or press Enter to search all subfolders" hidden />
           <button class="ib view-btn" title="Grid view" aria-label="Switch between list and grid"><span data-icon="grid"></span></button>
           <button class="ib filter-btn" title="Filter (⌘F)" aria-label="Filter"><span data-icon="search"></span></button>
           <button class="ib mkdir-btn" title="New folder" aria-label="New folder"><span data-icon="folderPlus"></span></button>
@@ -96,7 +96,7 @@
           <span class="sep-chev" data-icon="chevRight"></span>
           <button class="chip bucket-chip" aria-haspopup="menu"><span class="chip-ico bucket-ico" data-icon="bucket"></span><span class="chip-label bucket-label">—</span><span class="chev" data-icon="chevDown"></span></button>
           <span class="grow"></span>
-          <input class="filter" type="search" placeholder="Filter…" spellcheck="false" aria-label="Filter this folder" hidden />
+          <input class="filter" type="search" placeholder="Filter · ↵ search subfolders" spellcheck="false" aria-label="Filter this folder, or press Enter to search all subfolders" hidden />
           <button class="ib view-btn" title="Grid view" aria-label="Switch between list and grid"><span data-icon="grid"></span></button>
           <button class="ib filter-btn" title="Filter (⌘F)" aria-label="Filter"><span data-icon="search"></span></button>
           <button class="ib mkdir-btn" title="New folder" aria-label="New folder"><span data-icon="folderPlus"></span></button>
@@ -166,11 +166,6 @@
               <div id="acct-items"></div>
             </aside>
             <div class="acct-main">
-              <div id="acct-pick" hidden>
-                <h3>Add storage</h3>
-                <p class="set-sub">Where do your files live?</p>
-                <div id="acct-pick-grid"></div>
-              </div>
               <form id="acct-form">
                 <header class="acct-top">
                   <span id="acct-badge"></span>
@@ -178,7 +173,6 @@
                     <input name="name" class="acct-name" placeholder="Account name" spellcheck="false" aria-label="Account name" />
                     <small id="acct-kind"></small>
                   </div>
-                  <button type="button" class="link" id="acct-change">Change provider</button>
                   <select id="acct-provider" class="vh" aria-label="Provider" tabindex="-1">
                     <option value="custom">MinIO / SeaweedFS / self-hosted</option>
                     <option value="aws">Amazon S3</option>
@@ -194,6 +188,11 @@
                   </select>
                 </header>
                 <div class="acct-body">
+                  <div class="prov-field">
+                    <span class="prov-label">Storage</span>
+                    <button type="button" id="acct-prov-btn" class="prov-btn" aria-haspopup="listbox" aria-expanded="false"></button>
+                    <div id="acct-prov-menu" class="prov-menu" role="listbox" hidden></div>
+                  </div>
                   <p id="acct-hint" class="callout"></p>
                   <div id="acct-signin" class="signin" hidden>
                     <button type="button" id="acct-nc-login" class="primary">Sign in with Nextcloud…</button>

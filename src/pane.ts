@@ -46,6 +46,19 @@ export const paneHooks = {
   drawn: (_p: Pane): void => {},
 };
 
+/** A search running or shown in a pane (search.ts / search.rs). */
+export type Search = {
+  id: string;
+  query: string;
+  root: string;
+  running: boolean;
+  dirs: number;
+  files: number;
+  skipped: number;
+  capped: boolean;
+  error: string | null;
+};
+
 /** Shown in a remote view's list instead of rows: an account being connected, or why it failed. */
 export type Notice = { kind: "connecting" } | { kind: "error"; msg: string };
 
@@ -66,6 +79,8 @@ export class Pane {
   roots: Crumb[] = [];
   /** Everything in `cwd`. */
   entries: Item[] = [];
+  /** Search results shown instead of the folder (search.ts); any normal load ends it. */
+  search: Search | null = null;
   /** `entries` after filter + sort — what's on screen; row `data-i` indexes into this. */
   view: Item[] = [];
   selected = new Set<string>();
@@ -204,6 +219,7 @@ export class Pane {
 
   /** Re-lists `cwd`. `keepSelection` keeps still-existing selected rows (used after refreshes). */
   async load(keepSelection = false): Promise<void> {
+    if (this.search) this.endSearch();
     const seq = ++this.seq;
     this.setBusy(true);
     try {
@@ -312,6 +328,13 @@ export class Pane {
     return this.load(keepSelection);
   }
 
+  /** Leaves search results (stopping a search still running); the caller lists the folder. */
+  endSearch() {
+    if (this.search?.running) invoke("cancel_search", { id: this.search.id }).catch(() => {});
+    this.search = null;
+    this.el.querySelector(".search-bar")?.remove();
+  }
+
   /** Shows/hides the filter box in the header (⌘F, the magnifier button); hiding clears it. */
   toggleFilter(on: boolean) {
     const f = this.q<HTMLInputElement>(".filter");
@@ -365,7 +388,8 @@ export class Pane {
   }
 
   render() {
-    const q = this.q<HTMLInputElement>(".filter").value.trim().toLowerCase();
+    // Search results are already the matches: the box holds the query, not a filter.
+    const q = this.search ? "" : this.q<HTMLInputElement>(".filter").value.trim().toLowerCase();
     this.view = this.entries.filter((e) => !q || e.name.toLowerCase().includes(q));
     const { sortBy, sortDir } = this;
     this.view.sort((a, b) => {
@@ -400,7 +424,10 @@ export class Pane {
       const hint = this.isRemote
         ? "Drag files here from the left pane or from Finder / Explorer to upload."
         : "Drag files here from the bucket to download.";
-      this.list.innerHTML = `<div class="empty">${q ? "<b>No matches</b>" : `<b>Empty folder</b>${hint}`}</div>`;
+      const s = this.search;
+      this.list.innerHTML = s
+        ? `<div class="empty">${s.running ? `<span class="spin" aria-hidden="true"></span><b>Searching…</b>` : `<b>No matches</b>Nothing named like “${esc(s.query)}” in this folder or below.`}</div>`
+        : `<div class="empty">${q ? "<b>No matches</b>" : `<b>Empty folder</b>${hint}`}</div>`;
     } else {
       // Keep the scroll position (re-sorts, refreshes, sizes arriving); go() resets it itself.
       const keep = this.list.scrollTop;
@@ -426,7 +453,7 @@ export class Pane {
     const skipped = !known && this.sizesSettled;
     const size = known ? fmtSize(e.size) : skipped ? "—" : "";
     return `<div class="row${this.selected.has(e.key) ? " sel" : ""}${this.pending.has(e.key) ? " deleting" : ""}" role="option" aria-selected="${this.selected.has(e.key)}" data-i="${i}"${e.dir ? ` data-dir="${esc(e.key)}"` : ""}>
-      <span class="name"><span class="ico${e.dir ? " dir" : ""}">${icon(e.dir ? "folder" : FILE_ICON[kindOf(e.name)])}</span><span>${esc(e.name)}</span></span>
+      <span class="name"><span class="ico${e.dir ? " dir" : ""}">${icon(e.dir ? "folder" : FILE_ICON[kindOf(e.name)])}</span><span>${esc(e.name)}</span>${e.where !== undefined ? `<span class="where" title="${esc(e.where)}">${esc(e.where || "·")}</span>` : ""}</span>
       <span class="size${e.calc ? " calc" : ""}"${skipped ? ' title="Not scanned automatically (another disk, or a private folder you haven’t opened yet). Click Σ to scan it."' : e.partial ? ' title="Some folders inside were skipped. Click Σ to include them."' : ""}>${size}</span>
       <span class="date">${fmtDate(e.modified)}</span>
     </div>`;

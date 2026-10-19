@@ -43,7 +43,9 @@ export function record(p: Pane) {
 
 let pane: Pane | null = null;
 let anchor: HTMLElement | null = null;
+/** Folders the user opened (▸) or closed (▾) in the tree; the current path starts open. */
 const open = new Set<string>();
+const closed = new Set<string>();
 
 function pop() {
   let el = document.getElementById("tree-pop");
@@ -87,7 +89,7 @@ function drawTree(p: Pane): string {
     const i = onChain.get(n.path);
     const next = i !== undefined ? chain[i + 1] : undefined;
     const kids = children(p, n.path, next);
-    const expanded = i !== undefined || open.has(n.path);
+    const expanded = !closed.has(n.path) && (i !== undefined || open.has(n.path));
     out.push(row(p, n, depth, expanded && kids.length > 0, kids.length > 0));
     if (expanded) for (const k of kids) walk(k, depth + 1);
   };
@@ -131,6 +133,7 @@ export function openTree(p: Pane, button: HTMLElement) {
   if (pane === p && !pop().hidden) return closeTree();
   pane = p;
   anchor = button;
+  for (const c of chainOf(p)) closed.delete(c.path); // where you are is always shown on opening
   const el = pop();
   (el.querySelector("#tree-q") as HTMLInputElement).value = "";
   draw();
@@ -146,13 +149,18 @@ export function openTree(p: Pane, button: HTMLElement) {
   (el.querySelector("#tree-q") as HTMLElement).focus({ preventScroll: true });
 }
 
+function setOpen(path: string, on: boolean) {
+  if (on) (open.add(path), closed.delete(path));
+  else (open.delete(path), closed.add(path));
+}
+
 function onClick(ev: MouseEvent) {
   if (!pane) return;
   const t = ev.target as HTMLElement;
   const tog = t.closest<HTMLElement>("[data-toggle]");
   if (tog) {
     const k = tog.dataset.toggle!;
-    if (!open.delete(k)) open.add(k);
+    setOpen(k, tog.closest(".tree-row")?.getAttribute("aria-expanded") !== "true");
     return draw();
   }
   const go = t.closest<HTMLElement>("[data-go]")?.dataset.go;
@@ -175,8 +183,7 @@ function onKey(ev: KeyboardEvent) {
     rows[Math.max(0, Math.min(rows.length - 1, to))]?.focus();
   } else if ((ev.key === "ArrowRight" || ev.key === "ArrowLeft") && i >= 0) {
     const k = rows[i].dataset.go!;
-    if (ev.key === "ArrowRight") open.add(k);
-    else open.delete(k);
+    setOpen(k, ev.key === "ArrowRight");
     ev.preventDefault();
     draw();
     document.querySelector<HTMLElement>(`#tree-rows [data-go="${CSS.escape(k)}"]`)?.focus();
@@ -189,6 +196,7 @@ export function bindTree(p: Pane) {
   const sync = () => {
     const on = exp("folder_tree");
     up.classList.toggle("tree-on", on);
+    up.innerHTML = icon(on ? "tree" : "arrowUp");
     up.setAttribute("aria-haspopup", on ? "tree" : "false");
     if (on) up.disabled = false;
   };

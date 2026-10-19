@@ -817,3 +817,30 @@ go up a level, with the parent the way they left it, and wanted ↑ to become a 
   up.
 **Consequences.** The tree only shows folders opened since launch; persisting it (or seeding it from
 the local size scanner, which already walks folders) is possible later. No Forward.
+
+<a id="adr-042"></a>
+
+## ADR-042: Search below a folder; the provider list as a dropdown
+Accepted · 2026-10-19
+
+**Context.** The filter box only filters the folder on screen, but it looks like a search, and the
+maintainer wanted a real one, as fast as possible. Separately, the provider grid (ADR-040) made going
+back a detour ("Change provider").
+**Decision.**
+- `search.rs`: a query is words (all must be in the name, any case), `*`/`?` globs over the whole
+  name, and `ext:`. Locally, a parallel walker (up to 8 threads, a shared queue) reads folders with
+  `scan::read_dir` (one `getattrlistbulk` per batch on macOS), stays on one disk, skips hidden
+  entries unless shown and the same private folders as automatic size scans (`enter_policy`, no
+  permission prompts), and streams hits every 100 ms as `"search"` events until 10,000. Remotes
+  list everything below the folder (`Remote::list_files`) and match files plus the folders on their
+  paths. `cancel_search` stops a walk.
+- UI (`search.ts`): ↵ in the filter box runs the search in the pane: rows show the folder they're in,
+  a bar shows progress, Stop / ✕ / Esc / any normal load end it, right-click → Show in its folder.
+  Folder-level actions (rename, move, new folder…) are hidden while results are shown.
+- Measured (debug build, warm cache): `/System/Library` 2.6–2.9 s vs 13–16 s for
+  `find -xdev -iname`, first results after ~0.1 s; `/usr` same hits as `find`.
+- The account form picks the provider from a dropdown (badges, groups) built inside the dialog: a
+  modal `<dialog>` sits above the app's shared popover.
+**Consequences.** Remote search costs a full listing (one request per 1,000 keys on S3); streaming
+pages and server-side search (Nextcloud SEARCH, Box search API) are possible later. Spotlight isn't
+used: it skips unindexed folders and would need its own permission story.

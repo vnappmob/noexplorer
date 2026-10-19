@@ -500,7 +500,7 @@ body.resizing * {
   color: var(--accent);
 }
 .filter {
-  width: 160px;
+  width: 220px;
   height: calc(var(--fs) * 2.3);
 }
 
@@ -723,7 +723,8 @@ body.resizing * {
   overflow: hidden;
   font-weight: 500;
 }
-.row .name span:last-child {
+.row .name > span:not(.ico) {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2249,45 +2250,87 @@ input.switch:focus-visible {
   display: flex;
   flex-direction: column;
 }
-#acct-pick {
-  overflow-y: auto;
-  padding: 22px 26px;
+/* Provider dropdown (settings.ts): built inside the dialog, which sits above any other popover */
+.prov-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
-#acct-pick h3 {
-  margin: 0 0 4px;
-  font-size: calc(var(--fs) + 6px);
+.prov-label {
+  font-size: var(--fs-sm);
+  color: var(--muted);
 }
-.pick-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 8px;
-}
-.pick {
+.prov-btn,
+.prov-opt {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 10px;
+  width: 100%;
   text-align: left;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 12px;
   white-space: normal;
-  transition:
-    border-color 0.15s,
-    transform 0.15s;
 }
-.pick:hover:not(:disabled) {
+.prov-btn {
+  padding: 6px 10px 6px 6px;
+  background: var(--bg);
+  border-radius: 10px;
+}
+.prov-btn[aria-expanded="true"] {
   border-color: var(--accent);
-  transform: translateY(-1px);
+  box-shadow: 0 0 0 3px var(--accent-ring);
 }
-.pick span {
+.prov-btn > .i {
+  margin-left: auto;
+  color: var(--muted);
+}
+.prov-name {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
-.pick small {
+.prov-name small {
   color: var(--muted);
   font-size: var(--fs-xs);
+}
+.prov-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-pop);
+}
+.prov-h {
+  padding: 8px 8px 4px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.prov-opt {
+  border: none;
+  background: none;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+.prov-opt:hover,
+.prov-opt:focus-visible {
+  background: var(--hover);
+  outline: none;
+}
+.prov-opt.on {
+  background: var(--sel);
+}
+.prov-opt > .i {
+  margin-left: auto;
+  color: var(--accent);
 }
 
 #acct-form {
@@ -2662,18 +2705,6 @@ button.danger.subtle:hover:not(:disabled) {
 }
 
 /* Folder tree (experimental, tree.ts): the ↑ button's dropdown */
-.ib.up.tree-on {
-  position: relative;
-}
-.ib.up.tree-on::after {
-  content: "";
-  position: absolute;
-  right: 1px;
-  bottom: 3px;
-  border: 3px solid transparent;
-  border-top-color: currentColor;
-  opacity: 0.7;
-}
 .tree-pop {
   position: fixed;
   z-index: 60;
@@ -2753,4 +2784,45 @@ button.danger.subtle:hover:not(:disabled) {
   margin: 8px;
   color: var(--muted);
   font-size: var(--fs-sm);
+}
+
+/* Search results (search.ts): the bar under the path bar, and each row's folder */
+.search-bar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 10px 0;
+  padding: 6px 6px 6px 12px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  font-size: var(--fs-sm);
+}
+.search-bar > .i {
+  color: var(--accent);
+  flex: none;
+}
+.search-bar .sb-text {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.search-bar small {
+  color: var(--muted);
+  margin-left: 6px;
+}
+.search-bar button:not(.ib) {
+  padding: 2px 10px;
+}
+.row .name .where {
+  flex: 0 3 auto; /* gives way before the name does */
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

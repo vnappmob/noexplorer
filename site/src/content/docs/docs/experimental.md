@@ -21,7 +21,7 @@ Adds **New bucket…** to the bucket menu and <kbd>⌘ K</kbd> for S3-compatible
 
 ## Folder tree
 
-The ↑ button in the path bar opens a tree of the folders you've opened in that pane: the path you're on, the folders next to it, and a ▸ on every folder you've been into. Click one to jump there, or type in the box at the top to find any folder you've opened. <kbd>⌘ ↑</kbd> and <kbd>Backspace</kbd> still go up one level. The tree only knows folders you've opened since NoExplorer started.
+The ↑ button in the path bar (a tree icon while this is on) opens a tree of the folders you've opened in that pane: the path you're on, the folders next to it, and a ▸ on every folder you've been into. Click one to jump there, or type in the box at the top to find any folder you've opened. <kbd>⌘ ↑</kbd> and <kbd>Backspace</kbd> still go up one level. The tree only knows folders you've opened since NoExplorer started.
 
 ## Box accounts
 

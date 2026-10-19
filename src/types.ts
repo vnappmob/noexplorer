@@ -64,6 +64,8 @@ export type Item = {
   dir: boolean;
   /** UI-only: a folder whose `size` was computed (Σ, or automatic sizes; folders are listed as 0). */
   calc?: boolean;
+  /** UI-only, search results: the folder it's in, relative to the folder searched (search.ts). */
+  where?: string;
   /** UI-only: `size` is a lower bound (some subfolders were skipped). */
   partial?: boolean;
 };

@@ -5,6 +5,18 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Search** every folder below the current one: type in the filter box and press ↵. Results
+  stream in with the folder each one is in; words, `*`/`?` wildcards and `ext:pdf`; Stop, Esc,
+  right-click → Show in its folder. On this computer it reads several folders at once (about 5×
+  faster than `find`); remotes are searched from their listing.
+
+### Changed
+- The account form picks the storage type from a dropdown again (with badges and groups), instead
+  of a separate grid.
+- Experimental folder tree: a tree icon on the ↑ button, and folders on the current path can be
+  collapsed too.
+
 ### Fixed
 - After installing an update, the window opens again. When NoExplorer had been started at login, it
   came back with only the tray icon.

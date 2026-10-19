@@ -67,6 +67,8 @@ and you're done.
   undo. Nothing is ever overwritten.
 - **Grid view** with image and video thumbnails, cached (48 MB at most on disk).
 - **Favorites**: star a folder, local or remote, and reach it from the places menu or ⌘K.
+- **Search** every folder below the current one (↵ in the filter box): results stream in, words,
+  `*`/`?` wildcards and `ext:pdf`, on this computer (parallel, ~5× faster than `find`) or a remote.
 - **Σ Size** for any folder, local or remote. A path bar always shows where you are.
 - Copy a 7-day share link, create folders, delete remote files (in the background, with
   progress), follow and cancel every transfer. Theme and text size settings, resizable panes.
@@ -147,7 +149,7 @@ shortcuts, FAQ and [privacy](https://noexplorer.vnappmob.com/docs/privacy).
 | `⌘L` | Type a path |
 | `⌘\` · `⌘W` | Split the remote side (another account below) · close the focused remote view |
 | `⌘[` | Up a level, back to the folder as you left it *(experimental)* |
-| `⌘R` · `⌘F` · `⌘,` | Refresh · Filter · Settings |
+| `⌘R` · `⌘F` · `⌘,` | Refresh · Filter (↵ searches all subfolders) · Settings |
 | `F2` · `⌘Z` | Rename · undo the last rename / move / duplicate |
 
 ## Limitations

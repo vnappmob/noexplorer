@@ -168,7 +168,7 @@ impl SizeIndex {
         }
     }
 
-    fn enter_policy(&self, root: &Path, auto: bool) -> impl Fn(&Path) -> bool + Sync + use<> {
+    pub(crate) fn enter_policy(&self, root: &Path, auto: bool) -> impl Fn(&Path) -> bool + Sync + use<> {
         let skip: Vec<PathBuf> = if auto {
             let granted = self.granted.lock().unwrap();
             protected().into_iter().filter(|p| !root.starts_with(p) && !granted.contains(p)).collect()

@@ -57,6 +57,9 @@ export const ICONS: Record<string, string> = {
   ),
   pencil: svg('<path d="M4 20h4L19 9l-4-4L4 16z"/>'),
   update: svg('<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M12 8v5l3 2"/>'),
+  tree: svg(
+    '<path d="M5 4v12a2 2 0 0 0 2 2h3M5 9h5"/><rect x="12" y="6" width="8" height="5" rx="1.5"/><rect x="12" y="15" width="8" height="5" rx="1.5"/>',
+  ),
   info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/>'),
   flask: svg('<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 14h9"/>'),
   key: svg('<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M16 7l3 3"/>'),

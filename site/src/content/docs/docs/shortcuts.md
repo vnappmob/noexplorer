@@ -21,7 +21,7 @@ On Windows and Linux, use <kbd>Ctrl</kbd> where this page says <kbd>⌘</kbd>.
 | <kbd>⌘ \\</kbd> | Split the remote side (another account below) |
 | <kbd>⌘ [</kbd> | Up a level, back to the folder as you left it *(experimental)* |
 | <kbd>⌘ W</kbd> | Close the remote view you're in |
-| <kbd>⌘ F</kbd> | Filter the current folder |
+| <kbd>⌘ F</kbd> | Filter the current folder; <kbd>↵</kbd> in the box searches all subfolders |
 | <kbd>⌘ R</kbd> | Refresh |
 | <kbd>⌘ ,</kbd> | Settings |
 | <kbd>F2</kbd> · <kbd>⌘ Z</kbd> | Rename · undo the last rename, move or duplicate |

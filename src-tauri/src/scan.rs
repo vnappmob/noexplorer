@@ -249,13 +249,13 @@ impl TotalsAdd for Totals {
 }
 
 #[cfg(unix)]
-fn bytes_to_os(b: &[u8]) -> &std::ffi::OsStr {
+pub(crate) fn bytes_to_os(b: &[u8]) -> &std::ffi::OsStr {
     use std::os::unix::ffi::OsStrExt;
     std::ffi::OsStr::from_bytes(b)
 }
 
 #[cfg(not(unix))]
-fn bytes_to_os(b: &[u8]) -> std::ffi::OsString {
+pub(crate) fn bytes_to_os(b: &[u8]) -> std::ffi::OsString {
     // Non-unix listings hand names over as UTF-8 (see the generic read_dir).
     String::from_utf8_lossy(b).into_owned().into()
 }

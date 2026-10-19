@@ -24,20 +24,24 @@ export function showMenu(p: Pane, x: number, y: number, above = false) {
       p.isRemote ? "arrowLeft" : "arrowRight",
     ]);
   if (one?.dir) items.push(["open-dir", "Open folder", "folder"]);
+  if (one && p.search) items.push(["show-in-folder", "Show in its folder", "folder"]);
   if (one && !one.dir) items.push(["preview", "Quick look", "eye"], ["open", "Open with default app", "external"]);
   if (!p.isRemote) items.push(["reveal", "Show in Finder / Explorer", "search"]);
   if (one && p.isRemote && !one.dir) items.push(["link", "Copy 7-day link", "link"]);
   if (one) items.push(["copy-path", "Copy path", "copy"]);
-  if (sel.length) {
+  // Search results come from many folders: folder-level actions belong to a folder view.
+  if (sel.length && !p.search) {
     items.push("-");
     if (one) items.push(["rename", "Rename…", "pencil"]);
     items.push(["move", "Move to…", "folder"], ["duplicate", "Duplicate", "copy"]);
   }
-  items.push(["size", sel.some((e) => e.dir) ? "Calculate folder size" : "Size of this folder", "sigma"]);
-  if (remote.bucket)
+  if (!p.search)
+    items.push(["size", sel.some((e) => e.dir) ? "Calculate folder size" : "Size of this folder", "sigma"]);
+  if (remote.bucket && !p.search)
     items.push(["compare", p.isRemote ? "Compare with this computer…" : "Compare with remote…", "compare"]);
   if (sel.length) items.push("-", ["delete", p.isRemote ? `Delete from ${remoteName(p)}` : TRASH_LABEL, "trash"]);
-  items.push("-", ["mkdir", "New folder", "folderPlus"], ["refresh", "Refresh", "refresh"]);
+  if (p.search) items.push("-", ["end-search", "Back to the folder", "x"]);
+  else items.push("-", ["mkdir", "New folder", "folderPlus"], ["refresh", "Refresh", "refresh"]);
   if (!p.isRemote) items.push(["hidden", app.showHidden ? "Hide hidden files" : "Show hidden files", "eye"]);
   if (p.isRemote) {
     items.push("-");

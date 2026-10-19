@@ -115,6 +115,8 @@ function onKey(ev: KeyboardEvent) {
       if (sel.length === 1 && !sel[0].dir) openItem(p, sel[0]);
       break;
     case ev.key === "Escape":
+      // Esc leaves search results (with nothing selected), else clears the selection.
+      if (p.search && !p.selected.size) p.load();
       p.selected.clear();
       p.paint();
       break;

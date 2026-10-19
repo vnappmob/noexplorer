@@ -21,7 +21,7 @@ use crate::sftp::Sftp;
 use crate::webdav::Dav;
 
 /// One row in a pane. Mirrors `Item` in `src/types.ts` (local entries use the same shape).
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
 pub struct Entry {
     /// Full key; folders end with `/`.
     pub key: String,

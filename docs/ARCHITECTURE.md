@@ -76,6 +76,9 @@ means the active account (ADR-025).
 | `remote_size` | `bucket, prefix` | `SizeInfo {bytes, files}` | remote | Recursive. `""` = whole bucket. Lists every object, so it's slow on huge folders |
 | `local_size` | `path` | `SizeInfo` | local | Recursive walk; symlinks are not followed (single folder; the local pane uses `folder_sizes`) |
 | `folder_sizes` | `path, dirs[], auto` | `DirSizes` | sizes | Sets the focus folder, answers `dirs` + `path` from the index, starts a background scan if needed (`auto` = polite rules; false = Σ, scans everything). More arrives as `"dir-sizes"` |
+| `search_local` | `path, query, hidden` | `string` (id) | search | Searches every folder below `path` (parallel walker on `scan::read_dir`, polite folder rules); results stream as `"search"` events |
+| `search_remote` | `account, bucket, prefix, query` | `string` (id) | search | Searches below `prefix` from the provider's full listing (files, and folders from their paths); one `"search"` event |
+| `cancel_search` | `id` | – | search | Stops a running search |
 | `stop_sizes` | – | – | sizes | Clears the focus and cancels the running scan (auto sizes turned off) |
 | `volume_info` | `path` | `VolumeInfo {name, total, available}` | local | The disk under `path`, for the storage bar. macOS: NSURL volume resource values (available = "important usage", as System Settings shows); Windows: `GetDiskFreeSpaceExW`; Linux: `statvfs` |
 | `nextcloud_login` | `server, id?, name` | `Settings` | webdav | Login Flow v2: opens the browser, polls until approved (20 min), saves the account with its app password in the keychain, makes it active |

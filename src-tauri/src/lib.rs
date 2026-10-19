@@ -34,6 +34,7 @@ mod remote;
 mod resume;
 mod s3;
 mod scan;
+mod search;
 mod secrets;
 mod sftp;
 mod sizes;
@@ -153,6 +154,9 @@ pub fn run() {
             local::open_local,
             local::reveal,
             diag::log_file,
+            search::search_local,
+            search::search_remote,
+            search::cancel_search,
             tray::show_after_relaunch,
         ])
         .build(tauri::generate_context!())

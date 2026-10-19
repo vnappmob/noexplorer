@@ -49,6 +49,7 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   thumbs.ts          Grid view thumbnails: backend thumbnails, loaded elements reused across redraws, next screen prefetched
   favorites.ts       Favorites: the path-bar star, places/account menus and ⌘K (per device, localStorage)
   history.ts         Back (experimental): up a level, restoring the parent's remembered scroll + selection; ⌘[ / ← / mouse back
+  search.ts          Search below the current folder (↵ in the filter box): results in the pane, progress bar, Show in its folder
   tree.ts            Folder tree (experimental): ↑ opens a tree built from the folders listed so far (folders only, in memory)
   backups.ts         Backup pairs (experimental): saved local ↔ remote folders, run = compare + upload_rel
   types.ts           Types mirrored from Rust     util.ts / files.ts / state.ts  helpers and global state
@@ -74,6 +75,7 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   fileops.rs         Rename / move / duplicate: local (never overwrite, same disk) and remote jobs (`Remote::transfer_within`)
   local.rs           Local filesystem commands for the left pane (+ volume_info for the storage bar)
   scan.rs            Parallel folder-size scanner (macOS getattrlistbulk fast path)
+  search.rs          Name search: query matcher (words, globs, ext:), parallel local walker streaming "search" events, remote via list_files
   sizes.rs           Live size index: background scans, watchers, "dir-sizes" events
   trash.rs           Move to Trash (macOS / Windows / freedesktop), no extra crates
   diag.rs            Diagnostic log: failed server requests (redacted) in the OS log folder; `log_file` command
