@@ -15,10 +15,14 @@ Save “this folder ↔ that remote folder” once, then back it up in one click
 
 Adds **New bucket…** to the bucket menu and <kbd>⌘ K</kbd> for S3-compatible storage (AWS, MinIO, R2, B2, Wasabi, Google Cloud Storage…) and **New container…** for Azure. Names are 3 to 63 lowercase letters, digits and hyphens (S3 also allows dots). It works when your key is allowed to create buckets; otherwise the server's answer is shown. On AWS the bucket goes in the account's region; on Google Cloud Storage, in the account's project.
 
-## More storage types
+## Back
 
-Google Cloud Storage and SFTP in the account form. See [Connect your storage](/docs/accounts/#more-storage-types-experimental).
+<kbd>⌘ [</kbd>, the ← button in the path bar, or your mouse's back button return to the folder you were in, scrolled and with the same files selected as when you left. Each pane has its own history. There's no forward: going somewhere new is the way forward.
+
+## Box accounts
+
+Box in the account form, with your own Box app. It works against our test double but hasn't been tried on a real Box account yet. See [Connect your storage](/docs/accounts/#box-experimental).
 
 ## Self-signed HTTPS
 
-Lets an account trust its server's own certificate, after you compare its fingerprint. See [Connect your storage](/docs/accounts/#self-signed-https).
+Lets an account trust its server's own certificate, after you compare its fingerprint. See [Connect your storage](/docs/accounts/#self-signed-https-experimental).

@@ -21,7 +21,7 @@ TypeScript UI. The UI is in English. License: MIT.
 | Last updated | 2026-10-19 |
 | Works and is verified | Dual-pane browse; drag both ways; drop files from the OS; multipart upload (tested with 2 GB); folder up/download; quick look (image/video/audio/pdf/text, local and remote); presigned links; delete; mkdir; transfer progress/cancel; **multiple S3 accounts** (picker + manager, v1 config migration); **Σ folder size** (remote and local) and full-path bar; **theme + text size**; **resizable split**; **auto-update** (signed, GitHub `latest.json`; real OTA 0.2.0 → 0.2.1 confirmed on macOS 2026-10-15); **tray + background running** (hide on close, live transfer rows, launch at login: macOS Login Items shows "NoExplorer", confirmed 2026-10-15 after re-registration; single instance); **Settings → General / About**; **v0.3 UI** (two-row pane headers with account/bucket dropdowns, path bar editing, activity card, transfer beam, ⌘K palette, watermarks, light/dark), checked in the app against SeaweedFS; **live folder sizes** (own scanner, faster than ncdu, ADR-022) + live folder view; **Move to Trash** (macOS, ADR-023); **tray account switcher** (event path; native menu to be eyeballed); **split remote views** (1–3 accounts, drag S3 → Nextcloud, reload restores layout; checked in the dev app); **Compare** with checksums; **Nextcloud/WebDAV** (dev container) |
 | Tested on | macOS (Apple Silicon) against SeaweedFS, the maintainer's MinIO, and real AWS S3 (read-only: ap-southeast-1, dotted bucket names, cross-region detection). Windows and Linux are only checked for compilation in CI |
-| Next up | Rename/move/duplicate, resumable transfers, grid and favorites graduated to standard features on 2026-10-19 (ADR-038; tabs and history removed). Still experimental: backup pairs, self-signed HTTPS, GCS/SFTP (GCS confirmed with a real key 2026-10-19; SFTP being tested by the maintainer), create buckets (Azure standard since 2026-10-19); graduate them after real-world use. Not yet seen in the real app window (the maintainer's screen was locked): pause button and resume banner. First real runs on the maintainer's setup: Box with their own Box app (beta), Nextcloud browser sign-in, split views with real accounts. Windows/Linux eyeballing. No donation buttons; Windows stays unsigned (ADR-030) |
+| Next up | Rename/move/duplicate, resumable transfers, grid and favorites graduated to standard features on 2026-10-19 (ADR-038; tabs and history removed). Standard since 2026-10-19: Azure, GCS and SFTP (confirmed by the maintainer on real servers). Still experimental: backup pairs, self-signed HTTPS, create buckets, Back, Box (no real Box run yet). Settings redesigned 2026-10-19 (ADR-040); graduate them after real-world use. Not yet seen in the real app window (the maintainer's screen was locked): pause button and resume banner. First real runs on the maintainer's setup: Box with their own Box app (beta), Nextcloud browser sign-in, split views with real accounts. Windows/Linux eyeballing. No donation buttons; Windows stays unsigned (ADR-030) |
 
 ## Map
 
@@ -34,9 +34,9 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   dnd.ts             Drag between panes (mouse events) + drops from the OS (Tauri event)
   preview.ts         Quick-look modal
   jobs.ts            "job" events → activity card, transfer beam, transfer lanes (above the panes)
-  settings.ts        Settings dialog (Accounts | Appearance), account + bucket pickers
+  settings.ts        Settings dialog (sidebar: Accounts, General, Appearance, Experimental, About), provider picker, account form, account + bucket pickers
   appearance.ts      Theme, text size, pane splitter (localStorage)
-  providers.ts       Provider presets (AWS, R2, B2, Wasabi, DO…) for the account form
+  providers.ts       Provider presets (AWS, R2, B2, Wasabi, DO…), their badges (`LOOK`) and picker groups
   icons.ts           Stroke icons + watermarks; `data-icon="name"` in markup, `icon()` in code
   popover.ts         Dropdown menus anchored to a chip/button (account, bucket, this computer)
   palette.ts         ⌘K command palette + path editing (⌘L)
@@ -48,6 +48,7 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   fileops.ts         Rename / move / duplicate / undo
   thumbs.ts          Grid view thumbnails: backend thumbnails, loaded elements reused across redraws, next screen prefetched
   favorites.ts       Favorites: the path-bar star, places/account menus and ⌘K (per device, localStorage)
+  history.ts         Back (experimental): per-pane stack of left folders with scroll + selection; ⌘[ / ← / mouse back
   backups.ts         Backup pairs (experimental): saved local ↔ remote folders, run = compare + upload_rel
   types.ts           Types mirrored from Rust     util.ts / files.ts / state.ts  helpers and global state
 index.html           All markup (panes, dialogs, preview)      src/styles.css  All styles (light and dark)
@@ -59,7 +60,7 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   proxy.rs           nxr:// scheme: local files, remote previews without presigned URLs (Range, CORS), grid thumbnails; answers on the main thread
   thumbs.rs          Grid thumbnails: 256 px JPEG/PNG, LRU caches in memory (16 MB) and on disk (48 MB, OS cache folder); trims WebKit's cache at launch
   azure.rs           Azure Blob provider: Shared Key signing, block uploads, SAS links
-  sftp.rs            SFTP provider (experimental): the system `ssh` carries russh-sftp (your keys/agent/config)
+  sftp.rs            SFTP provider: the system `ssh` carries russh-sftp (your keys/agent/config)
   askpass.rs         Passwords / key passphrases for that `ssh`: the app binary is its SSH_ASKPASS, fetching the secret over loopback with a one-time token
   box_api.rs         Box provider (beta): BYO OAuth app, loopback sign-in, rotating refresh token, sessions
   compare.rs         Compare local vs remote folders: missing/changed/junk, checksum verify (ETag/SHA-1)

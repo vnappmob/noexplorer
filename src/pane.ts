@@ -36,8 +36,10 @@ export const paneHooks = {
   listed: (_p: Pane): void => {},
   /** "Try again" on a remote view's error: reconnect the account (settings.ts loadBuckets). */
   retry: (_p: Pane): void => {},
-  /** A listing succeeded (history and tabs, nav.ts). */
+  /** A listing succeeded (favorites star and Back, favorites.ts / history.ts). */
   visited: (_p: Pane): void => {},
+  /** About to leave the current folder (Back keeps its scroll and selection, history.ts). */
+  leaving: (_p: Pane): void => {},
   /** Grid view: tiles were (re)drawn; fill their thumbnails (thumbs.ts). */
   drawn: (_p: Pane): void => {},
 };
@@ -301,6 +303,7 @@ export class Pane {
   }
 
   go(path: string, keepSelection = false) {
+    paneHooks.leaving(this);
     this.cwd = path;
     this.q<HTMLInputElement>(".filter").value = "";
     this.list.scrollTop = 0;

@@ -7,8 +7,8 @@ import type { Profile, ProviderKind } from "./types";
 export type ProviderId =
   "custom" | "aws" | "r2" | "b2" | "wasabi" | "do" | "nextcloud" | "webdav" | "box" | "gcs" | "azure" | "sftp";
 
-/** Shown in the provider picker only with Settings → Experimental → More storage types. */
-export const EXPERIMENTAL_PROVIDERS: ProviderId[] = ["gcs", "sftp"];
+/** Shown in the provider picker only with Settings → Experimental → Box accounts. */
+export const EXPERIMENTAL_PROVIDERS: ProviderId[] = ["box"];
 
 type Preset = {
   label: string;
@@ -126,7 +126,6 @@ export const PRESETS: Record<ProviderId, Preset> = {
     pathStyle: true,
     matches: () => false,
   },
-  // gcs and sftp: experimental (Settings → Experimental → More storage types).
   gcs: {
     kind: "s3",
     label: "Google Cloud Storage",
@@ -196,3 +195,30 @@ export const azureEndpoint = (p: Pick<Profile, "endpoint" | "access_key">) =>
 export const isS3 = (p: Pick<Profile, "kind"> | null | undefined) => !p?.kind || p.kind === "s3";
 /** Accounts with several containers (a bucket picker): S3 buckets, Azure containers. */
 export const hasContainers = (p: Pick<Profile, "kind"> | null | undefined) => isS3(p) || p?.kind === "azure";
+
+/** How a provider looks in the picker and the account list: a monogram badge on a hue, a short
+ * line, and its group. Plain monograms, not logos: the names are the vendors' trademarks. */
+export const LOOK: Record<ProviderId, { mono: string; hue: number; blurb: string; name: string }> = {
+  aws: { mono: "S3", hue: 30, name: "Amazon S3", blurb: "Any region, detected per bucket" },
+  custom: { mono: "S3", hue: 350, name: "MinIO & self-hosted", blurb: "MinIO, SeaweedFS, Garage, Ceph…" },
+  r2: { mono: "R2", hue: 22, name: "Cloudflare R2", blurb: "S3 API token" },
+  b2: { mono: "B2", hue: 2, name: "Backblaze B2", blurb: "Application key" },
+  wasabi: { mono: "W", hue: 140, name: "Wasabi", blurb: "Access key" },
+  do: { mono: "DO", hue: 210, name: "DigitalOcean Spaces", blurb: "Spaces key" },
+  gcs: { mono: "G", hue: 220, name: "Google Cloud Storage", blurb: "HMAC key + project" },
+  azure: { mono: "Az", hue: 200, name: "Azure Blob Storage", blurb: "Account name + key" },
+  nextcloud: { mono: "NC", hue: 205, name: "Nextcloud / ownCloud", blurb: "Sign in with your browser" },
+  webdav: { mono: "DAV", hue: 250, name: "WebDAV", blurb: "NAS or any WebDAV server" },
+  sftp: { mono: ">_", hue: 165, name: "SFTP", blurb: "Any SSH server" },
+  box: { mono: "box", hue: 212, name: "Box", blurb: "Your own Box app · beta" },
+};
+
+export const PICKER_GROUPS: { title: string; ids: ProviderId[] }[] = [
+  { title: "Object storage", ids: ["aws", "custom", "r2", "b2", "wasabi", "do", "gcs", "azure"] },
+  { title: "File servers", ids: ["nextcloud", "webdav", "sftp"] },
+  { title: "Cloud drives", ids: ["box"] },
+];
+
+/** A provider badge (`.pbadge`); `sm` for lists. */
+export const badge = (id: ProviderId, sm = false) =>
+  `<span class="pbadge${sm ? " sm" : ""}${LOOK[id].mono.length > 2 ? " long" : ""}" style="--h:${LOOK[id].hue}" aria-hidden="true">${LOOK[id].mono}</span>`;

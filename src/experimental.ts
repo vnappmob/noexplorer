@@ -19,9 +19,14 @@ export const EXPERIMENTS: { key: keyof Experimental; title: string; desc: string
     desc: "Save “this folder ↔ that remote folder” and back it up in one click: Compare, then upload what's missing.",
   },
   {
-    key: "providers",
-    title: "More storage types",
-    desc: "SFTP and Google Cloud Storage in the account form.",
+    key: "box_beta",
+    title: "Box accounts",
+    desc: "Box in the account form, with your own Box app. It works against our test double but hasn't been tried on a real Box account yet.",
+  },
+  {
+    key: "back_history",
+    title: "Back",
+    desc: "⌘[, a ← button in the path bar or your mouse's back button return to the folder you were in, scrolled and selected as you left it.",
   },
   {
     key: "create_buckets",
@@ -34,8 +39,8 @@ export const EXPERIMENTS: { key: keyof Experimental; title: string; desc: string
 export function renderExperimental() {
   const g = app.settings.general;
   $("exp-list").innerHTML = EXPERIMENTS.map(
-    (e) => `<label class="check"><input type="checkbox" name="${e.key}"${g.experimental?.[e.key] ? " checked" : ""} />
-      <span><b>${esc(e.title)}</b><br /><small>${esc(e.desc)}</small></span></label>`,
+    (e) => `<label class="set-row"><span><b>${esc(e.title)}</b><small>${esc(e.desc)}</small></span>
+      <input type="checkbox" class="switch" name="${e.key}"${g.experimental?.[e.key] ? " checked" : ""} /></label>`,
   ).join("");
 }
 

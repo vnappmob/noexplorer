@@ -29,7 +29,7 @@ In your system's credential store (macOS Keychain, Windows Credential Manager or
 
 ### Why does Box need my own app?
 
-Box sign-in needs a client secret, and an open-source app can't keep one secret. A free Box app takes two minutes, see [Connect your storage](/docs/accounts/#box-beta).
+Box sign-in needs a client secret, and an open-source app can't keep one secret. A free Box app takes two minutes, see [Connect your storage](/docs/accounts/#box-experimental).
 
 ### Closing the window doesn't quit the app
 

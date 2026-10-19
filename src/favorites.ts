@@ -2,7 +2,7 @@
 // menu (local), the account menu (remote) and ⌘K. A location is a local folder, or account +
 // bucket + prefix for a remote view.
 
-import type { Pane } from "./pane";
+import { type Pane, paneHooks } from "./pane";
 import { local, remotes } from "./panes";
 import { loadBuckets } from "./settings";
 import { app } from "./state";
@@ -48,6 +48,7 @@ export async function openFavorite(f: Favorite, view?: Pane) {
   if (f.account === undefined) return local.go(f.path);
   const v = view ?? remotes.find((x) => x.account === f.account && x.bucket === f.bucket) ?? remotes[0];
   if (v.account === f.account && v.bucket === f.bucket) return v.go(f.path);
+  paneHooks.leaving(v);
   v.account = f.account ?? "";
   v.bucket = f.bucket ?? "";
   v.cwd = f.path;

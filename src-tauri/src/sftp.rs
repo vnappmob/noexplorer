@@ -1,4 +1,4 @@
-//! SFTP provider (experimental `providers`): the system `ssh` command carries the connection, and
+//! SFTP provider: the system `ssh` command carries the connection, and
 //! `russh-sftp` speaks the SFTP protocol over its stdin/stdout.
 //!
 //! Using `ssh` itself means the user's keys, agent, `~/.ssh/config` and `known_hosts` all apply,

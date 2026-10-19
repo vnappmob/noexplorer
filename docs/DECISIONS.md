@@ -770,3 +770,30 @@ lockouts from retries. Clear hints for "Permission denied" with and without a sa
 **Consequences.** Password servers and locked keys work; the secret never sits in an environment
 variable, a file or a command line. A pure-Rust SSH client (russh) would avoid the subprocess but
 adds a crypto stack and loses `~/.ssh/config`.
+
+<a id="adr-040"></a>
+
+## ADR-040: Settings as a sidebar of card pages; a provider picker; Back without Forward
+Accepted · 2026-10-19
+
+**Context.** Settings had grown into a tab strip over one long column per page: a plain provider
+dropdown with twelve entries, every account field in one list, checkboxes with long captions. The
+maintainer asked for a modern layout. Separately, tabs and two-way history were removed (ADR-038)
+but going back to the folder you were in, as you left it, was missed.
+**Decision.**
+- The dialog is a sidebar of sections (icons) and pages of cards. Rows put the label and a short
+  explanation on the left and a switch (a styled `<input type=checkbox class="switch">`, so forms,
+  keyboard and `change` handlers are unchanged) or control on the right.
+- Accounts: a list with provider badges (monograms on a hue from `providers.ts` `LOOK`, not vendor
+  logos) and a ✓ for the default account. A new account starts with a grid of storage types grouped
+  as object storage / file servers / cloud drives; "Change provider" reopens it. The form is grouped
+  (hint, Connection, Sign in, collapsible Options) with Test, Save and the test result in a fixed
+  footer. The hidden `<select id="acct-provider">` stays the single source of the chosen provider,
+  so the existing logic (`applyPreset`, `readForm`, certificates) didn't change.
+- Back (experimental `back_history`, `history.ts`): per pane, a stack of left locations (account,
+  bucket, path) with scroll and selection. `Pane.go` and the account/bucket/favorite switches call
+  `paneHooks.leaving` to snapshot synchronously (scroll events arrive a frame late, and not at all
+  in a hidden window). No Forward.
+**Consequences.** Every settings page scrolls on its own inside a fixed-size dialog; at the minimum
+window (820 × 480) the sidebar and account list narrow but stay. New per-account fields go into one
+of the form's groups.

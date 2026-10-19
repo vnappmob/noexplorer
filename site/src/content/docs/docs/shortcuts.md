@@ -19,6 +19,7 @@ On Windows and Linux, use <kbd>Ctrl</kbd> where this page says <kbd>⌘</kbd>.
 | <kbd>⌘ K</kbd> | Command palette: commands, accounts, buckets, places, files |
 | <kbd>⌘ L</kbd> | Type a path |
 | <kbd>⌘ \\</kbd> | Split the remote side (another account below) |
+| <kbd>⌘ [</kbd> | Back to the previous folder, as you left it *(experimental)* |
 | <kbd>⌘ W</kbd> | Close the remote view you're in |
 | <kbd>⌘ F</kbd> | Filter the current folder |
 | <kbd>⌘ R</kbd> | Refresh |

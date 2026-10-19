@@ -7,7 +7,7 @@
 <p align="center">
   <b>No explorer needed: just drag it to your bucket.</b><br/>
   A tiny two-pane file manager: your computer on the left, your cloud on the right.<br/>
-  S3 (AWS, MinIO, R2, B2, Wasabi…) · Nextcloud · WebDAV · Box &nbsp;—&nbsp; macOS · Windows · Linux
+  S3 (AWS, MinIO, R2, B2, Wasabi…) · Google Cloud · Azure · Nextcloud · WebDAV · SFTP &nbsp;—&nbsp; macOS · Windows · Linux
 </p>
 
 <p align="center">
@@ -48,9 +48,9 @@ and you're done.
   files means **Move to Trash** (recoverable).
 - **Self-hosted friendly**: path-style requests are on by default, and the connection test
   works even when the key can't list buckets.
-- **S3, Nextcloud, WebDAV, Azure Blob and Box (beta)**, plus Google Cloud Storage and SFTP as
-  experimental options: AWS, R2, B2, Wasabi, MinIO… plus Nextcloud/ownCloud
-  (sign in through the browser), any WebDAV server or NAS, and Box with your own app. Previews and
+- **S3, Google Cloud Storage, Azure Blob, Nextcloud, WebDAV and SFTP**: AWS, R2, B2, Wasabi,
+  MinIO… plus Nextcloud/ownCloud (sign in through the browser), any WebDAV server or NAS, and any
+  SSH server (keys, agent, password or key passphrase). Box is experimental. Previews and
   transfers work the same way everywhere.
 - **Compare folders**: after a backup, see exactly what's missing or different on each side.
   Contents are checked by checksum without downloading, system junk (`.DS_Store`…) is explained,
@@ -79,7 +79,8 @@ Newer features ship in **Settings → Experimental**, off until you turn them on
 
 - **Backup pairs**: save "this folder ↔ that remote folder" and back it up in one click.
 - **Self-signed HTTPS**: trust a NAS's own certificate after comparing its fingerprint.
-- **More storage**: Google Cloud Storage and SFTP.
+- **Back**: ⌘[ returns to the previous folder, scrolled and selected as you left it.
+- **Box accounts** with your own Box app (not yet tried on a real Box account).
 - **Create buckets** (and Azure containers) from the bucket menu, when your key is allowed to.
 
 ## Install
@@ -144,6 +145,7 @@ shortcuts, FAQ and [privacy](https://noexplorer.vnappmob.com/docs/privacy).
 | `⌘K` | Command palette: commands, accounts, buckets, places, files |
 | `⌘L` | Type a path |
 | `⌘\` · `⌘W` | Split the remote side (another account below) · close the focused remote view |
+| `⌘[` | Back to the previous folder, as you left it *(experimental)* |
 | `⌘R` · `⌘F` · `⌘,` | Refresh · Filter · Settings |
 | `F2` · `⌘Z` | Rename · undo the last rename / move / duplicate |
 

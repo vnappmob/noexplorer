@@ -2,6 +2,7 @@
 // Module map: see docs/ARCHITECTURE.md ("Frontend").
 
 import { bindStar, favoritesMenuItems, renderStar } from "./favorites";
+import { bindBack, leaving, visited } from "./history";
 import { fillThumbs } from "./thumbs";
 import { setupBackups } from "./backups";
 import { setupFileOps } from "./fileops";
@@ -29,7 +30,8 @@ import { $, fail, store } from "./util";
 paneHooks.openFile = (p, e) => (p.isRemote ? openPreview(p, e) : openItem(p, e));
 paneHooks.listed = (p) => !p.isRemote && requestSizes();
 paneHooks.drawn = fillThumbs;
-paneHooks.visited = renderStar;
+paneHooks.visited = (p) => (renderStar(p), visited(p));
+paneHooks.leaving = leaving;
 // Each remote view (ADR-029): DOM events, its account/bucket chips, split/close buttons.
 paneHooks.created = (p) => {
   bindPane(p);
@@ -94,6 +96,7 @@ function bindPane(p: Pane) {
   p.q(".mkdir-btn").onclick = () => mkdir(p);
   p.q(".up").title = `Up one folder (${navigator.userAgent.includes("Mac") ? "⌘↑" : "Backspace"})`;
   bindStar(p);
+  bindBack(p);
   // Grid view: the header button flips list ⇄ grid.
   p.q(".view-btn").onclick = () => p.setMode(p.isGrid ? "list" : "grid");
   p.applyMode();

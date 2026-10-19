@@ -5,6 +5,17 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Settings, redesigned**: a sidebar of sections; accounts with provider badges; adding an account
+  starts from a grid of storage types; the account form is grouped (connection, sign-in, options)
+  with Test and Save always at hand; switches instead of checkboxes; theme previews.
+- **SFTP** and **Google Cloud Storage** are standard providers (confirmed on real servers).
+  **Box** moved to Settings → Experimental until it's tried on a real Box account.
+
+### Added
+- Experimental **Back** (⌘[, a ← button in the path bar, the mouse's back button): the previous
+  folder, scrolled and selected as you left it.
+
 ## [0.4.21] - 2026-10-19
 
 ### Added

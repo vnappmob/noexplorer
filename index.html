@@ -44,6 +44,7 @@
           <button class="ib more-btn" title="More" aria-label="More actions"><span data-icon="more"></span></button>
         </header>
         <nav class="pathbar" aria-label="Path">
+          <button class="ib back" title="Back (⌘[)" aria-label="Back" hidden><span data-icon="arrowLeft"></span></button>
           <button class="ib up" title="Up one folder (⌫)" aria-label="Up one folder"><span data-icon="arrowUp"></span></button>
           <div class="crumbs" title="Click empty space to type a path (⌘L)"></div>
           <input class="path-input" spellcheck="false" autocomplete="off" aria-label="Go to path" hidden />
@@ -105,6 +106,7 @@
           <button class="ib close-view" title="Close this view (⌘W)" aria-label="Close this view" hidden><span data-icon="x"></span></button>
         </header>
         <nav class="pathbar" aria-label="Path">
+          <button class="ib back" title="Back (⌘[)" aria-label="Back" hidden><span data-icon="arrowLeft"></span></button>
           <button class="ib up" title="Up one folder (⌫)" aria-label="Up one folder"><span data-icon="arrowUp"></span></button>
           <span class="scheme">s3://</span><div class="crumbs" title="Click empty space to type a path (⌘L)"></div>
           <input class="path-input" spellcheck="false" autocomplete="off" aria-label="Go to path" hidden />
@@ -142,156 +144,193 @@
       </div>
     </div>
 
-    <dialog id="settings">
-      <nav class="tabs">
-        <button type="button" data-tab="accounts" class="on">Accounts</button>
-        <button type="button" data-tab="general">General</button>
-        <button type="button" data-tab="appearance">Appearance</button>
-        <button type="button" data-tab="experimental">Experimental</button>
-        <button type="button" data-tab="about">About</button>
-        <span class="spacer"></span>
-        <button type="button" id="settings-close" title="Close (Esc)">✕</button>
+    <dialog id="settings" aria-label="Settings">
+      <nav class="tabs" aria-label="Settings sections">
+        <div class="set-brand"><img src="/app-icon.png" width="26" height="26" alt="" /><b>Settings</b></div>
+        <button type="button" data-tab="accounts" class="on"><span data-icon="cloud"></span>Accounts</button>
+        <button type="button" data-tab="general"><span data-icon="sliders"></span>General</button>
+        <button type="button" data-tab="appearance"><span data-icon="sun"></span>Appearance</button>
+        <button type="button" data-tab="experimental"><span data-icon="flask"></span>Experimental</button>
+        <button type="button" data-tab="about"><span data-icon="info"></span>About</button>
       </nav>
+      <div class="set-main">
+        <button type="button" id="settings-close" class="ib set-close" title="Close (Esc)" aria-label="Close settings"><span data-icon="x"></span></button>
 
-      <section class="tab" data-tab="accounts">
-        <div class="accounts">
-          <div class="acct-list">
-            <div id="acct-items"></div>
-            <button type="button" class="add" id="acct-add">＋ Add account</button>
+        <section class="tab" data-tab="accounts">
+          <div class="accounts">
+            <aside class="acct-list">
+              <div class="acct-head">
+                <b>Accounts</b>
+                <button type="button" class="ib" id="acct-add" title="Add account" aria-label="Add account"><span data-icon="plus"></span></button>
+              </div>
+              <div id="acct-items"></div>
+            </aside>
+            <div class="acct-main">
+              <div id="acct-pick" hidden>
+                <h3>Add storage</h3>
+                <p class="set-sub">Where do your files live?</p>
+                <div id="acct-pick-grid"></div>
+              </div>
+              <form id="acct-form">
+                <header class="acct-top">
+                  <span id="acct-badge"></span>
+                  <div class="acct-title">
+                    <input name="name" class="acct-name" placeholder="Account name" spellcheck="false" aria-label="Account name" />
+                    <small id="acct-kind"></small>
+                  </div>
+                  <button type="button" class="link" id="acct-change">Change provider</button>
+                  <select id="acct-provider" class="vh" aria-label="Provider" tabindex="-1">
+                    <option value="custom">MinIO / SeaweedFS / self-hosted</option>
+                    <option value="aws">Amazon S3</option>
+                    <option value="r2">Cloudflare R2</option>
+                    <option value="b2">Backblaze B2</option>
+                    <option value="wasabi">Wasabi</option>
+                    <option value="do">DigitalOcean Spaces</option>
+                    <option value="nextcloud">Nextcloud / ownCloud</option>
+                    <option value="webdav">WebDAV (NAS, any server)</option>
+                    <option value="azure">Azure Blob Storage</option>
+                    <option value="gcs">Google Cloud Storage</option>
+                    <option value="sftp">SFTP (any SSH server)</option>
+                  </select>
+                </header>
+                <div class="acct-body">
+                  <p id="acct-hint" class="callout"></p>
+                  <div id="acct-signin" class="signin" hidden>
+                    <button type="button" id="acct-nc-login" class="primary">Sign in with Nextcloud…</button>
+                    <button type="button" id="acct-nc-cancel" hidden>Cancel</button>
+                    <small id="acct-signin-hint">Opens your browser. Or enter a user name and an app password below.</small>
+                  </div>
+                  <fieldset class="set-group">
+                    <legend>Connection</legend>
+                    <label id="acct-endpoint-row"><span id="lbl-endpoint">Endpoint</span>
+                      <input name="endpoint" placeholder="https://s3.example.com or http://192.168.1.10:9000" required spellcheck="false" />
+                    </label>
+                    <div id="acct-cert" class="cert-row" hidden>
+                      <input type="hidden" name="cert_pin" />
+                      <span id="acct-cert-text"></span>
+                      <button type="button" id="acct-cert-btn"></button>
+                    </div>
+                    <label id="acct-project-row" hidden>Project ID <input name="project" placeholder="my-project-123 (to list your buckets)" spellcheck="false" /></label>
+                  </fieldset>
+                  <fieldset class="set-group">
+                    <legend>Sign in</legend>
+                    <label><span id="lbl-access">Access key</span> <input name="access_key" required spellcheck="false" autocomplete="off" /></label>
+                    <label><span id="lbl-secret">Secret key</span> <input name="secret_key" type="password" required autocomplete="off" /></label>
+                    <label id="acct-key-row" hidden>Private key file (optional)
+                      <span class="key-pick"><input name="key_file" placeholder="~/.ssh/id_ed25519 (found automatically when empty)" spellcheck="false" /><button type="button" id="acct-key-choose">Choose…</button></span>
+                    </label>
+                  </fieldset>
+                  <details class="set-group s3-only" id="acct-more">
+                    <summary>Options <small>region, default bucket, path-style</small></summary>
+                    <div class="row2">
+                      <label>Region <input name="region" placeholder="us-east-1" spellcheck="false" /></label>
+                      <label>Default bucket <input name="bucket" placeholder="(optional)" spellcheck="false" /></label>
+                    </div>
+                    <label class="set-row plain"><span><b>Path-style requests</b><small>Recommended for MinIO and other self-hosted servers</small></span><input type="checkbox" class="switch" name="path_style" checked /></label>
+                  </details>
+                </div>
+                <footer class="acct-foot">
+                  <p id="acct-msg" role="status"></p>
+                  <div class="buttons">
+                    <button type="button" id="acct-delete" class="danger subtle">Delete account</button>
+                    <span class="spacer"></span>
+                    <button type="button" id="acct-test">Test</button>
+                    <button type="submit" class="primary">Save &amp; use</button>
+                  </div>
+                </footer>
+              </form>
+            </div>
           </div>
-          <form id="acct-form">
-            <div class="row2">
-              <label>Provider
-                <select id="acct-provider">
-                  <option value="custom">MinIO / SeaweedFS / self-hosted</option>
-                  <option value="aws">Amazon S3</option>
-                  <option value="r2">Cloudflare R2</option>
-                  <option value="b2">Backblaze B2</option>
-                  <option value="wasabi">Wasabi</option>
-                  <option value="do">DigitalOcean Spaces</option>
-                  <option value="nextcloud">Nextcloud / ownCloud</option>
-                  <option value="webdav">WebDAV (NAS, any server)</option>
-                  <option value="box">Box (beta)</option>
-                  <option value="azure">Azure Blob Storage</option>
-                </select>
-              </label>
-              <label>Name <input name="name" placeholder="e.g. Home NAS, Company MinIO" spellcheck="false" /></label>
+        </section>
+
+        <section class="tab general" data-tab="general" hidden>
+          <h2 class="set-title">General</h2>
+          <form id="general-form">
+            <h4 class="set-h">App</h4>
+            <div class="set-card">
+              <label class="set-row"><span><b>Keep running in the background</b><small>Closing the window hides NoExplorer to the menu bar / system tray. Transfers keep going, with their progress in the tray menu.</small></span><input type="checkbox" class="switch" name="run_in_background" /></label>
+              <label class="set-row"><span><b>Launch at login</b><small>Starts quietly in the menu bar / system tray.</small></span><input type="checkbox" class="switch" name="launch_at_login" /></label>
             </div>
-            <p id="acct-hint"></p>
-            <label id="acct-endpoint-row"><span id="lbl-endpoint">Endpoint</span>
-              <input name="endpoint" placeholder="https://s3.example.com or http://192.168.1.10:9000" required spellcheck="false" />
-            </label>
-            <div id="acct-cert" class="cert-row" hidden>
-              <input type="hidden" name="cert_pin" />
-              <span id="acct-cert-text"></span>
-              <button type="button" id="acct-cert-btn"></button>
+            <h4 class="set-h">Browsing</h4>
+            <div class="set-card">
+              <label class="set-row"><span><b>Show folder sizes automatically</b><small>On this computer, folders get their size as you browse, kept up to date. Other disks and private folders you haven't opened are skipped; Σ scans everything.</small></span><input type="checkbox" class="switch" name="auto_sizes" /></label>
             </div>
-            <div id="acct-signin" class="signin" hidden>
-              <button type="button" id="acct-nc-login" class="primary">Sign in with Nextcloud…</button>
-              <button type="button" id="acct-nc-cancel" hidden>Cancel</button>
-              <small id="acct-signin-hint">Opens your browser. Or enter a user name and an app password below.</small>
+            <h4 class="set-h">Transfers</h4>
+            <div class="set-card">
+              <label class="set-row"><span><b>Speed limit</b><small>For every upload and download. Empty means no limit.</small></span><span class="unit-input"><input id="speed-limit" name="speed_limit" type="number" min="0" step="100" placeholder="No limit" /><em>KB/s</em></span></label>
             </div>
-            <div class="row2 s3-only">
-              <label>Region <input name="region" placeholder="us-east-1" spellcheck="false" /></label>
-              <label>Default bucket <input name="bucket" placeholder="(optional)" spellcheck="false" /></label>
-            </div>
-            <label id="acct-key-row" hidden>Private key file (optional)
-              <span class="key-pick"><input name="key_file" placeholder="~/.ssh/id_ed25519 (found automatically when empty)" spellcheck="false" /><button type="button" id="acct-key-choose">Choose…</button></span>
-            </label>
-            <label id="acct-project-row" hidden>Project ID <input name="project" placeholder="my-project-123 (to list your buckets)" spellcheck="false" /></label>
-            <label><span id="lbl-access">Access key</span> <input name="access_key" required spellcheck="false" autocomplete="off" /></label>
-            <label><span id="lbl-secret">Secret key</span> <input name="secret_key" type="password" required autocomplete="off" /></label>
-            <label class="check s3-only"><input type="checkbox" name="path_style" checked /> Path-style requests (recommended for MinIO / self-hosted)</label>
-            <p id="acct-msg"></p>
-            <div class="buttons">
-              <button type="button" id="acct-delete" class="danger">Delete</button>
-              <span class="spacer"></span>
-              <button type="button" id="acct-test">Test</button>
-              <button type="submit" class="primary">Save &amp; use</button>
+            <h4 class="set-h">Updates</h4>
+            <div class="set-card">
+              <label class="set-row"><span><b>Check for updates automatically</b><small>At startup and every few hours. Updates install in place.</small></span><input type="checkbox" class="switch" name="check_updates" /></label>
+              <div class="set-row"><span><b>Check now</b><small>See if a newer version is out.</small></span><button type="button" class="check-updates">Check for updates</button></div>
             </div>
           </form>
-        </div>
-      </section>
+        </section>
 
-      <section class="tab general" data-tab="general" hidden>
-        <form id="general-form">
-          <label class="check"><input type="checkbox" name="run_in_background" />
-            <span><b>Keep running in the background</b><br /><small>Closing the window hides NoExplorer to the menu bar / system tray. Transfers keep going and their progress shows in the tray menu.</small></span>
-          </label>
-          <label class="check"><input type="checkbox" name="launch_at_login" />
-            <span><b>Launch at login</b><br /><small>Starts quietly in the menu bar / system tray.</small></span>
-          </label>
-          <label class="check"><input type="checkbox" name="auto_sizes" />
-            <span><b>Show folder sizes automatically</b><br /><small>On this computer, folders get their size as you browse (scanned in the background, kept up to date). Other disks and private folders you haven't opened yet are skipped; Σ scans everything.</small></span>
-          </label>
-          <label class="check"><input type="checkbox" name="check_updates" />
-            <span><b>Check for updates automatically</b><br /><small>At startup and every few hours. Updates install in place, with no reinstall needed.</small></span>
-          </label>
-          <label class="field">Speed limit for transfers (KB/s, empty = no limit)
-            <input id="speed-limit" name="speed_limit" type="number" min="0" step="100" placeholder="No limit" />
-          </label>
-          <div class="buttons"><button type="button" class="check-updates">Check for updates now</button></div>
-        </form>
-      </section>
-
-      <section class="tab appearance" data-tab="appearance" hidden>
-        <label class="field">Theme
-          <span class="seg" id="ap-theme">
-            <label><input type="radio" name="theme" value="system" />System</label>
-            <label><input type="radio" name="theme" value="light" />Light</label>
-            <label><input type="radio" name="theme" value="dark" />Dark</label>
-          </span>
-        </label>
-        <label class="field">Text size
-          <span class="seg" id="ap-size">
-            <label><input type="radio" name="size" value="13" />Small</label>
-            <label><input type="radio" name="size" value="14" />Default</label>
-            <label><input type="radio" name="size" value="16" />Large</label>
-            <label><input type="radio" name="size" value="18" />Extra large</label>
-          </span>
-        </label>
-        <p class="hint">Changes apply instantly and are saved on this computer. Tip: drag the line between the panes to resize them; double-click it to reset.</p>
-      </section>
-
-      <section class="tab experimental" data-tab="experimental" hidden>
-        <p class="hint">Features still being tested. They're off until you turn them on, and may change.</p>
-        <form id="exp-form">
-          <div id="exp-list"></div>
-        </form>
-      </section>
-
-      <section class="tab about" data-tab="about" hidden>
-        <div class="about-head">
-          <img src="/app-icon.png" width="88" height="88" alt="" />
-          <div>
-            <h2>NoExplorer</h2>
-            <p>Version <span id="about-version">–</span></p>
-            <p class="muted">No explorer needed: just drag it to your bucket.<br />A tiny dual-pane file manager for S3, Nextcloud and WebDAV storage.</p>
+        <section class="tab appearance" data-tab="appearance" hidden>
+          <h2 class="set-title">Appearance</h2>
+          <h4 class="set-h">Theme</h4>
+          <div class="themes" id="ap-theme" role="radiogroup" aria-label="Theme">
+            <label class="theme-opt"><input type="radio" name="theme" value="system" /><span class="theme-prev system"><i></i><i></i></span><b>System</b></label>
+            <label class="theme-opt"><input type="radio" name="theme" value="light" /><span class="theme-prev light"><i></i><i></i></span><b>Light</b></label>
+            <label class="theme-opt"><input type="radio" name="theme" value="dark" /><span class="theme-prev dark"><i></i><i></i></span><b>Dark</b></label>
           </div>
-        </div>
-        <div class="buttons">
-          <button type="button" class="check-updates">Check for updates</button>
-          <button type="button" data-url="https://noexplorer.vnappmob.com">Website</button>
-          <button type="button" data-url="https://github.com/vnappmob/noexplorer">GitHub</button>
-          <button type="button" data-url="https://github.com/vnappmob/noexplorer/blob/main/CHANGELOG.md">Changelog</button>
-          <button type="button" data-url="https://github.com/vnappmob/noexplorer/issues/new/choose">Report an issue</button>
-          <button type="button" id="open-log" title="Failed requests and what the server answered (passwords and keys are never written)">Show log file</button>
-        </div>
-        <dl class="credits">
-          <dt>Created by</dt>
-          <dd>Kris Luu · <a data-url="https://github.com/vnappmob">VNAppMob</a></dd>
-          <dt>License</dt>
-          <dd>MIT · © 2026 Kris Luu (VNAppMob) · <a data-url="https://github.com/vnappmob/noexplorer/blob/main/LICENSE">Read the license</a></dd>
-          <dt>Built with</dt>
-          <dd>
-            <a data-url="https://tauri.app">Tauri</a>, <a data-url="https://www.rust-lang.org">Rust</a>,
-            <a data-url="https://github.com/awslabs/aws-sdk-rust">AWS SDK for Rust</a>, <a data-url="https://tokio.rs">Tokio</a>,
-            <a data-url="https://vite.dev">Vite</a> and <a data-url="https://www.typescriptlang.org">TypeScript</a>.
-          </dd>
-          <dt>Thanks</dt>
-          <dd>Everyone running MinIO, SeaweedFS and other self-hosted storage, and the open-source projects above. Third-party licenses are listed in the <a data-url="https://github.com/vnappmob/noexplorer">repository</a>.</dd>
-        </dl>
-      </section>
+          <h4 class="set-h">Text size</h4>
+          <div class="set-card">
+            <div class="set-row">
+              <span class="seg" id="ap-size">
+                <label><input type="radio" name="size" value="13" />Small</label>
+                <label><input type="radio" name="size" value="14" />Default</label>
+                <label><input type="radio" name="size" value="16" />Large</label>
+                <label><input type="radio" name="size" value="18" />Extra large</label>
+              </span>
+              <span class="size-sample">Aa · report-final.pdf</span>
+            </div>
+          </div>
+          <p class="hint">Changes apply instantly and are saved on this computer. Tip: drag the line between the panes to resize them; double-click it to reset.</p>
+        </section>
+
+        <section class="tab experimental" data-tab="experimental" hidden>
+          <h2 class="set-title">Experimental</h2>
+          <p class="set-sub">Features still being tested. They're off until you turn them on, and may change.</p>
+          <form id="exp-form">
+            <div id="exp-list" class="set-card"></div>
+          </form>
+        </section>
+
+        <section class="tab about" data-tab="about" hidden>
+          <div class="about-head">
+            <img src="/app-icon.png" width="88" height="88" alt="" />
+            <div>
+              <h2>NoExplorer</h2>
+              <p>Version <span id="about-version">–</span></p>
+              <p class="muted">No explorer needed: just drag it to your bucket.<br />A tiny two-pane file manager for S3, Google Cloud, Azure, Nextcloud, WebDAV and SFTP.</p>
+            </div>
+          </div>
+          <div class="buttons">
+            <button type="button" class="check-updates">Check for updates</button>
+            <button type="button" data-url="https://noexplorer.vnappmob.com">Website</button>
+            <button type="button" data-url="https://github.com/vnappmob/noexplorer">GitHub</button>
+            <button type="button" data-url="https://github.com/vnappmob/noexplorer/blob/main/CHANGELOG.md">Changelog</button>
+            <button type="button" data-url="https://github.com/vnappmob/noexplorer/issues/new/choose">Report an issue</button>
+            <button type="button" id="open-log" title="Failed requests and what the server answered (passwords and keys are never written)">Show log file</button>
+          </div>
+          <dl class="credits">
+            <dt>Created by</dt>
+            <dd>Kris Luu · <a data-url="https://github.com/vnappmob">VNAppMob</a></dd>
+            <dt>License</dt>
+            <dd>MIT · © 2026 Kris Luu (VNAppMob) · <a data-url="https://github.com/vnappmob/noexplorer/blob/main/LICENSE">Read the license</a></dd>
+            <dt>Built with</dt>
+            <dd>
+              <a data-url="https://tauri.app">Tauri</a>, <a data-url="https://www.rust-lang.org">Rust</a>,
+              <a data-url="https://github.com/awslabs/aws-sdk-rust">AWS SDK for Rust</a>, <a data-url="https://tokio.rs">Tokio</a>,
+              <a data-url="https://vite.dev">Vite</a> and <a data-url="https://www.typescriptlang.org">TypeScript</a>.
+            </dd>
+            <dt>Thanks</dt>
+            <dd>Everyone running MinIO, SeaweedFS and other self-hosted storage, and the open-source projects above. Third-party licenses are listed in the <a data-url="https://github.com/vnappmob/noexplorer">repository</a>.</dd>
+          </dl>
+        </section>
+      </div>
     </dialog>
 
     <dialog id="compare" aria-label="Compare folders">

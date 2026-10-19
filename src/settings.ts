@@ -13,7 +13,10 @@ import { addView, MAX_VIEWS, remote, remotes, savedViews, saveViews, switchTo } 
 import { type Pane, paneHooks } from "./pane";
 import {
   azureEndpoint,
+  badge,
   describeAccount,
+  LOOK,
+  PICKER_GROUPS,
   EXPERIMENTAL_PROVIDERS,
   guessProvider,
   hasContainers,
@@ -68,12 +71,51 @@ function renderAccountList() {
       (
         p,
       ) => `<button type="button" class="acct${p.id === editing ? " on" : ""}" data-id="${esc(p.id)}" title="${esc(p.name)}">
-        ${p.id === active ? '<span class="dot" title="In use">●</span> ' : ""}${esc(p.name)}
-        <small title="${esc(p.endpoint)}">${esc(describeAccount(p))}</small></button>`,
+        ${badge(guessProvider(p), true)}
+        <span class="acct-txt"><b>${esc(p.name)}</b><small title="${esc(p.endpoint)}">${esc(describeAccount(p))}</small></span>
+        ${p.id === active ? '<span class="in-use" title="Default account (new views, tray)" aria-label="Default account">✓</span>' : ""}</button>`,
     )
     .join("");
   if (!editing)
-    $("acct-items").insertAdjacentHTML("beforeend", `<button type="button" class="acct on">New account</button>`);
+    $("acct-items").insertAdjacentHTML(
+      "beforeend",
+      `<button type="button" class="acct on"><span class="pbadge sm new" aria-hidden="true">+</span><span class="acct-txt"><b>New account</b><small>Not saved yet</small></span></button>`,
+    );
+}
+
+// ---------- provider picker (new accounts, "Change provider") ----------
+
+function renderPicker() {
+  const allowed = (id: ProviderId) => !EXPERIMENTAL_PROVIDERS.includes(id) || exp("box_beta");
+  $("acct-pick-grid").innerHTML = PICKER_GROUPS.map((g) => {
+    const ids = g.ids.filter(allowed);
+    if (!ids.length) return "";
+    return `<h4 class="set-h">${esc(g.title)}</h4><div class="pick-grid">${ids
+      .map(
+        (id) =>
+          `<button type="button" class="pick" data-provider="${id}">${badge(id)}<span><b>${esc(LOOK[id].name)}</b><small>${esc(LOOK[id].blurb)}</small></span></button>`,
+      )
+      .join("")}</div>`;
+  }).join("");
+}
+
+/** Shows the provider grid instead of the form (a new account, or "Change provider"). */
+function showPicker(on: boolean) {
+  if (on) renderPicker();
+  $("acct-pick").hidden = !on;
+  form().hidden = on;
+}
+
+function chooseProvider(id: ProviderId) {
+  const sel = $<HTMLSelectElement>("acct-provider");
+  if (!sel.querySelector(`option[value="${id}"]`)) sel.add(new Option(PRESETS[id].label, id));
+  sel.value = id;
+  applyPreset(id, true);
+  showPicker(false);
+  renderCert();
+  // A new S3 account usually needs its region; AWS and GCS find theirs.
+  ($("acct-more") as HTMLDetailsElement).open = !editing && PRESETS[id].kind === "s3" && id !== "aws" && id !== "gcs";
+  (PRESETS[id].endpointRequired ? input("endpoint") : input("access_key")).focus();
 }
 
 /** Loads `p` into the form (null = blank form for a new account). */
@@ -106,7 +148,9 @@ function editAccount(p: Profile | null) {
   renderCert();
   setMsg("");
   renderAccountList();
-  (f.elements.namedItem(p ? "name" : "endpoint") as HTMLInputElement).focus();
+  ($("acct-more") as HTMLDetailsElement).open = false;
+  showPicker(!p);
+  if (p) (f.elements.namedItem("name") as HTMLInputElement).focus();
 }
 
 const input = (name: string) => form().elements.namedItem(name) as HTMLInputElement;
@@ -124,8 +168,11 @@ function syncAzurePlaceholder() {
  * fields that belong to another provider and set the provider's defaults. */
 function applyPreset(id: ProviderId, fill: boolean) {
   const pr = PRESETS[id];
+  $("acct-badge").innerHTML = badge(id);
+  $("acct-kind").textContent = LOOK[id].name;
   const s3 = pr.kind === "s3";
   $("acct-hint").textContent = pr.hint;
+  $("acct-hint").hidden = !pr.hint;
   const endpoint = input("endpoint");
   endpoint.placeholder = pr.endpointPlaceholder;
   endpoint.required = pr.endpointRequired;
@@ -207,15 +254,15 @@ function readForm(): Profile {
 
 // ---------- experimental providers ----------
 
-/** Adds or removes GCS / Azure / SFTP in the provider picker (Safari can't hide <option>s). */
+/** Adds or removes Box in the provider picker (Safari can't hide <option>s). */
 function syncProviderOptions() {
   const sel = $<HTMLSelectElement>("acct-provider");
-  const on = exp("providers");
+  const on = exp("box_beta");
   for (const id of EXPERIMENTAL_PROVIDERS) {
     const opt = sel.querySelector<HTMLOptionElement>(`option[value="${id}"]`);
     // Keep an option the open account already uses, even with the experiment off.
     if (!on && opt && sel.value !== id) opt.remove();
-    if (on && !opt) sel.add(new Option(`${PRESETS[id].label} (experimental)`, id));
+    if (on && !opt) sel.add(new Option(`${PRESETS[id].label} (beta)`, id));
   }
 }
 
@@ -422,6 +469,7 @@ export function renderPickers(v: Pane) {
 
 /** Shows account `id` in view `v`. It also becomes the default account (tray ✓, new views). */
 export async function setViewAccount(v: Pane, id: string) {
+  paneHooks.leaving(v);
   v.account = id;
   v.bucket = "";
   v.cwd = "";
@@ -434,6 +482,7 @@ export async function setViewAccount(v: Pane, id: string) {
 export async function openRemote(account: string, bucket: string, prefix: string) {
   const v = remotes.find((x) => x.account === account && x.bucket === bucket) ?? remote;
   if (v.account === account && v.bucket === bucket) return v.go(prefix);
+  paneHooks.leaving(v);
   v.account = account;
   v.bucket = bucket;
   v.cwd = prefix;
@@ -444,6 +493,7 @@ export async function openRemote(account: string, bucket: string, prefix: string
 export const switchProfile = (id: string) => setViewAccount(remote, id);
 
 export function selectBucket(v: Pane, name: string) {
+  paneHooks.leaving(v);
   v.bucket = name;
   renderPickers(v);
   v.go("");
@@ -637,6 +687,11 @@ export function setupSettings() {
   $("acct-nc-cancel").onclick = () => invoke("cancel_login");
   $("acct-delete").onclick = deleteAccount;
   $("acct-add").onclick = () => editAccount(null);
+  $("acct-change").onclick = () => showPicker(true);
+  $("acct-pick-grid").addEventListener("click", (ev) => {
+    const id = (ev.target as HTMLElement).closest<HTMLElement>("[data-provider]")?.dataset.provider;
+    if (id) chooseProvider(id as ProviderId);
+  });
   // Self-signed HTTPS (experimental): the certificate row follows the address and provider.
   input("endpoint").addEventListener("input", renderCert);
   $("acct-provider").addEventListener("change", renderCert);

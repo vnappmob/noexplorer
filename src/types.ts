@@ -40,7 +40,8 @@ export type General = {
 export type Experimental = {
   self_signed: boolean;
   backup_pairs: boolean;
-  providers: boolean;
+  box_beta: boolean;
+  back_history: boolean;
   create_buckets: boolean;
 };
 

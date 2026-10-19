@@ -31,7 +31,7 @@ pub enum ProviderKind {
     /// Azure Blob Storage: `access_key` = storage account name, `secret_key` = account key,
     /// `endpoint` optional (`azure.rs`).
     Azure,
-    /// SFTP (experimental): `endpoint` = `sftp://user@host:port/path`; login with SSH keys / agent
+    /// SFTP: `endpoint` = `sftp://user@host:port/path`; login with SSH keys / agent
     /// through the system `ssh` (`sftp.rs`).
     Sftp,
 }
@@ -122,8 +122,10 @@ pub struct Experimental {
     pub self_signed: bool,
     /// Saved local ↔ remote folder pairs: Compare and upload in one click.
     pub backup_pairs: bool,
-    /// SFTP and Google Cloud Storage accounts.
-    pub providers: bool,
+    /// Box accounts (beta: tested against a mock only).
+    pub box_beta: bool,
+    /// ⌘[ / ← / mouse back: the previous folder, scrolled and selected as it was (history.ts).
+    pub back_history: bool,
     /// "New bucket…" in the bucket menu and ⌘K (S3-compatible and Azure).
     pub create_buckets: bool,
 }

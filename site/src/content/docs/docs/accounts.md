@@ -33,7 +33,9 @@ NoExplorer gets its own app password. You never type your Nextcloud password int
 
 Pick **WebDAV** and enter the full folder URL from your server or NAS (Synology, QNAP, Apache, nginx…), your user name and password.
 
-## Box (beta)
+## Box (experimental)
+
+Turn on **Settings → Experimental → Box accounts** to see Box in the provider list. It hasn't been tried on a real Box account yet.
 
 Box needs your own free Box app, because an open-source app can't keep a client secret private. It takes two minutes:
 
@@ -45,17 +47,13 @@ Box needs your own free Box app, because an open-source app can't keep a client 
 
 Pick **Azure Blob Storage**, then enter the storage account name and one of its keys (**Storage account → Security + networking → Access keys**). That's all: the endpoint fills itself in as `https://<account>.blob.core.windows.net`. Change it only for another Azure cloud, a custom domain, or the Azurite emulator. Containers show up like buckets.
 
-## More storage types (experimental)
-
-Turn on **Settings → Experimental → More storage types** to add these to the provider list.
-
-### Google Cloud Storage
+## Google Cloud Storage
 
 Uses Google's S3-compatible API. In the Cloud console: **Cloud Storage → Settings → Interoperability → Create a key**. Endpoint `https://storage.googleapis.com`, region `auto`, and the key's access ID and secret.
 
 To list your buckets, Google needs to know the project: fill in **Project ID** (shown on the console's project picker), or set a *default project for interoperable access* on the same Interoperability page, or enter a **Default bucket**. Otherwise the test says "Project number must be specified".
 
-### SFTP
+## SFTP
 
 Enter an address like `sftp://me@nas.local/volume1/backups`. NoExplorer connects with the `ssh` command, so your SSH keys, agent and `~/.ssh/config` apply, just like in a terminal.
 
@@ -65,6 +63,6 @@ Enter an address like `sftp://me@nas.local/volume1/backups`. NoExplorer connects
 
 The password or passphrase is kept in your system keychain, and only handed to `ssh` when it asks. A server you've never connected to is remembered on first use; a changed server key is refused.
 
-### Self-signed HTTPS
+## Self-signed HTTPS (experimental)
 
 With **Settings → Experimental → Self-signed HTTPS** on, an `https://` account shows **Trust certificate…**. NoExplorer reads the server's certificate fingerprint; compare it with the one your server shows and confirm. From then on that account accepts exactly that certificate, and everything else is still checked normally.
