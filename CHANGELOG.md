@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.19] - 2026-10-19
+
 ### Added
 - Error messages include the server's own explanation when it gives one (Google Cloud Storage puts
   it in a separate field). Failed requests are also written to a log file, without passwords, keys
