@@ -102,6 +102,8 @@ async fn serve(app: &AppHandle, req: &Request<Vec<u8>>) -> Result<Response<Vec<u
     let mut res = Response::builder()
         .header(header::CONTENT_TYPE, mime)
         .header(header::ACCEPT_RANGES, "bytes")
+        // Previews aren't kept by the webview's disk cache (thumbnails have their own, thumbs.rs).
+        .header(header::CACHE_CONTROL, "no-store")
         .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
         .header(header::ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Range, Content-Length, Accept-Ranges");
     res = if range.is_some() && !bytes.is_empty() {

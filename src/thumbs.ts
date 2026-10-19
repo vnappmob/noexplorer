@@ -1,5 +1,5 @@
 // Grid view thumbnails (experimental "grid"). Images show a small thumbnail that the backend makes
-// and caches (thumbs.rs: 16 MB in memory, 64 MB on disk, `nxr://localhost/~thumb/…`); videos show
+// and caches (thumbs.rs: 16 MB in memory, 48 MB on disk, `nxr://localhost/~thumb/…`); videos show
 // their frame one second in, through the same link quick look uses. Only tiles near the viewport
 // exist (the grid is virtualized), so:
 // - loaded pictures are kept (`kept`, a small LRU of elements) and moved into the new tiles when

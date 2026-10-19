@@ -7,6 +7,10 @@
 //! folder under `thumbs/`, which the OS may also clear). The key includes the file's size and
 //! modified time, so an edited file gets a new thumbnail and the old one ages out. Videos keep
 //! their live frame in the grid (decoding video would need a codec library).
+//!
+//! The webview's own disk cache is kept small too: previews are sent `no-store` (presigned links
+//! and `nxr://`), and [`web_cache_plugin`] deletes what WebKit kept anyway when it's over
+//! [`WEB_CACHE_MAX`] at launch. Together that's at most ~70 MB on disk.
 
 use std::collections::HashMap;
 use std::io::Cursor;
@@ -23,9 +27,11 @@ use crate::state::AppState;
 pub const SIZE: u32 = 256;
 const QUALITY: u8 = 80;
 const MEM_CAP: usize = 16 << 20;
-const DISK_CAP: u64 = 64 << 20;
+const DISK_CAP: u64 = 48 << 20;
 /// Trimming goes below the cap, so not every new thumbnail triggers a trim.
-const DISK_LOW: u64 = 56 << 20;
+const DISK_LOW: u64 = 40 << 20;
+/// WebKit's disk caches (macOS) bigger than this are deleted at launch.
+const WEB_CACHE_MAX: u64 = 16 << 20;
 /// Biggest original read: remote (it's downloaded once per thumbnail) and local.
 pub const REMOTE_MAX: u64 = 25 << 20;
 const LOCAL_MAX: u64 = 64 << 20;
@@ -37,6 +43,45 @@ static MEM: LazyLock<Mutex<Lru>> = LazyLock::new(|| Mutex::new(Lru::new(MEM_CAP)
 /// Bytes in the disk cache; `None` until first measured.
 static DISK_USED: Mutex<Option<u64>> = Mutex::new(None);
 static GATE: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(WORKERS);
+
+/// Trims the webview's disk caches at launch. Plugins are set up before the window (and its
+/// webview) is created; registered right after single-instance, so a second launch, which hands
+/// over and exits there, never touches the running app's cache.
+pub fn web_cache_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
+    tauri::plugin::Builder::new("web-cache")
+        .setup(|app, _| {
+            for dir in web_cache_dirs(&app.config().identifier) {
+                if dir_size(&dir) > WEB_CACHE_MAX {
+                    let _ = std::fs::remove_dir_all(&dir);
+                }
+            }
+            Ok(())
+        })
+        .build()
+}
+
+/// Where WebKit keeps HTTP responses and media for this app. WebView2 (Windows) and WebKitGTK
+/// size their caches themselves.
+fn web_cache_dirs(identifier: &str) -> Vec<PathBuf> {
+    let mut v = vec![];
+    if cfg!(target_os = "macos") {
+        if let Some(c) = dirs::cache_dir() {
+            v.push(c.join(identifier).join("WebKit").join("NetworkCache"));
+        }
+        v.push(std::env::temp_dir().join(identifier).join("WebKit").join("MediaCache"));
+    }
+    v
+}
+
+fn dir_size(dir: &Path) -> u64 {
+    walkdir::WalkDir::new(dir)
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter_map(|e| e.metadata().ok())
+        .filter(|m| m.is_file())
+        .map(|m| m.len())
+        .sum()
+}
 
 pub fn init(app: &AppHandle) {
     if let Ok(d) = app.path().app_cache_dir() {

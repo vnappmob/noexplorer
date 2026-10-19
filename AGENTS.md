@@ -57,7 +57,7 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   s3.rs              S3 provider: client (path-style, checksums, per-bucket region), list, multipart, downloads
   webdav.rs          Nextcloud/WebDAV provider: own small client, chunked upload v2, shares, Login Flow v2
   proxy.rs           nxr:// scheme: local files, remote previews without presigned URLs (Range, CORS), grid thumbnails; answers on the main thread
-  thumbs.rs          Grid thumbnails: 256 px JPEG/PNG, LRU caches in memory (16 MB) and on disk (64 MB, OS cache folder)
+  thumbs.rs          Grid thumbnails: 256 px JPEG/PNG, LRU caches in memory (16 MB) and on disk (48 MB, OS cache folder); trims WebKit's cache at launch
   azure.rs           Azure Blob provider (experimental): Shared Key signing, block uploads, SAS links
   sftp.rs            SFTP provider (experimental): the system `ssh` carries russh-sftp (your keys/agent/config)
   box_api.rs         Box provider (beta): BYO OAuth app, loopback sign-in, rotating refresh token, sessions

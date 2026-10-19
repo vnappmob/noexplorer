@@ -54,6 +54,8 @@ pub fn run() {
     let app = tauri::Builder::default()
         // Must be first: a second launch just focuses the running instance (which may be in the tray).
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| tray::show_main(app)))
+        // Right after single-instance: only the running app trims its webview cache (thumbs.rs).
+        .plugin(thumbs::web_cache_plugin())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())

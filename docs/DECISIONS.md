@@ -716,3 +716,21 @@ redraw, and requests the next screen's thumbnails at low priority. Formats the c
 **Consequences.** Scrolling back is instant and costs no network. Thumbnails of remote files sit
 unencrypted in the user's cache folder, like any file manager's. 25 MB remote / 64 MB local caps
 on originals.
+
+<a id="adr-037"></a>
+
+## ADR-037: Previews are `no-store`; WebKit's disk cache is trimmed at launch
+Accepted · 2026-10-19
+
+**Context.** After 0.4.13 the app's cache folder passed 100 MB. Not the thumbnails (ADR-036) but
+WebKit's own HTTP cache (`Caches/<id>/WebKit/NetworkCache`): every photo and video opened in quick
+look through a presigned link was stored, and WebKit sizes that cache from the disk size.
+**Decision.** Preview responses say `Cache-Control: no-store`: S3 presigned links ask for it
+(`response-cache-control`, inline links only), Azure SAS links sign `rscc=no-store`, and `nxr://`
+sends it (thumbnails stay `immutable`). A tiny plugin registered right after single-instance
+deletes WebKit's `NetworkCache` and `MediaCache` (macOS) at launch when they're over 16 MB; plugins
+are set up before the window exists, and a second launch exits inside single-instance first, so a
+running app's cache is never touched. The thumbnail disk cap drops to 48 MB (trimmed to 40 MB).
+**Consequences.** On disk: ≤ 48 MB thumbnails + ≤ 16 MB WebKit cache at launch, plus whatever
+WebKit keeps during one session (only non-preview responses now). Reopening a previewed file
+downloads it again. WebView2 and WebKitGTK manage their own caches.

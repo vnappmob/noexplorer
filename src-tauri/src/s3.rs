@@ -248,7 +248,11 @@ impl S3 {
             } else {
                 mime
             };
-            req = req.response_content_type(mime).response_content_disposition("inline");
+            // no-store: the webview would otherwise keep every previewed photo and video on disk.
+            req = req
+                .response_content_type(mime)
+                .response_content_disposition("inline")
+                .response_cache_control("no-store");
         }
         let cfg = PresigningConfig::expires_in(Duration::from_secs(secs.clamp(60, 604_800))).map_err(err)?;
         Ok(req.presigned(cfg).await.map_err(err)?.uri().to_string())

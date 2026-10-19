@@ -188,12 +188,17 @@ impl Azure {
     pub async fn link(&self, container: &str, key: &str, secs: u64, inline: bool) -> Result<String, String> {
         let expiry = iso_date(SystemTime::now() + Duration::from_secs(secs));
         let disposition = if inline { String::new() } else { format!("attachment; filename=\"{}\"", file_name(key)) };
+        // Previews: no-store, or the webview keeps every previewed file on disk.
+        let cache = if inline { "no-store" } else { "" };
         let resource = format!("/blob/{}/{container}/{key}", self.name());
-        let to_sign = format!("r\n\n{expiry}\n{resource}\n\n\n\n{VERSION}\nb\n\n\n\n{disposition}\n\n\n");
+        let to_sign = format!("r\n\n{expiry}\n{resource}\n\n\n\n{VERSION}\nb\n\n\n{cache}\n{disposition}\n\n\n");
         let mut mac = Hmac::<Sha256>::new_from_slice(&self.key).expect("HMAC takes any key length");
         mac.update(to_sign.as_bytes());
         let sig = B64.encode(mac.finalize().into_bytes());
         let mut url = format!("{}?sv={VERSION}&sr=b&sp=r&se={}&sig={}", self.url(container, key), q(&expiry), q(&sig));
+        if !cache.is_empty() {
+            url.push_str(&format!("&rscc={}", q(cache)));
+        }
         if !disposition.is_empty() {
             url.push_str(&format!("&rscd={}", q(&disposition)));
         }
@@ -653,7 +658,9 @@ mod tests {
 
         // A SAS link works without credentials.
         let link = az.link(c, "rt/a b.txt", 600, true).await.unwrap();
-        assert_eq!(reqwest::get(&link).await.unwrap().text().await.unwrap(), "hello azure");
+        let r = reqwest::get(&link).await.unwrap();
+        assert_eq!(r.headers().get("cache-control").and_then(|v| v.to_str().ok()), Some("no-store"));
+        assert_eq!(r.text().await.unwrap(), "hello azure");
 
         // Server-side move, copy, and never over an existing name.
         az.transfer_within(c, "rt/a b.txt", "rt/moved.txt", false, None).await.unwrap();
