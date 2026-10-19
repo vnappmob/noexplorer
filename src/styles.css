@@ -2660,3 +2660,97 @@ button.danger.subtle:hover:not(:disabled) {
 #update-bar > [data-icon] {
   color: var(--accent);
 }
+
+/* Folder tree (experimental, tree.ts): the ↑ button's dropdown */
+.ib.up.tree-on {
+  position: relative;
+}
+.ib.up.tree-on::after {
+  content: "";
+  position: absolute;
+  right: 1px;
+  bottom: 3px;
+  border: 3px solid transparent;
+  border-top-color: currentColor;
+  opacity: 0.7;
+}
+.tree-pop {
+  position: fixed;
+  z-index: 60;
+  width: 340px;
+  max-width: calc(100vw - 16px);
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: var(--shadow-pop);
+}
+#tree-rows {
+  display: flex;
+  flex-direction: column;
+}
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 8px 4px calc(6px + var(--d, 0) * 16px);
+  border: none;
+  border-radius: 7px;
+  background: none;
+  text-align: left;
+  font-size: var(--fs-sm);
+}
+.tree-row:hover,
+.tree-row:focus-visible {
+  background: var(--hover);
+  outline: none;
+}
+.tree-row.here {
+  background: var(--sel);
+  font-weight: 600;
+}
+.tree-row .i {
+  flex: none;
+  width: 1.1em;
+  height: 1.1em;
+  color: var(--accent);
+}
+.tree-row .tw {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  color: var(--muted);
+}
+.tree-row .tw .i {
+  width: 12px;
+  height: 12px;
+  color: var(--muted);
+}
+.tree-row .tw:hover {
+  background: var(--line);
+}
+.tree-row .tn {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tree-row .tn small {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tree-empty {
+  margin: 8px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}

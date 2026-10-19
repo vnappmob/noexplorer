@@ -1,106 +1,77 @@
-// Back (experimental "back_history"): each pane remembers the folders it left, with where the list
-// was scrolled and what was selected, and ⌘[ / the ← button / the mouse's back button return there.
-// Only back: going somewhere new is the way forward.
+// Back (experimental "back_history"): up one level, back to the parent folder as you left it,
+// scrolled and selected the same. ⌘[, the ← button and the mouse's back button do it; with the
+// experiment on, every other "up" (↑ ⌘↑ Backspace) restores the parent the same way.
 //
-// A move is recorded after each successful listing (`paneHooks.visited`): the previous location
-// goes on the pane's stack, unless the move itself was a step back. The scroll position of the
-// location on screen is kept up to date as the list scrolls, so it's there when the pane leaves.
+// Each pane remembers, per folder, where the list was scrolled and what was selected when it left
+// (`leaving`, called by `Pane.go`, `Pane.up` and the account/bucket switches). Going up asks for the
+// parent's spot back (`goingUp`), and the next listing applies it (`visited`).
 
-import type { Pane } from "./pane";
-import { loadBuckets } from "./settings";
+import { type Pane, paneHooks } from "./pane";
 import { exp } from "./state";
 
-type Loc = { account: string; bucket: string; path: string };
-type Spot = Loc & { scroll: number; selected: string[] };
-type State = { stack: Spot[]; here: Spot | null; returning: Spot | null };
+type Spot = { scroll: number; selected: string[] };
+type State = { spots: Map<string, Spot>; returning: string | null };
 
-const MAX = 50;
+/** Folders remembered per pane (oldest forgotten first). */
+const MAX = 400;
 const states = new WeakMap<Pane, State>();
 
-const locOf = (p: Pane): Loc => ({
-  account: p.isRemote ? p.account : "",
-  bucket: p.isRemote ? p.bucket : "",
-  path: p.cwd,
-});
-const same = (a: Loc, b: Loc) =>
-  a.account === b.account && a.bucket === b.bucket && a.path.replace(/[\\/]+$/, "") === b.path.replace(/[\\/]+$/, "");
+const trim = (s: string) => s.replace(/[\\/]+$/, "");
+const keyOf = (p: Pane, path = p.cwd) => (p.isRemote ? `${p.account}|${p.bucket}|${trim(path)}` : trim(path));
 
 function state(p: Pane): State {
   let s = states.get(p);
-  if (!s) states.set(p, (s = { stack: [], here: null, returning: null }));
+  if (!s) states.set(p, (s = { spots: new Map(), returning: null }));
   return s;
 }
 
-/** Right before a pane leaves its folder: keep where it was scrolled and what was selected. Scroll
- * events also update this, but they arrive a frame late (and not at all while hidden). */
+/** Right before a pane leaves its folder (`paneHooks.leaving`). */
 export function leaving(p: Pane) {
-  const here = state(p).here;
-  if (here && same(here, locOf(p))) Object.assign(here, { scroll: p.list.scrollTop, selected: [...p.selected] });
+  if (!p.entries.length) return;
+  const { spots } = state(p);
+  const k = keyOf(p);
+  spots.delete(k); // re-insert: the map's order is the forgetting order
+  spots.set(k, { scroll: p.list.scrollTop, selected: [...p.selected] });
+  if (spots.size > MAX) spots.delete(spots.keys().next().value!);
 }
 
-/** After every listing: record the move, or finish a step back (scroll and selection). */
+/** `Pane.up` is about to open `parent` (`paneHooks.goingUp`): restore it once it's listed. */
+function goingUp(p: Pane, parent: string) {
+  state(p).returning = exp("back_history") ? keyOf(p, parent) : null;
+}
+
+/** After every listing: finish a step up by restoring the parent's scroll and selection. */
 export function visited(p: Pane) {
   const s = state(p);
-  const loc = locOf(p);
-  if (s.returning && same(s.returning, loc)) {
-    const to = s.returning;
-    s.returning = null;
-    p.selected = new Set(to.selected.filter((k) => p.view.some((e) => e.key === k)));
+  const spot = s.returning === keyOf(p) ? s.spots.get(s.returning) : undefined;
+  s.returning = null;
+  if (spot) {
+    p.selected = new Set(spot.selected.filter((k) => p.entries.some((e) => e.key === k)));
     p.paint();
-    p.list.scrollTop = to.scroll; // the virtualized list redraws on the scroll event
-  } else if (s.here && !same(s.here, loc)) {
-    s.stack.push(s.here);
-    if (s.stack.length > MAX) s.stack.shift();
+    p.list.scrollTop = spot.scroll; // the virtualized list redraws on the scroll event
   }
-  s.here = { ...loc, scroll: p.list.scrollTop, selected: [...p.selected] };
   render(p);
 }
 
-export async function back(p: Pane) {
-  if (!exp("back_history")) return;
-  const s = state(p);
-  const to = s.stack.pop();
-  if (!to) return;
-  s.returning = to;
-  s.here = null; // the folder being left isn't pushed again
-  render(p);
-  if (!p.isRemote || (p.account === to.account && p.bucket === to.bucket)) return p.go(to.path);
-  // (`go` and the switches call `leaving`, which only updates `here`; it's null here on purpose.)
-  p.account = to.account;
-  p.bucket = to.bucket;
-  p.cwd = to.path;
-  await loadBuckets(p, true);
+export function back(p: Pane) {
+  if (exp("back_history")) p.up();
 }
 
 function render(p: Pane) {
   const b = p.q<HTMLButtonElement>(".back");
   b.hidden = !exp("back_history");
-  b.disabled = !state(p).stack.length;
+  b.disabled = p.isRemote ? !p.cwd : !p.parent;
 }
 
-/** Wires the ← button, the mouse's back button and scroll tracking (every pane, local and remote). */
+/** Wires the ← button and the mouse's back button (every pane, local and remote). */
 export function bindBack(p: Pane) {
   p.q(".back").onclick = () => back(p);
   p.el.addEventListener("mouseup", (ev) => {
     if (ev.button === 3 && exp("back_history")) (ev.preventDefault(), back(p));
   });
-  p.list.addEventListener(
-    "scroll",
-    () => {
-      // Only while the pane still shows that place: opening a folder scrolls to the top first.
-      const here = state(p).here;
-      if (here && same(here, locOf(p))) here.scroll = p.list.scrollTop;
-    },
-    { passive: true },
-  );
-  // Selection changes are picked up when leaving: keep `here` in step with clicks too.
-  const keep = () => {
-    const here = state(p).here;
-    if (here && same(here, locOf(p))) here.selected = [...p.selected];
-  };
-  p.list.addEventListener("click", keep);
-  p.list.addEventListener("keyup", keep);
   window.addEventListener("experimental", () => render(p));
   window.addEventListener("settings-loaded", () => render(p));
   render(p);
 }
+
+paneHooks.goingUp = goingUp;

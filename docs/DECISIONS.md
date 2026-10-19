@@ -797,3 +797,23 @@ but going back to the folder you were in, as you left it, was missed.
 **Consequences.** Every settings page scrolls on its own inside a fixed-size dialog; at the minimum
 window (820 × 480) the sidebar and account list narrow but stay. New per-account fields go into one
 of the form's groups.
+
+<a id="adr-041"></a>
+
+## ADR-041: Back means "up, as you left it"; ↑ can open a folder tree
+Accepted · 2026-10-19
+
+**Context.** The first Back (ADR-040) followed history, like a browser. The maintainer expected it to
+go up a level, with the parent the way they left it, and wanted ↑ to become a quick jump instead.
+**Decision.**
+- `history.ts` remembers, per pane, each folder's scroll and selection when it's left
+  (`paneHooks.leaving`, from `Pane.go`, `Pane.up` and the account/bucket switches; at most 400
+  folders). `Pane.up` calls `paneHooks.goingUp`; with `back_history` on, the next listing of the
+  parent restores its spot. ⌘[, ← and the mouse's back button are `up()`; so are ↑ ⌘↑ Backspace.
+- `tree.ts` (`folder_tree`): every listing records the folder's subfolders (folders only, per local
+  disk or account + bucket, in memory, at most 5000 listings). ↑ opens a dropdown tree: the
+  breadcrumb chain expanded with the siblings seen at each level, a ▸ on any folder that was
+  listed, a filter over every known folder, keyboard (↑↓ ← → Enter Esc). ⌘↑ and Backspace still go
+  up.
+**Consequences.** The tree only shows folders opened since launch; persisting it (or seeding it from
+the local size scanner, which already walks folders) is possible later. No Forward.

@@ -42,6 +42,7 @@ export type Experimental = {
   backup_pairs: boolean;
   box_beta: boolean;
   back_history: boolean;
+  folder_tree: boolean;
   create_buckets: boolean;
 };
 

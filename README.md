@@ -79,7 +79,8 @@ Newer features ship in **Settings → Experimental**, off until you turn them on
 
 - **Backup pairs**: save "this folder ↔ that remote folder" and back it up in one click.
 - **Self-signed HTTPS**: trust a NAS's own certificate after comparing its fingerprint.
-- **Back**: ⌘[ returns to the previous folder, scrolled and selected as you left it.
+- **Back up a level, as you left it**: ⌘[ goes up and restores the folder's scroll and selection.
+- **Folder tree**: ↑ opens a tree of the folders you've opened, to jump anywhere.
 - **Box accounts** with your own Box app (not yet tried on a real Box account).
 - **Create buckets** (and Azure containers) from the bucket menu, when your key is allowed to.
 
@@ -145,7 +146,7 @@ shortcuts, FAQ and [privacy](https://noexplorer.vnappmob.com/docs/privacy).
 | `⌘K` | Command palette: commands, accounts, buckets, places, files |
 | `⌘L` | Type a path |
 | `⌘\` · `⌘W` | Split the remote side (another account below) · close the focused remote view |
-| `⌘[` | Back to the previous folder, as you left it *(experimental)* |
+| `⌘[` | Up a level, back to the folder as you left it *(experimental)* |
 | `⌘R` · `⌘F` · `⌘,` | Refresh · Filter · Settings |
 | `F2` · `⌘Z` | Rename · undo the last rename / move / duplicate |
 

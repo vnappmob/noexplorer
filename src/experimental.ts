@@ -25,8 +25,13 @@ export const EXPERIMENTS: { key: keyof Experimental; title: string; desc: string
   },
   {
     key: "back_history",
-    title: "Back",
-    desc: "⌘[, a ← button in the path bar or your mouse's back button return to the folder you were in, scrolled and selected as you left it.",
+    title: "Back up a level, as you left it",
+    desc: "⌘[, a ← button in the path bar or your mouse's back button go up one level and return the folder scrolled and selected as you left it. ↑, ⌘↑ and Backspace do the same.",
+  },
+  {
+    key: "folder_tree",
+    title: "Folder tree",
+    desc: "↑ in the path bar opens a tree of the folders you've opened, to jump anywhere in one click (⌘↑ and Backspace still go up).",
   },
   {
     key: "create_buckets",

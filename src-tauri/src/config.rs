@@ -124,8 +124,10 @@ pub struct Experimental {
     pub backup_pairs: bool,
     /// Box accounts (beta: tested against a mock only).
     pub box_beta: bool,
-    /// ⌘[ / ← / mouse back: the previous folder, scrolled and selected as it was (history.ts).
+    /// ⌘[ / ← / mouse back: up a level, the parent scrolled and selected as it was left (history.ts).
     pub back_history: bool,
+    /// ↑ opens a tree of the folders seen so far (tree.ts).
+    pub folder_tree: bool,
     /// "New bucket…" in the bucket menu and ⌘K (S3-compatible and Azure).
     pub create_buckets: bool,
 }

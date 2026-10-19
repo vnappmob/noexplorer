@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { kindOf } from "./files";
 import { azureEndpoint } from "./providers";
 import { icon } from "./icons";
-import { app } from "./state";
+import { app, exp } from "./state";
 import type { BucketInfo, Crumb, Item, LocalListing, Profile, SortBy } from "./types";
 import { $, esc, fail, fmtDate, fmtSize, plural, store } from "./util";
 
@@ -40,6 +40,8 @@ export const paneHooks = {
   visited: (_p: Pane): void => {},
   /** About to leave the current folder (Back keeps its scroll and selection, history.ts). */
   leaving: (_p: Pane): void => {},
+  /** `up()` is about to open `parent` (Back restores it as it was left, history.ts). */
+  goingUp: (_p: Pane, _parent: string): void => {},
   /** Grid view: tiles were (re)drawn; fill their thumbnails (thumbs.ts). */
   drawn: (_p: Pane): void => {},
 };
@@ -302,8 +304,8 @@ export class Pane {
     return `s3://${this.bucket}/${this.cwd}`;
   }
 
-  go(path: string, keepSelection = false) {
-    paneHooks.leaving(this);
+  go(path: string, keepSelection = false, noteLeaving = true) {
+    if (noteLeaving) paneHooks.leaving(this);
     this.cwd = path;
     this.q<HTMLInputElement>(".filter").value = "";
     this.list.scrollTop = 0;
@@ -327,13 +329,19 @@ export class Pane {
     if (this.isRemote) {
       if (!this.cwd) return;
       const parts = this.cwd.split("/").filter(Boolean);
-      this.selected = new Set([this.cwd]);
       parts.pop();
-      this.go(parts.length ? parts.join("/") + "/" : "", true);
+      this.goUpTo(parts.length ? parts.join("/") + "/" : "");
     } else if (this.parent) {
-      this.selected = new Set([this.cwd]);
-      this.go(this.parent, true);
+      this.goUpTo(this.parent);
     }
+  }
+
+  /** Opens `parent` with the folder we came out of selected (Back may restore more, history.ts). */
+  private goUpTo(parent: string) {
+    paneHooks.leaving(this); // before the selection changes below
+    paneHooks.goingUp(this, parent);
+    this.selected = new Set([this.cwd]);
+    this.go(parent, true, false);
   }
 
   /** Path bar row: one button per folder level (click = go there, drop target while dragging). */
@@ -350,7 +358,8 @@ export class Pane {
       })
       .join("");
     el.scrollLeft = el.scrollWidth; // keep the deepest folder visible
-    this.q<HTMLButtonElement>(".up").disabled = this.isRemote ? !this.cwd : !this.parent;
+    // With the folder tree on, ↑ opens the tree (useful at the top too, tree.ts).
+    this.q<HTMLButtonElement>(".up").disabled = !exp("folder_tree") && (this.isRemote ? !this.cwd : !this.parent);
     this.q(".dirsize").textContent = "Size"; // folder size resets per folder
     this.q(".calc-size").classList.remove("has");
   }
