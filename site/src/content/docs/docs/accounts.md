@@ -41,6 +41,10 @@ Box needs your own free Box app, because an open-source app can't keep a client 
 2. Set the **Redirect URI** to `http://127.0.0.1:53682/callback` and tick *Read and write all files and folders*.
 3. In NoExplorer, pick **Box**, paste the **Client ID** and **Client secret**, and click **Sign in with Box…**.
 
+## Azure Blob Storage
+
+Pick **Azure Blob Storage**, then enter the storage account name and one of its keys (**Storage account → Security + networking → Access keys**). That's all: the endpoint fills itself in as `https://<account>.blob.core.windows.net`. Change it only for another Azure cloud, a custom domain, or the Azurite emulator. Containers show up like buckets.
+
 ## More storage types (experimental)
 
 Turn on **Settings → Experimental → More storage types** to add these to the provider list.
@@ -50,10 +54,6 @@ Turn on **Settings → Experimental → More storage types** to add these to the
 Uses Google's S3-compatible API. In the Cloud console: **Cloud Storage → Settings → Interoperability → Create a key**. Endpoint `https://storage.googleapis.com`, region `auto`, and the key's access ID and secret.
 
 To list your buckets, Google needs to know the project: fill in **Project ID** (shown on the console's project picker), or set a *default project for interoperable access* on the same Interoperability page, or enter a **Default bucket**. Otherwise the test says "Project number must be specified".
-
-### Azure Blob Storage
-
-Endpoint `https://<account>.blob.core.windows.net`, the storage account name, and one of its keys (**Storage account → Security + networking → Access keys**). Containers show up like buckets.
 
 ### SFTP
 

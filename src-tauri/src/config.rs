@@ -28,8 +28,8 @@ pub enum ProviderKind {
     /// Box with the user's own OAuth app: `access_key` = client ID, `secret_key` = client secret,
     /// refresh token in the keychain (`box_api.rs`).
     Box,
-    /// Azure Blob Storage (experimental): `access_key` = storage account name, `secret_key` =
-    /// account key (`azure.rs`).
+    /// Azure Blob Storage: `access_key` = storage account name, `secret_key` = account key,
+    /// `endpoint` optional (`azure.rs`).
     Azure,
     /// SFTP (experimental): `endpoint` = `sftp://user@host:port/path`; login with SSH keys / agent
     /// through the system `ssh` (`sftp.rs`).
@@ -119,7 +119,7 @@ pub struct Experimental {
     pub self_signed: bool,
     /// Saved local ↔ remote folder pairs: Compare and upload in one click.
     pub backup_pairs: bool,
-    /// SFTP, Google Cloud Storage and Azure Blob accounts.
+    /// SFTP and Google Cloud Storage accounts.
     pub providers: bool,
 }
 

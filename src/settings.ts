@@ -11,6 +11,7 @@ import { appearance, setTextSize, setTheme, type Theme } from "./appearance";
 import { addView, MAX_VIEWS, remote, remotes, savedViews, saveViews, switchTo } from "./panes";
 import { type Pane, paneHooks } from "./pane";
 import {
+  azureEndpoint,
   describeAccount,
   EXPERIMENTAL_PROVIDERS,
   guessProvider,
@@ -103,6 +104,15 @@ function editAccount(p: Profile | null) {
 
 const input = (name: string) => form().elements.namedItem(name) as HTMLInputElement;
 
+/** Azure: the endpoint field shows the address the account name gives (it's optional). */
+function syncAzurePlaceholder() {
+  if (readForm().kind !== "azure") return;
+  const name = input("access_key").value.trim();
+  input("endpoint").placeholder = name
+    ? `${azureEndpoint({ endpoint: "", access_key: name })} (automatic)`
+    : PRESETS.azure.endpointPlaceholder;
+}
+
 /** Updates hints/placeholders for a provider. `fill` = the user just picked it: also reset
  * fields that belong to another provider and set the provider's defaults. */
 function applyPreset(id: ProviderId, fill: boolean) {
@@ -153,6 +163,7 @@ function applyPreset(id: ProviderId, fill: boolean) {
           ? "App password"
           : "Password";
   input("access_key").required = pr.kind !== "nextcloud" && !sftp;
+  syncAzurePlaceholder();
   // SFTP logs in with SSH keys: no secret to type.
   input("secret_key").closest("label")!.hidden = sftp;
   if (sftp) input("secret_key").required = false;
@@ -577,6 +588,7 @@ export function setupSettings() {
   listen("tray-add-account", addAccount);
   form().addEventListener("submit", saveAccount);
   $("acct-test").onclick = testAccount;
+  input("access_key").addEventListener("input", syncAzurePlaceholder);
   $("acct-nc-login").onclick = () => (readForm().kind === "box" ? boxSignIn() : nextcloudSignIn());
   $("acct-nc-cancel").onclick = () => invoke("cancel_login");
   $("acct-delete").onclick = deleteAccount;

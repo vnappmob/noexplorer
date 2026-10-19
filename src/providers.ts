@@ -8,7 +8,7 @@ export type ProviderId =
   "custom" | "aws" | "r2" | "b2" | "wasabi" | "do" | "nextcloud" | "webdav" | "box" | "gcs" | "azure" | "sftp";
 
 /** Shown in the provider picker only with Settings → Experimental → More storage types. */
-export const EXPERIMENTAL_PROVIDERS: ProviderId[] = ["gcs", "azure", "sftp"];
+export const EXPERIMENTAL_PROVIDERS: ProviderId[] = ["gcs", "sftp"];
 
 type Preset = {
   label: string;
@@ -126,7 +126,7 @@ export const PRESETS: Record<ProviderId, Preset> = {
     pathStyle: true,
     matches: () => false,
   },
-  // Experimental (Settings → Experimental → More storage types).
+  // gcs and sftp: experimental (Settings → Experimental → More storage types).
   gcs: {
     kind: "s3",
     label: "Google Cloud Storage",
@@ -141,9 +141,9 @@ export const PRESETS: Record<ProviderId, Preset> = {
   azure: {
     kind: "azure",
     label: "Azure Blob Storage",
-    hint: "Storage account → Security + networking → Access keys. Endpoint https://<account>.blob.core.windows.net, the storage account name and one of its keys.",
+    hint: "Enter the storage account name and one of its keys (Storage account → Security + networking → Access keys). The endpoint fills itself in; change it only for another Azure cloud, a custom domain or Azurite.",
     endpointPlaceholder: "https://<account>.blob.core.windows.net",
-    endpointRequired: true,
+    endpointRequired: false,
     regionPlaceholder: "",
     region: "",
     pathStyle: true,
@@ -181,12 +181,16 @@ export function describeAccount(p: Profile) {
   const id = guessProvider(p);
   if (id === "box") return "Box";
   if (id === "sftp") return `SFTP · ${endpointHost(p.endpoint)}`;
-  if (id === "azure") return `Azure · ${endpointHost(p.endpoint).split(".")[0]}`;
+  if (id === "azure") return `Azure · ${endpointHost(azureEndpoint(p)).split(".")[0]}`;
   if (id === "nextcloud" || id === "webdav") return `${PRESETS[id].label} · ${endpointHost(p.endpoint)}`;
   if (id === "aws") return p.region ? `AWS S3 · ${p.region}` : "AWS S3";
   const host = endpointHost(p.endpoint);
   return id === "custom" ? host : `${PRESETS[id].label} · ${host.split(".")[0]}`;
 }
+
+/** Azure's Blob endpoint: the one entered, else the storage account's public one (azure.rs `blob_endpoint`). */
+export const azureEndpoint = (p: Pick<Profile, "endpoint" | "access_key">) =>
+  p.endpoint.trim().replace(/\/+$/, "") || `https://${p.access_key.trim().toLowerCase()}.blob.core.windows.net`;
 
 /** Is this account S3 (buckets, regions, path-style)? */
 export const isS3 = (p: Pick<Profile, "kind"> | null | undefined) => !p?.kind || p.kind === "s3";

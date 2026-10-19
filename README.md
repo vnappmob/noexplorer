@@ -48,7 +48,7 @@ and you're done.
   files means **Move to Trash** (recoverable).
 - **Self-hosted friendly**: path-style requests are on by default, and the connection test
   works even when the key can't list buckets.
-- **S3, Nextcloud, WebDAV and Box (beta)**, plus Google Cloud Storage, Azure Blob and SFTP as
+- **S3, Nextcloud, WebDAV, Azure Blob and Box (beta)**, plus Google Cloud Storage and SFTP as
   experimental options: AWS, R2, B2, Wasabi, MinIO… plus Nextcloud/ownCloud
   (sign in through the browser), any WebDAV server or NAS, and Box with your own app. Previews and
   transfers work the same way everywhere.
@@ -79,7 +79,7 @@ Newer features ship in **Settings → Experimental**, off until you turn them on
 
 - **Backup pairs**: save "this folder ↔ that remote folder" and back it up in one click.
 - **Self-signed HTTPS**: trust a NAS's own certificate after comparing its fingerprint.
-- **More storage**: Google Cloud Storage, Azure Blob Storage and SFTP.
+- **More storage**: Google Cloud Storage and SFTP.
 
 ## Install
 
@@ -138,8 +138,8 @@ shortcuts, FAQ and [privacy](https://noexplorer.vnappmob.com/docs/privacy).
 | `Enter` | Open a folder. Remote file: preview. Local file: open in its default app |
 | `Space` | Quick look (inside it, `←` `→` go to the previous or next file) |
 | `F5` or `⌘/Ctrl + Enter` | Copy the selection to the other pane (upload or download) |
-| `Backspace` / `⌘↑` | Up one folder |
-| `⌘⌫` / `Delete` | Delete from S3 (asks first) · on this computer: Move to Trash |
+| `⌘↑` (macOS) · `Backspace` (Windows, Linux) | Up one folder |
+| `delete` / `⌘⌫` (macOS) · `Delete` (Windows, Linux) | Delete on the remote (asks first) · on this computer: Move to Trash |
 | `⌘K` | Command palette: commands, accounts, buckets, places, files |
 | `⌘L` | Type a path |
 | `⌘\` · `⌘W` | Split the remote side (another account below) · close the focused remote view |

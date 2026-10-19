@@ -92,6 +92,7 @@ function bindPane(p: Pane) {
   p.q(".up").onclick = () => p.up();
   p.q(".refresh").onclick = () => p.load(true);
   p.q(".mkdir-btn").onclick = () => mkdir(p);
+  p.q(".up").title = `Up one folder (${navigator.userAgent.includes("Mac") ? "⌘↑" : "Backspace"})`;
   bindStar(p);
   // Grid view: the header button flips list ⇄ grid.
   p.q(".view-btn").onclick = () => p.setMode(p.isGrid ? "list" : "grid");

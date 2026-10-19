@@ -21,7 +21,7 @@ export const EXPERIMENTS: { key: keyof Experimental; title: string; desc: string
   {
     key: "providers",
     title: "More storage types",
-    desc: "SFTP, Google Cloud Storage and Azure Blob Storage in the account form.",
+    desc: "SFTP and Google Cloud Storage in the account form.",
   },
 ];
 

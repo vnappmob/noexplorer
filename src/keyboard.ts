@@ -8,6 +8,8 @@ import { editPath, openPalette } from "./palette";
 import { renameItem, undo } from "./fileops";
 import { $ } from "./util";
 
+const IS_MAC = navigator.userAgent.includes("Mac");
+
 function onKey(ev: KeyboardEvent) {
   const mod = ev.metaKey || ev.ctrlKey;
   const inInput = ev.target instanceof Element && ev.target.matches("input, select, textarea");
@@ -92,7 +94,9 @@ function onKey(ev: KeyboardEvent) {
     case ev.key === " ":
       if (sel.length === 1 && !sel[0].dir) openPreview(p, sel[0]);
       break;
-    case (ev.key === "Backspace" && mod) || ev.key === "Delete":
+    // The Mac "delete" key is Backspace: it deletes there (⌘↑ goes up). Elsewhere Backspace goes up,
+    // like Explorer, and Delete deletes.
+    case ev.key === "Delete" || (ev.key === "Backspace" && (mod || IS_MAC)):
       if (p.isRemote) deleteRemote(p);
       else trashLocal();
       break;

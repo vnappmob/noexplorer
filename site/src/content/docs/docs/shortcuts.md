@@ -14,8 +14,8 @@ On Windows and Linux, use <kbd>Ctrl</kbd> where this page says <kbd>⌘</kbd>.
 | <kbd>Enter</kbd> | Open a folder. Remote file: preview. Local file: open in its app |
 | <kbd>Space</kbd> | Quick look |
 | <kbd>F5</kbd> or <kbd>⌘ ↵</kbd> | Copy the selection to the other pane (upload or download) |
-| <kbd>⌫</kbd> or <kbd>⌘ ↑</kbd> | Up one folder |
-| <kbd>⌘ ⌫</kbd> or <kbd>Delete</kbd> | Remote: delete (asks first). This computer: Move to Trash |
+| <kbd>⌘ ↑</kbd> (macOS) · <kbd>Backspace</kbd> (Windows, Linux) | Up one folder |
+| <kbd>delete</kbd> or <kbd>⌘ ⌫</kbd> (macOS) · <kbd>Delete</kbd> (Windows, Linux) | Remote: delete (asks first). This computer: Move to Trash |
 | <kbd>⌘ K</kbd> | Command palette: commands, accounts, buckets, places, files |
 | <kbd>⌘ L</kbd> | Type a path |
 | <kbd>⌘ \\</kbd> | Split the remote side (another account below) |

@@ -1,8 +1,9 @@
-//! Azure Blob Storage provider (experimental `providers`), over its REST API with Shared Key auth.
+//! Azure Blob Storage provider, over its REST API with Shared Key auth.
 //!
-//! The account form maps to: `endpoint` = `https://<account>.blob.core.windows.net` (or Azurite's
-//! `http://127.0.0.1:10000/devstoreaccount1`), `access_key` = storage account name, `secret_key` =
-//! account key (base64). Containers are the buckets. Folders are `/` in blob names, like S3: listing
+//! The account form maps to: `access_key` = storage account name, `secret_key` = account key
+//! (base64), and an optional `endpoint`: empty means `https://<account>.blob.core.windows.net`
+//! ([`blob_endpoint`]); fill it for other clouds, a custom domain or Azurite
+//! (`http://127.0.0.1:10000/devstoreaccount1`). Containers are the buckets. Folders are `/` in blob names, like S3: listing
 //! uses `delimiter=/`, and an empty folder is a zero-length `name/` marker blob.
 //!
 //! Uploads: one Put Blob up to [`SINGLE_PUT_MAX`], else blocks of [`BLOCK`] sent in parallel and
@@ -43,9 +44,19 @@ pub struct Azure {
     key: Vec<u8>,
 }
 
+/// The Blob endpoint: the one entered, else the storage account's public one.
+pub fn blob_endpoint(p: &Profile) -> String {
+    let e = normalize_endpoint(&p.endpoint);
+    if e.is_empty() {
+        format!("https://{}.blob.core.windows.net", p.access_key.trim().to_ascii_lowercase())
+    } else {
+        e.trim_end_matches('/').to_string()
+    }
+}
+
 impl Azure {
     pub fn new(p: &Profile) -> Azure {
-        let base = normalize_endpoint(&p.endpoint).trim_end_matches('/').to_string();
+        let base = blob_endpoint(p);
         let key = B64.decode(p.secret_key.trim()).unwrap_or_default();
         let http = if p.cert_pin.is_empty() {
             crate::webdav::http()
@@ -594,6 +605,14 @@ fn parse_list(xml: &str) -> Page {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn endpoint_defaults_to_the_account() {
+        let p = Profile { access_key: " MyStore ".into(), ..Default::default() };
+        assert_eq!(blob_endpoint(&p), "https://mystore.blob.core.windows.net");
+        let p = Profile { endpoint: "http://127.0.0.1:10000/devstoreaccount1/".into(), ..p };
+        assert_eq!(blob_endpoint(&p), "http://127.0.0.1:10000/devstoreaccount1");
+    }
 
     #[test]
     fn parses_list_blobs() {

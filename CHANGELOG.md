@@ -5,6 +5,12 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Azure Blob Storage** is a standard provider (no longer in Settings → Experimental), and only
+  needs the storage account name and a key: the endpoint fills itself in.
+- macOS: the **delete** key deletes the selection (Move to Trash on this computer, with a
+  confirmation on remotes), like ⌘⌫. ⌘↑ goes up a folder.
+
 ### Fixed
 - Google Cloud Storage: new **Project ID** field, so the bucket list works ("Project number must be
   specified"). The error explains what to enter when it's missing.

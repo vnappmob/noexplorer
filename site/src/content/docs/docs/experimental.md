@@ -13,7 +13,7 @@ Save “this folder ↔ that remote folder” once, then back it up in one click
 
 ## More storage types
 
-Google Cloud Storage, Azure Blob Storage and SFTP in the account form. See [Connect your storage](/docs/accounts/#more-storage-types-experimental).
+Google Cloud Storage and SFTP in the account form. See [Connect your storage](/docs/accounts/#more-storage-types-experimental).
 
 ## Self-signed HTTPS
 

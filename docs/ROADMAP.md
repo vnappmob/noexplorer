@@ -52,7 +52,7 @@ virtualized lists (ADR-021) · tray account switcher.
 1 and 2), favorites, resumable transfers with pause and a speed limit, thumbnail grid. Tabs and
 back/forward history were tried and removed (not useful enough).
 **Still experimental (Settings → Experimental, off by default, ADR-031):** backup pairs, self-signed
-HTTPS (ADR-032), Google Cloud Storage / Azure Blob / SFTP (ADR-033). (A native window look and a
+HTTPS (ADR-032), Google Cloud Storage / SFTP (ADR-033). Azure Blob became standard on 2026-10-19. (A native window look and a
 Vietnamese UI shipped too and were removed at the maintainer's request.)
 Next for them: real-world runs, then graduating each one out of Experimental.
 
