@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.14] - 2026-10-19
+
 ### Fixed
 - NoExplorer's cache folder no longer grows past ~70 MB: photos and videos opened in quick look
   aren't kept on disk any more, leftovers are cleaned at launch, and grid thumbnails use at most 48 MB.
