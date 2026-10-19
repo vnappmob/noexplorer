@@ -7,7 +7,6 @@ import { openSettings, splitView } from "./settings";
 import { editPath, openPalette } from "./palette";
 import { renameItem, undo } from "./fileops";
 import { back } from "./history";
-import { exp } from "./state";
 import { $ } from "./util";
 
 const IS_MAC = navigator.userAgent.includes("Mac");
@@ -40,8 +39,8 @@ function onKey(ev: KeyboardEvent) {
       return (ev.preventDefault(), renameItem(active, active.selectedItems()[0]));
     if (mod && ev.key.toLowerCase() === "z" && !ev.shiftKey) return (ev.preventDefault(), undo());
   }
-  // Back (experimental): ⌘[ returns to the previous folder, where it was scrolled.
-  if (mod && ev.key === "[" && exp("back_history")) return (ev.preventDefault(), back(active));
+  // Back up a level: ⌘[ goes up and restores the folder as it was left (history.ts).
+  if (mod && ev.key === "[") return (ev.preventDefault(), back(active));
   if (ev.key === "Tab" && !inInput) return (ev.preventDefault(), cyclePane(ev.shiftKey));
   // Remote views (ADR-029): ⌘\ splits the focused view, ⌘W closes it (never the last one).
   if (mod && ev.key === "\\") return (ev.preventDefault(), splitView(remote));

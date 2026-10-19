@@ -563,7 +563,7 @@ export function openProfileMenu(v: Pane, anchor = v.q(".profile-chip")) {
   openMenu(anchor, items, { width: 300 });
 }
 
-/** Creates a bucket (or Azure container) on `v`'s account and opens it (experimental). */
+/** Creates a bucket (or Azure container) on `v`'s account and opens it. */
 export async function newBucket(v: Pane) {
   const azure = v.profile()?.kind === "azure";
   const name = (await askText(azure ? "New container name" : "New bucket name"))?.trim();
@@ -580,7 +580,7 @@ export async function newBucket(v: Pane) {
   }
 }
 
-export const canCreateBuckets = (v: Pane) => exp("create_buckets") && hasContainers(v.profile());
+export const canCreateBuckets = (v: Pane) => hasContainers(v.profile());
 
 export function openBucketMenu(v: Pane, anchor = v.q(".bucket-chip")) {
   const items: MenuItem[] = v.buckets.map((b) => ({

@@ -1,4 +1,4 @@
-// Folder tree (experimental "folder_tree"): the ↑ button opens a tree of the folders this pane has
+// Folder tree: the ↑ button opens a tree of the folders this pane has
 // seen, to jump anywhere in one click. Every listing records the folder's subfolders (folders only,
 // in memory, per local disk or remote account + bucket), so the tree grows as you browse.
 //
@@ -7,7 +7,6 @@
 
 import { icon } from "./icons";
 import type { Pane } from "./pane";
-import { exp } from "./state";
 import { esc } from "./util";
 
 type Folder = { name: string; path: string };
@@ -190,21 +189,13 @@ function onKey(ev: KeyboardEvent) {
   }
 }
 
-/** ↑ opens the tree while the experiment is on (⌘↑ and Backspace still go up). */
+/** ↑ opens the tree (⌘↑, Backspace and the ← button go up). */
 export function bindTree(p: Pane) {
   const up = p.q<HTMLButtonElement>(".up");
-  const sync = () => {
-    const on = exp("folder_tree");
-    up.classList.toggle("tree-on", on);
-    up.innerHTML = icon(on ? "tree" : "arrowUp");
-    up.setAttribute("aria-haspopup", on ? "tree" : "false");
-    if (on) up.disabled = false;
-  };
-  up.onclick = () => (exp("folder_tree") ? openTree(p, up) : p.up());
-  window.addEventListener("experimental", sync);
-  window.addEventListener("settings-loaded", sync);
-  sync();
-  return sync;
+  up.classList.add("tree-on");
+  up.innerHTML = icon("tree");
+  up.setAttribute("aria-haspopup", "tree");
+  up.onclick = () => openTree(p, up);
 }
 
 document.addEventListener("mousedown", (ev) => {

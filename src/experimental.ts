@@ -23,21 +23,6 @@ export const EXPERIMENTS: { key: keyof Experimental; title: string; desc: string
     title: "Box accounts",
     desc: "Box in the account form, with your own Box app. It works against our test double but hasn't been tried on a real Box account yet.",
   },
-  {
-    key: "back_history",
-    title: "Back up a level, as you left it",
-    desc: "⌘[, a ← button in the path bar or your mouse's back button go up one level and return the folder scrolled and selected as you left it. ↑, ⌘↑ and Backspace do the same.",
-  },
-  {
-    key: "folder_tree",
-    title: "Folder tree",
-    desc: "↑ in the path bar opens a tree of the folders you've opened, to jump anywhere in one click (⌘↑ and Backspace still go up).",
-  },
-  {
-    key: "create_buckets",
-    title: "Create buckets",
-    desc: "“New bucket…” in the bucket menu and ⌘K, for S3-compatible storage and Azure containers, when your key is allowed to.",
-  },
 ];
 
 /** Fills the Experimental tab (index.html #exp-form). */

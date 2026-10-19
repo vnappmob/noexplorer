@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { kindOf } from "./files";
 import { azureEndpoint } from "./providers";
 import { icon } from "./icons";
-import { app, exp } from "./state";
+import { app } from "./state";
 import type { BucketInfo, Crumb, Item, LocalListing, Profile, SortBy } from "./types";
 import { $, esc, fail, fmtDate, fmtSize, plural, store } from "./util";
 
@@ -381,8 +381,8 @@ export class Pane {
       })
       .join("");
     el.scrollLeft = el.scrollWidth; // keep the deepest folder visible
-    // With the folder tree on, ↑ opens the tree (useful at the top too, tree.ts).
-    this.q<HTMLButtonElement>(".up").disabled = !exp("folder_tree") && (this.isRemote ? !this.cwd : !this.parent);
+    // ↑ opens the folder tree (useful at the top too, tree.ts); ← goes up (history.ts).
+    this.q<HTMLButtonElement>(".back").disabled = this.isRemote ? !this.cwd : !this.parent;
     this.q(".dirsize").textContent = "Size"; // folder size resets per folder
     this.q(".calc-size").classList.remove("has");
   }

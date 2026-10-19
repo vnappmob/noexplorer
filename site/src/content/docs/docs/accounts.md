@@ -47,6 +47,15 @@ Box needs your own free Box app, because an open-source app can't keep a client 
 
 Pick **Azure Blob Storage**, then enter the storage account name and one of its keys (**Storage account → Security + networking → Access keys**). That's all: the endpoint fills itself in as `https://<account>.blob.core.windows.net`. Change it only for another Azure cloud, a custom domain, or the Azurite emulator. Containers show up like buckets.
 
+## Oracle Cloud
+
+Oracle Cloud Object Storage works through its Amazon S3 Compatibility API. Pick **Oracle Cloud**, then:
+
+- **Endpoint:** `https://<namespace>.compat.objectstorage.<region>.oci.customer-oci.com` (older `…oraclecloud.com` addresses work too). The namespace is on any bucket's details page; the region is like `us-ashburn-1`, and NoExplorer reads it from the endpoint.
+- **Access key / Secret key:** a **Customer Secret Key** (Profile → User settings → Customer secret keys). Oracle shows the secret only once.
+
+Buckets created through the S3 API go to the compartment chosen for it in Oracle's settings (the root compartment by default), and only buckets in that compartment are listed.
+
 ## Google Cloud Storage
 
 Uses Google's S3-compatible API. In the Cloud console: **Cloud Storage → Settings → Interoperability → Create a key**. Endpoint `https://storage.googleapis.com`, region `auto`, and the key's access ID and secret.

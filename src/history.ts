@@ -1,13 +1,12 @@
-// Back (experimental "back_history"): up one level, back to the parent folder as you left it,
-// scrolled and selected the same. ⌘[, the ← button and the mouse's back button do it; with the
-// experiment on, every other "up" (↑ ⌘↑ Backspace) restores the parent the same way.
+// Back up a level, as you left it: up one level, back to the parent folder scrolled and selected as
+// it was when you went down. ⌘[, the ← button and the mouse's back button do it, and every other "up"
+// (⌘↑ Backspace) restores the parent the same way.
 //
 // Each pane remembers, per folder, where the list was scrolled and what was selected when it left
 // (`leaving`, called by `Pane.go`, `Pane.up` and the account/bucket switches). Going up asks for the
 // parent's spot back (`goingUp`), and the next listing applies it (`visited`).
 
 import { type Pane, paneHooks } from "./pane";
-import { exp } from "./state";
 
 type Spot = { scroll: number; selected: string[] };
 type State = { spots: Map<string, Spot>; returning: string | null };
@@ -37,7 +36,7 @@ export function leaving(p: Pane) {
 
 /** `Pane.up` is about to open `parent` (`paneHooks.goingUp`): restore it once it's listed. */
 function goingUp(p: Pane, parent: string) {
-  state(p).returning = exp("back_history") ? keyOf(p, parent) : null;
+  state(p).returning = keyOf(p, parent);
 }
 
 /** After every listing: finish a step up by restoring the parent's scroll and selection. */
@@ -54,12 +53,11 @@ export function visited(p: Pane) {
 }
 
 export function back(p: Pane) {
-  if (exp("back_history")) p.up();
+  p.up();
 }
 
 function render(p: Pane) {
   const b = p.q<HTMLButtonElement>(".back");
-  b.hidden = !exp("back_history");
   b.disabled = p.isRemote ? !p.cwd : !p.parent;
 }
 
@@ -67,10 +65,8 @@ function render(p: Pane) {
 export function bindBack(p: Pane) {
   p.q(".back").onclick = () => back(p);
   p.el.addEventListener("mouseup", (ev) => {
-    if (ev.button === 3 && exp("back_history")) (ev.preventDefault(), back(p));
+    if (ev.button === 3) (ev.preventDefault(), back(p));
   });
-  window.addEventListener("experimental", () => render(p));
-  window.addEventListener("settings-loaded", () => render(p));
   render(p);
 }
 

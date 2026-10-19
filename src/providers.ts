@@ -5,7 +5,7 @@
 import type { Profile, ProviderKind } from "./types";
 
 export type ProviderId =
-  "custom" | "aws" | "r2" | "b2" | "wasabi" | "do" | "nextcloud" | "webdav" | "box" | "gcs" | "azure" | "sftp";
+  "custom" | "aws" | "r2" | "b2" | "wasabi" | "do" | "oci" | "nextcloud" | "webdav" | "box" | "gcs" | "azure" | "sftp";
 
 /** Shown in the provider picker only with Settings → Experimental → Box accounts. */
 export const EXPERIMENTAL_PROVIDERS: ProviderId[] = ["box"];
@@ -126,6 +126,18 @@ export const PRESETS: Record<ProviderId, Preset> = {
     pathStyle: true,
     matches: () => false,
   },
+  oci: {
+    kind: "s3",
+    label: "Oracle Cloud",
+    hint: "Uses Oracle's Amazon S3 Compatibility API. Endpoint https://<namespace>.compat.objectstorage.<region>.oci.customer-oci.com (the namespace is on the bucket's details page); the access key and secret are a Customer Secret Key (Profile → User settings → Customer secret keys). Buckets made here go to the compartment set for the S3 API (the root one by default).",
+    endpointPlaceholder: "https://<namespace>.compat.objectstorage.us-ashburn-1.oci.customer-oci.com",
+    endpointRequired: true,
+    regionPlaceholder: "(from the endpoint)",
+    region: "",
+    pathStyle: true,
+    matches: (h) =>
+      h.includes(".compat.objectstorage.") && (h.endsWith(".oci.customer-oci.com") || h.endsWith(".oraclecloud.com")),
+  },
   gcs: {
     kind: "s3",
     label: "Google Cloud Storage",
@@ -171,7 +183,7 @@ export function guessProvider(p: Pick<Profile, "endpoint"> & { kind?: ProviderKi
   if (p.kind === "nextcloud" || p.kind === "webdav" || p.kind === "box" || p.kind === "azure" || p.kind === "sftp")
     return p.kind;
   const h = endpointHost(p.endpoint);
-  for (const id of ["aws", "r2", "b2", "wasabi", "do", "gcs"] as const) if (PRESETS[id].matches(h)) return id;
+  for (const id of ["aws", "r2", "b2", "wasabi", "do", "gcs", "oci"] as const) if (PRESETS[id].matches(h)) return id;
   return "custom";
 }
 
@@ -205,6 +217,7 @@ export const LOOK: Record<ProviderId, { mono: string; hue: number; blurb: string
   b2: { mono: "B2", hue: 2, name: "Backblaze B2", blurb: "Application key" },
   wasabi: { mono: "W", hue: 140, name: "Wasabi", blurb: "Access key" },
   do: { mono: "DO", hue: 210, name: "DigitalOcean Spaces", blurb: "Spaces key" },
+  oci: { mono: "O", hue: 8, name: "Oracle Cloud", blurb: "Customer Secret Key" },
   gcs: { mono: "G", hue: 220, name: "Google Cloud Storage", blurb: "HMAC key + project" },
   azure: { mono: "Az", hue: 200, name: "Azure Blob Storage", blurb: "Account name + key" },
   nextcloud: { mono: "NC", hue: 205, name: "Nextcloud / ownCloud", blurb: "Sign in with your browser" },
@@ -214,7 +227,7 @@ export const LOOK: Record<ProviderId, { mono: string; hue: number; blurb: string
 };
 
 export const PICKER_GROUPS: { title: string; ids: ProviderId[] }[] = [
-  { title: "Object storage", ids: ["aws", "custom", "r2", "b2", "wasabi", "do", "gcs", "azure"] },
+  { title: "Object storage", ids: ["aws", "custom", "r2", "b2", "wasabi", "do", "gcs", "azure", "oci"] },
   { title: "File servers", ids: ["nextcloud", "webdav", "sftp"] },
   { title: "Cloud drives", ids: ["box"] },
 ];

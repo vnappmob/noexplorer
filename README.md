@@ -7,7 +7,7 @@
 <p align="center">
   <b>No explorer needed: just drag it to your bucket.</b><br/>
   A tiny two-pane file manager: your computer on the left, your cloud on the right.<br/>
-  S3 (AWS, MinIO, R2, B2, Wasabi…) · Google Cloud · Azure · Nextcloud · WebDAV · SFTP &nbsp;—&nbsp; macOS · Windows · Linux
+  S3 (AWS, MinIO, R2, B2, Wasabi, Oracle Cloud…) · Google Cloud · Azure · Nextcloud · WebDAV · SFTP &nbsp;—&nbsp; macOS · Windows · Linux
 </p>
 
 <p align="center">
@@ -67,6 +67,8 @@ and you're done.
   undo. Nothing is ever overwritten.
 - **Grid view** with image and video thumbnails, cached (48 MB at most on disk).
 - **Favorites**: star a folder, local or remote, and reach it from the places menu or ⌘K.
+- **Up a level, as you left it** (←, ⌘[, ⌘↑) and a **folder tree** (↑) to jump to any folder you've opened.
+- **New buckets** (and Azure containers) from the bucket menu, when your key is allowed to.
 - **Search** every folder below the current one (↵ in the filter box): results stream in, words,
   `*`/`?` wildcards and `ext:pdf`, on this computer (parallel, ~5× faster than `find`) or a remote.
 - **Σ Size** for any folder, local or remote. A path bar always shows where you are.
@@ -81,10 +83,7 @@ Newer features ship in **Settings → Experimental**, off until you turn them on
 
 - **Backup pairs**: save "this folder ↔ that remote folder" and back it up in one click.
 - **Self-signed HTTPS**: trust a NAS's own certificate after comparing its fingerprint.
-- **Back up a level, as you left it**: ⌘[ goes up and restores the folder's scroll and selection.
-- **Folder tree**: ↑ opens a tree of the folders you've opened, to jump anywhere.
 - **Box accounts** with your own Box app (not yet tried on a real Box account).
-- **Create buckets** (and Azure containers) from the bucket menu, when your key is allowed to.
 
 ## Install
 
@@ -148,7 +147,7 @@ shortcuts, FAQ and [privacy](https://noexplorer.vnappmob.com/docs/privacy).
 | `⌘K` | Command palette: commands, accounts, buckets, places, files |
 | `⌘L` | Type a path |
 | `⌘\` · `⌘W` | Split the remote side (another account below) · close the focused remote view |
-| `⌘[` | Up a level, back to the folder as you left it *(experimental)* |
+| `⌘[` | Up a level, back to the folder as you left it |
 | `⌘R` · `⌘F` · `⌘,` | Refresh · Filter (↵ searches all subfolders) · Settings |
 | `F2` · `⌘Z` | Rename · undo the last rename / move / duplicate |
 

@@ -28,6 +28,15 @@ Image thumbnails are made once and kept in your system's cache folder (at most 4
 
 Click the star in the path bar to save the folder you're in. Favorites show up in the places menu (this computer), the account menu (remote) and <kbd>⌘ K</kbd>. Click the star again to remove it.
 
+## Moving around
+
+- **←** (or <kbd>⌘ [</kbd>, <kbd>⌘ ↑</kbd>, <kbd>Backspace</kbd>, your mouse's back button) goes up one level, and the folder comes back scrolled and with the same files selected as when you left it.
+- **↑ (the tree icon)** opens a tree of the folders you've opened in that pane: the path you're on, the folders next to it, and a ▸ on every folder you've been into. Click one to jump there, or type in the box at the top to find any folder you've opened. The tree knows the folders you've opened since NoExplorer started.
+
+## New buckets
+
+The bucket menu (and <kbd>⌘ K</kbd>) has **New bucket…** for S3-compatible storage (AWS, MinIO, R2, B2, Wasabi, Google Cloud, Oracle Cloud…) and **New container…** for Azure. Names are 3 to 63 lowercase letters, digits and hyphens (S3 also allows dots). It works when your key is allowed to create buckets; otherwise the server's answer is shown. On AWS the bucket goes in the account's region; on Google Cloud Storage, in the account's project.
+
 ## Quick look
 
 Press <kbd>Space</kbd> to preview images, video, audio, PDF and text files, on either side, without downloading them. <kbd>←</kbd> <kbd>→</kbd> go to the previous or next file.

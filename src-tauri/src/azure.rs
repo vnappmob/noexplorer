@@ -131,7 +131,7 @@ impl Azure {
         ok(b.send().await.map_err(net_err)?).await
     }
 
-    /// Creates container `name` (experimental "create_buckets"), private (no public access).
+    /// Creates container `name`, private (no public access).
     pub async fn create_container(&self, name: &str) -> Result<(), String> {
         self.send(self.req(Method::PUT, &format!("{}?restype=container", self.url(name, "")), Some(0), &[])).await?;
         Ok(())

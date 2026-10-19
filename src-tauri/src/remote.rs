@@ -74,7 +74,7 @@ pub async fn read_text(
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
-/// Creates bucket / container `name` on `account` (experimental "create_buckets").
+/// Creates bucket / container `name` on `account`.
 #[tauri::command]
 pub async fn create_bucket(state: State<'_, AppState>, account: Option<String>, name: String) -> Result<(), String> {
     state.remote(account.as_deref())?.create_container(name.trim()).await

@@ -198,7 +198,7 @@ impl S3 {
         regional.entry(region.clone()).or_insert_with(|| make_client_in(p, &region)).clone()
     }
 
-    /// Creates bucket `name` (experimental). On AWS it goes in the account's region, which outside
+    /// Creates bucket `name`. On AWS it goes in the account's region, which outside
     /// us-east-1 has to be named in the request.
     pub async fn create_bucket(&self, name: &str) -> Result<(), String> {
         let p = &self.profile;

@@ -5,7 +5,6 @@ import { bindStar, favoritesMenuItems, renderStar } from "./favorites";
 import { bindBack, leaving, visited } from "./history";
 import { bindTree, record } from "./tree";
 import { setupSearch, startSearch } from "./search";
-import { exp } from "./state";
 import { fillThumbs } from "./thumbs";
 import { setupBackups } from "./backups";
 import { setupFileOps } from "./fileops";
@@ -94,17 +93,12 @@ function bindPane(p: Pane) {
     if (c) p.go(c.dataset.p!);
     else editPath(p);
   });
-  bindTree(p); // ↑: up, or the folder tree (experimental)
+  bindTree(p); // ↑: the folder tree; ← goes up
   p.q(".refresh").onclick = () => p.load(true);
   p.q(".mkdir-btn").onclick = () => mkdir(p);
   const upKey = navigator.userAgent.includes("Mac") ? "⌘↑" : "Backspace";
-  const upTitle = () =>
-    (p.q(".up").title = exp("folder_tree")
-      ? `Folders: jump to one you've opened (up: ${upKey})`
-      : `Up one folder (${upKey})`);
-  window.addEventListener("experimental", upTitle);
-  window.addEventListener("settings-loaded", upTitle);
-  upTitle();
+  p.q(".up").title = "Folders: jump to one you've opened";
+  p.q(".back").title = `Up a level, as you left it (${upKey} or ⌘[)`;
   bindStar(p);
   bindBack(p);
   // Grid view: the header button flips list ⇄ grid.

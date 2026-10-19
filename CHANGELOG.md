@@ -5,6 +5,14 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Oracle Cloud** in the account form (Object Storage through its S3 Compatibility API, with a
+  Customer Secret Key; the region comes from the endpoint).
+
+### Changed
+- **New buckets**, **up a level as you left it** (←, ⌘[, ⌘↑) and the **folder tree** (↑) are
+  standard features, no longer in Settings → Experimental.
+
 ## [0.4.24] - 2026-10-19
 
 ### Added

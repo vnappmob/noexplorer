@@ -844,3 +844,23 @@ back a detour ("Change provider").
 **Consequences.** Remote search costs a full listing (one request per 1,000 keys on S3); streaming
 pages and server-side search (Nextcloud SEARCH, Box search API) are possible later. Spotlight isn't
 used: it skips unindexed folders and would need its own permission story.
+
+<a id="adr-043"></a>
+
+## ADR-043: Three more features standard; Oracle Cloud as an S3 preset
+Accepted · 2026-10-19
+
+**Context.** The maintainer judged Create buckets, Back (up a level, as you left it) and the folder
+tree ready, and asked whether Oracle Cloud Object Storage needs its own provider.
+**Decision.**
+- The three lose their toggles (ADR-038 recipe). The path bar's ← is always shown and goes up as you
+  left it (so do ⌘[, ⌘↑, Backspace, the mouse's back button); ↑ always opens the folder tree.
+- Oracle Cloud is an S3 preset, not a provider: its Amazon S3 Compatibility API takes SigV4, a
+  Customer Secret Key, path-style `https://<namespace>.compat.objectstorage.<region>.oci.customer-oci.com`
+  (or `.oraclecloud.com`), the OCI region id to sign with (read from the endpoint,
+  `region_from_endpoint`), and wants checksums only when required (as ADR-004 already does; newer
+  SDK defaults break it). Multi-delete, multipart and copies are supported; the compartment for S3
+  buckets is set on Oracle's side.
+**Consequences.** Not yet run against a real Oracle tenancy; the diagnostic log
+(`diag.rs`) will show the server's answer if something differs (ListObjectsV2 isn't on Oracle's
+list, though it's widely used with it).

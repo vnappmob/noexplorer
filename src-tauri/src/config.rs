@@ -124,12 +124,6 @@ pub struct Experimental {
     pub backup_pairs: bool,
     /// Box accounts (beta: tested against a mock only).
     pub box_beta: bool,
-    /// ⌘[ / ← / mouse back: up a level, the parent scrolled and selected as it was left (history.ts).
-    pub back_history: bool,
-    /// ↑ opens a tree of the folders seen so far (tree.ts).
-    pub folder_tree: bool,
-    /// "New bucket…" in the bucket menu and ⌘K (S3-compatible and Azure).
-    pub create_buckets: bool,
 }
 
 /// Everything in `config.json`. Mirrors `Settings` in `src/types.ts`.
@@ -319,6 +313,9 @@ pub fn region_from_endpoint(endpoint: &str) -> Option<String> {
         [r, "digitaloceanspaces", "com"] | [r, "linodeobjects", "com"] if r.chars().any(|c| c.is_ascii_digit()) => {
             Some(r.to_string())
         }
+        // Oracle Cloud's S3 Compatibility API: <namespace>.compat.objectstorage.<region>.<domain>.
+        [_, "compat", "objectstorage", r, "oci", "customer-oci", "com"]
+        | [_, "compat", "objectstorage", r, "oraclecloud", "com"] => pick(r),
         _ => None,
     }
 }
@@ -503,6 +500,8 @@ mod tests {
             ("https://s3.eu-central-2.wasabisys.com", "eu-central-2"),
             ("s3.us-west-004.backblazeb2.com", "us-west-004"),
             ("https://sgp1.digitaloceanspaces.com", "sgp1"),
+            ("https://axabc123.compat.objectstorage.us-ashburn-1.oci.customer-oci.com", "us-ashburn-1"),
+            ("axabc123.compat.objectstorage.ap-singapore-1.oraclecloud.com", "ap-singapore-1"),
         ] {
             assert_eq!(region_from_endpoint(e).as_deref(), Some(r), "{e}");
         }
