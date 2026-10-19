@@ -1,6 +1,6 @@
 [package]
 name = "noexplorer"
-version = "0.4.15"
+version = "0.4.16"
 description = "Dual-pane drag & drop file manager for S3-compatible storage"
 authors = ["Kris Luu <kris.luu@vnappmob.com>"]
 license = "MIT"

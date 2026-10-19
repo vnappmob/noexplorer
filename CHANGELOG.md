@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.16] - 2026-10-19
+
 ### Fixed
 - Copying between accounts keeps each file's type (a PDF stays `application/pdf` instead of
   `application/octet-stream`), and S3 copies over 5 GB keep the source's Content-Type.
