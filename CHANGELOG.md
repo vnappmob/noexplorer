@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.24] - 2026-10-19
+
 ### Added
 - **Search** every folder below the current one: type in the filter box and press ↵. Results
   stream in with the folder each one is in; words, `*`/`?` wildcards and `ext:pdf`; Stop, Esc,
