@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.23] - 2026-10-19
+
 ### Changed
 - Experimental **Back** now goes **up a level**, and the folder comes back scrolled and selected as
   you left it (also for ↑, ⌘↑ and Backspace while it's on).
