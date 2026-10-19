@@ -5,6 +5,10 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- After installing an update, the window opens again. When NoExplorer had been started at login, it
+  came back with only the tray icon.
+
 ## [0.4.23] - 2026-10-19
 
 ### Changed

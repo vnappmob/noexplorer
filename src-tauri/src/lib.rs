@@ -88,7 +88,8 @@ pub fn run() {
             tray::setup(app.handle(), &settings)?;
             sizes::setup(app.handle());
             autostart::refresh(app.handle());
-            if std::env::args().any(|a| a == HIDDEN_ARG) {
+            // Login starts run hidden; an update relaunch reuses that argument, so it asks to show.
+            if std::env::args().any(|a| a == HIDDEN_ARG) && !tray::take_relaunch_marker(app.handle()) {
                 tray::hide_main(app.handle());
             }
             Ok(())
@@ -152,6 +153,7 @@ pub fn run() {
             local::open_local,
             local::reveal,
             diag::log_file,
+            tray::show_after_relaunch,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

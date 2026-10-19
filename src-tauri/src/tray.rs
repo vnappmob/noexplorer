@@ -275,3 +275,85 @@ fn rebuild(app: &AppHandle) {
         let _ = tray.set_menu(Some(menu));
     }
 }
+
+/// The updater relaunches with the same arguments, so an app started at login (`--hidden`) came back
+/// hidden after an update, with only the tray icon. The frontend leaves this marker right before
+/// relaunching (`show_after_relaunch`), and the next start shows the window when it finds a fresh one.
+const RELAUNCH_MARKER: &str = "show-after-relaunch";
+const MARKER_FRESH: std::time::Duration = std::time::Duration::from_secs(600);
+
+fn marker_path(app: &AppHandle) -> Option<std::path::PathBuf> {
+    app.path().app_config_dir().ok().map(|d| d.join(RELAUNCH_MARKER))
+}
+
+#[tauri::command]
+pub fn show_after_relaunch(app: AppHandle) -> Result<(), String> {
+    let p = marker_path(&app).ok_or("No config folder")?;
+    if let Some(d) = p.parent() {
+        std::fs::create_dir_all(d).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&p, b"").map_err(|e| e.to_string())
+}
+
+/// True when this start is an update relaunch: the previous run left the marker, or the version
+/// changed since the last start (that also covers updates from versions that didn't write it).
+pub fn take_relaunch_marker(app: &AppHandle) -> bool {
+    let marker = marker_path(app).is_some_and(|p| take_marker(&p));
+    let version = app.package_info().version.to_string();
+    let changed = app.path().app_config_dir().ok().is_some_and(|d| {
+        // No record yet but the app was used before: the first start of a version that keeps one,
+        // which is an update relaunch (or, at worst, one login start that shows the window).
+        let used_before = d.join("config.json").exists();
+        version_changed(&d.join("last-version"), &version, used_before)
+    });
+    marker || changed
+}
+
+/// Records `version` as the last one started; true when it differs from the one recorded before.
+/// With nothing recorded, `used_before` decides (a brand-new install has nothing to compare).
+fn version_changed(file: &std::path::Path, version: &str, used_before: bool) -> bool {
+    let before = std::fs::read_to_string(file).ok();
+    if before.as_deref() != Some(version) {
+        if let Some(d) = file.parent() {
+            let _ = std::fs::create_dir_all(d);
+        }
+        let _ = std::fs::write(file, version);
+    }
+    before.map_or(used_before, |b| b.trim() != version)
+}
+
+fn take_marker(p: &std::path::Path) -> bool {
+    let fresh =
+        std::fs::metadata(p).and_then(|m| m.modified()).is_ok_and(|t| t.elapsed().is_ok_and(|age| age < MARKER_FRESH));
+    let _ = std::fs::remove_file(p);
+    fresh
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn relaunch_marker_is_used_once_and_only_when_fresh() {
+        let dir = std::env::temp_dir().join(format!("noexplorer-ut-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join(RELAUNCH_MARKER);
+        assert!(!take_marker(&p), "no marker: a normal --hidden start stays hidden");
+        std::fs::write(&p, b"").unwrap();
+        assert!(take_marker(&p));
+        assert!(!take_marker(&p), "used once");
+        std::fs::write(&p, b"").unwrap();
+        let old = std::time::SystemTime::now() - MARKER_FRESH - std::time::Duration::from_secs(5);
+        std::fs::File::options().write(true).open(&p).unwrap().set_modified(old).unwrap();
+        assert!(!take_marker(&p), "a stale marker (crash before relaunch) is ignored");
+        assert!(!p.exists());
+        let v = dir.join("last-version");
+        assert!(!version_changed(&v, "0.4.23", false), "brand-new install: nothing to compare");
+        assert!(!version_changed(&v, "0.4.23", true), "same version: a login start");
+        assert!(version_changed(&v, "0.4.24", true), "new version: the relaunch after an update");
+        assert!(!version_changed(&v, "0.4.24", true));
+        std::fs::remove_file(&v).unwrap();
+        assert!(version_changed(&v, "0.4.24", true), "no record but used before: updated from an older version");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+}

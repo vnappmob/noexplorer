@@ -6,6 +6,7 @@
 import { listen } from "@tauri-apps/api/event";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { invoke } from "@tauri-apps/api/core";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { activeJobCount } from "./jobs";
@@ -66,6 +67,8 @@ async function install() {
       }
       if (ev.event === "Finished") btn.textContent = "Installing…";
     });
+    // Relaunch reuses this run's arguments; a login start (--hidden) would come back hidden (tray.rs).
+    await invoke("show_after_relaunch").catch(() => {});
     await relaunch();
   } catch (e) {
     btn.disabled = false;
