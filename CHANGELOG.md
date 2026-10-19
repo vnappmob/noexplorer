@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.25] - 2026-10-20
+
 ### Added
 - **Oracle Cloud** in the account form (Object Storage through its S3 Compatibility API, with a
   Customer Secret Key; the region comes from the endpoint).
