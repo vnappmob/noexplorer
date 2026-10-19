@@ -53,6 +53,9 @@ pub fn make_client_in(p: &Profile, region: &str) -> Client {
         .request_checksum_calculation(RequestChecksumCalculation::WhenRequired)
         .response_checksum_validation(ResponseChecksumValidation::WhenRequired);
     let endpoint = normalize_endpoint(&p.endpoint);
+    if is_gcs(&endpoint) {
+        b = b.interceptor(DropXId);
+    }
     if !endpoint.is_empty() && !is_aws(p) {
         b = b.endpoint_url(endpoint);
     }
@@ -64,6 +67,46 @@ pub fn make_client_in(p: &Profile, region: &str) -> Client {
         b = b.http_client(h);
     }
     Client::from_conf(b.build())
+}
+
+/// Google Cloud Storage's XML API (HMAC keys) speaks S3, but rejects query parameters it doesn't
+/// know with "Invalid argument". The SDK tags many requests with `x-id=<Operation>` (ListBuckets,
+/// GetObject, PutObject, UploadPart…), purely informational, so for GCS it's removed before signing.
+fn is_gcs(endpoint: &str) -> bool {
+    endpoint
+        .split("://")
+        .nth(1)
+        .unwrap_or(endpoint)
+        .split(['/', ':'])
+        .next()
+        .is_some_and(|h| h.ends_with("storage.googleapis.com"))
+}
+
+#[derive(Debug)]
+struct DropXId;
+
+impl aws_smithy_runtime_api::client::interceptors::Intercept for DropXId {
+    fn name(&self) -> &'static str {
+        "DropXId"
+    }
+
+    fn modify_before_signing(
+        &self,
+        ctx: &mut aws_smithy_runtime_api::client::interceptors::context::BeforeTransmitInterceptorContextMut<'_>,
+        _rc: &aws_smithy_runtime_api::client::runtime_components::RuntimeComponents,
+        _cfg: &mut aws_smithy_types::config_bag::ConfigBag,
+    ) -> Result<(), aws_smithy_runtime_api::box_error::BoxError> {
+        let uri = without_x_id(ctx.request().uri());
+        ctx.request_mut().set_uri(uri)?;
+        Ok(())
+    }
+}
+
+/// `…?x-id=GetObject&a=b` → `…?a=b` (and `…?x-id=X` → `…`).
+fn without_x_id(uri: &str) -> String {
+    let Some((base, q)) = uri.split_once('?') else { return uri.to_string() };
+    let kept: Vec<&str> = q.split('&').filter(|p| !p.starts_with("x-id=") && *p != "x-id").collect();
+    if kept.is_empty() { base.to_string() } else { format!("{base}?{}", kept.join("&")) }
 }
 
 /// AWS: the region a bucket lives in. HEAD Bucket answers with `x-amz-bucket-region`, even
@@ -653,5 +696,49 @@ impl S3 {
                 Err(e)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn x_id_is_removed_and_gcs_detected() {
+        assert_eq!(without_x_id("https://h/b/k?x-id=GetObject"), "https://h/b/k");
+        assert_eq!(
+            without_x_id("https://h/b?list-type=2&x-id=ListObjectsV2&prefix=a"),
+            "https://h/b?list-type=2&prefix=a"
+        );
+        assert_eq!(without_x_id("https://h/?x-idx=1"), "https://h/?x-idx=1");
+        assert!(is_gcs("https://storage.googleapis.com"));
+        assert!(is_gcs("https://storage.googleapis.com:443/"));
+        assert!(!is_gcs("https://minio.example.com"));
+        assert!(!is_gcs("https://storage.googleapis.com.evil.example"));
+    }
+
+    /// Presigning runs the same interceptors as real requests, so this checks the client offline.
+    #[tokio::test]
+    async fn gcs_requests_carry_no_x_id() {
+        let link = |endpoint: &str| {
+            let c = make_client_in(
+                &Profile {
+                    endpoint: endpoint.into(),
+                    access_key: "GOOG1EXAMPLE".into(),
+                    secret_key: "secret".into(),
+                    path_style: true,
+                    ..Default::default()
+                },
+                "auto",
+            );
+            async move {
+                let cfg = PresigningConfig::expires_in(Duration::from_secs(60)).unwrap();
+                c.get_object().bucket("b").key("a.pdf").presigned(cfg).await.unwrap().uri().to_string()
+            }
+        };
+        let gcs = link("https://storage.googleapis.com").await;
+        assert!(gcs.starts_with("https://storage.googleapis.com/b/a.pdf?"), "{gcs}");
+        assert!(!gcs.contains("x-id"), "{gcs}");
+        assert!(link("https://minio.example.com").await.contains("x-id=GetObject"), "other servers unchanged");
     }
 }

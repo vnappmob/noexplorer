@@ -5,6 +5,10 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Google Cloud Storage accounts failed with "Invalid argument": requests no longer carry the
+  `x-id` query parameter that Google's XML API rejects.
+
 ## [0.4.17] - 2026-10-19
 
 ### Changed
