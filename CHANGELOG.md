@@ -5,6 +5,9 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Grid view: a selected tile shows only its light blue background, without the extra bold border.
+
 ## [0.4.14] - 2026-10-19
 
 ### Fixed
