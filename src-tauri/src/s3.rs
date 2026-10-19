@@ -365,7 +365,17 @@ impl S3 {
     /// CopyObject stops at 5 GB: bigger objects are copied in parts (UploadPartCopy), server-side.
     async fn copy_large(&self, c: &Client, bucket: &str, src: &str, dst: &str, size: u64) -> Result<(), String> {
         let part = (512 * 1024 * 1024u64).max(size.div_ceil(10_000));
-        let up = c.create_multipart_upload().bucket(bucket).key(dst).send().await.map_err(err)?;
+        // Unlike CopyObject, a multipart copy doesn't carry the source's metadata: keep its type.
+        let ct = c
+            .head_object()
+            .bucket(bucket)
+            .key(src)
+            .send()
+            .await
+            .ok()
+            .and_then(|h| h.content_type)
+            .unwrap_or_else(|| crate::util::upload_mime(dst, Path::new("")));
+        let up = c.create_multipart_upload().bucket(bucket).key(dst).content_type(ct).send().await.map_err(err)?;
         let id = up.upload_id().ok_or("no upload id")?.to_string();
         let source = format!("{bucket}/{}", crate::webdav::enc_path(src));
         let res: Result<Vec<CompletedPart>, String> = async {
@@ -462,7 +472,7 @@ impl S3 {
     /// Single PUT for small files, parallel multipart for large ones (aborted on failure).
     pub async fn upload_file(&self, bucket: &str, key: &str, path: &Path, size: u64, job: &Job) -> Result<(), String> {
         let c = self.client_for(bucket).await;
-        let ct = mime_guess::from_path(path).first_or_octet_stream().to_string();
+        let ct = crate::util::upload_mime(key, path);
         if size <= MULTIPART_THRESHOLD {
             job.gate(size).await; // one request: pause and speed limit before it, progress after
             let body = ByteStream::from_path(path).await.map_err(err)?;

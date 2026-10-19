@@ -350,7 +350,7 @@ impl Azure {
         size: u64,
         job: &Job,
     ) -> Result<(), String> {
-        let ct = mime_guess::from_path(path).first_or_octet_stream().to_string();
+        let ct = crate::util::upload_mime(key, path);
         let url = self.url(container, key);
         if size <= SINGLE_PUT_MAX {
             let body = reqwest::Body::wrap_stream(file_stream(path.to_path_buf(), 0, size, job));

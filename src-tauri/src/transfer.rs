@@ -304,7 +304,8 @@ pub async fn copy_remote(
                             j.flow(size).await;
                             return Ok(());
                         }
-                        let tmp = tmp_root.join(uuid::Uuid::new_v4().to_string());
+                        // Keep the file's name: providers that guess the type from the file see a real one.
+                        let tmp = tmp_root.join(uuid::Uuid::new_v4().to_string()).join(safe_rel(&file_name(&key)));
                         let r = async {
                             src.download_file(&sb, &key, &tmp, &j).await?;
                             dst.upload_file(&db, &dst_key, &tmp, size, &j).await

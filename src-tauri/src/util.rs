@@ -161,6 +161,15 @@ pub fn is_text_like(key: &str) -> bool {
     )
 }
 
+/// Content-Type for an upload: from the object's own name, else the local file's (a relayed copy's
+/// temp file), else `application/octet-stream`.
+pub fn upload_mime(key: &str, path: &std::path::Path) -> String {
+    mime_guess::from_path(key)
+        .first()
+        .or_else(|| mime_guess::from_path(path).first())
+        .map_or_else(|| "application/octet-stream".to_string(), |m| m.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -233,5 +242,13 @@ mod tests {
         impl std::error::Error for E {}
         let s = err(E("ồ".repeat(1000)));
         assert!(s.ends_with('…') && s.chars().count() == 401);
+    }
+
+    #[test]
+    fn upload_mime_prefers_the_object_name() {
+        use std::path::Path;
+        assert_eq!(upload_mime("docs/a.pdf", Path::new("/tmp/1b2c3d")), "application/pdf");
+        assert_eq!(upload_mime("noext", Path::new("/tmp/x/photo.jpg")), "image/jpeg");
+        assert_eq!(upload_mime("noext", Path::new("/tmp/1b2c3d")), "application/octet-stream");
     }
 }
