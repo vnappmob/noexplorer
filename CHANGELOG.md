@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.22] - 2026-10-19
+
 ### Changed
 - **Settings, redesigned**: a sidebar of sections; accounts with provider badges; adding an account
   starts from a grid of storage types; the account form is grouped (connection, sign-in, options)
