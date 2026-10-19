@@ -35,9 +35,10 @@ To reset the app to first-run state, delete the config file (paths in
 [ARCHITECTURE.md → Persistence](ARCHITECTURE.md#persistence)) and clear localStorage (in
 devtools: `localStorage.clear()`).
 
-Website: `npm run site` serves `/site` exactly as Cloudflare will (headers, 404 page) on
-http://localhost:8787. `python3 -m http.server 8765 --directory site` also works
-(`.claude/launch.json`). It's plain HTML/CSS/JS with no build step.
+Website: an Astro + Starlight project in `site/` (its own `package.json`). `npm run site:build`
+builds `site/dist`; `npm run site` builds it and serves it exactly as Cloudflare will (headers,
+404 page) with `wrangler dev` on http://localhost:8787 (`.claude/launch.json` uses port 8765). For
+live editing: `npm run dev --prefix site`.
 
 ## Checks (the same as CI)
 
@@ -68,6 +69,12 @@ skipped and the other tests still run. On a fresh clone, run `npm run build` onc
 | `local::tests::*` | Local listing (hidden files, crumbs), mkdir name validation |
 | `transfer::tests::collect_uploads_*` | Folder walk keeps structure and skips junk files |
 | `transfer::tests::s3_roundtrip` | Real server: create bucket → multipart upload of 40 MB → list → download and byte-compare → path-style presign → delete |
+| `transfer::tests::relay_copy_between_accounts` | Copy between two accounts through a temp file: bytes match, Content-Type kept (`application/pdf`), temp cleaned |
+| `compare::tests::*` | Pairing, junk, and Compare against a real S3 bucket (checksums) |
+| `proxy::tests::*`, `thumbs::tests::*` | `nxr://` URLs and Range reads of local files; thumbnail LRU, EXIF orientation, disk trim |
+| `trash::tests::*`, `scan::tests::*`, `sizes::tests::*` | Move to Trash guard and round-trip; folder-size scanner and live index |
+| `azure::tests::azurite_roundtrip`, `sftp::tests::sftp_roundtrip` | Azure Blob against Azurite (incl. `no-store` SAS links); SFTP against `atmoz/sftp` |
+| `jobs::tests::*`, `resume::tests::*` | Job events never deadlock; retries, throttling |
 | `transfer::tests::s3_resume`, `s3_pause_limit_journal` | Resumable transfers: multipart continued from the server's parts, `.part` download continued, pause, speed limit, journal |
 | `fileops::tests::*`, round-trips | Rename / move / duplicate never overwrite (local), and remote move/copy on S3, Nextcloud and the Box mock |
 | `tls::tests::pinning_against_untrusted_proxy` | Self-signed HTTPS: refused by default, works pinned (S3 incl. multipart, WebDAV), refused with a wrong pin |

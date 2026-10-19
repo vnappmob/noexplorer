@@ -13,6 +13,7 @@ use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
 
 use crate::jobs::Job;
+use crate::provider::Remote;
 use crate::state::AppState;
 use crate::util::{file_name, job_label, safe_rel, unique_path};
 
@@ -243,6 +244,27 @@ pub async fn download_rel(
     Ok(id)
 }
 
+/// Copies one file between two accounts through a temp file under `tmp_root`, which keeps the
+/// file's name: providers that guess the Content-Type from the file see a real one.
+async fn relay(
+    src: &Remote,
+    (sb, key): (&str, &str),
+    dst: &Remote,
+    (db, dst_key): (&str, &str),
+    size: u64,
+    tmp_root: &Path,
+    job: &Job,
+) -> Result<(), String> {
+    let tmp = tmp_root.join(uuid::Uuid::new_v4().to_string()).join(safe_rel(&file_name(key)));
+    let r = async {
+        src.download_file(sb, key, &tmp, job).await?;
+        dst.upload_file(db, dst_key, &tmp, size, job).await
+    }
+    .await;
+    let _ = tokio::fs::remove_file(&tmp).await;
+    r
+}
+
 /// Copies remote files/folders from one view's account to another's (drag between remote views).
 /// Same S3 account: server-side copy. Otherwise each file is relayed through a temp file (downloaded,
 /// uploaded, deleted), so any provider pair works. Paths below `src_prefix` are kept under
@@ -305,14 +327,7 @@ pub async fn copy_remote(
                             return Ok(());
                         }
                         // Keep the file's name: providers that guess the type from the file see a real one.
-                        let tmp = tmp_root.join(uuid::Uuid::new_v4().to_string()).join(safe_rel(&file_name(&key)));
-                        let r = async {
-                            src.download_file(&sb, &key, &tmp, &j).await?;
-                            dst.upload_file(&db, &dst_key, &tmp, size, &j).await
-                        }
-                        .await;
-                        let _ = tokio::fs::remove_file(&tmp).await;
-                        r
+                        relay(&src, (&sb, &key), &dst, (&db, &dst_key), size, &tmp_root, &j).await
                     }
                     .await;
                     match res {
@@ -567,6 +582,49 @@ mod tests {
         let before = c.list_all(bucket, "rt/").await.unwrap().len();
         assert_eq!(c.delete(bucket, vec!["rt/".into()], None).await.unwrap(), before + 1); // + the "rt/" key
         assert!(c.list_all(bucket, "rt/").await.unwrap().is_empty());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// Copy between two accounts (two clients, two buckets on dev S3; see `s3_roundtrip` for the env
+    /// vars): bytes arrive intact, the Content-Type comes from the name, and no temp file is left.
+    #[tokio::test]
+    async fn relay_copy_between_accounts() {
+        let Ok(endpoint) = std::env::var("NOEXPLORER_TEST_ENDPOINT") else {
+            eprintln!("skipping relay_copy_between_accounts: NOEXPLORER_TEST_ENDPOINT not set");
+            return;
+        };
+        let cfg = Profile {
+            endpoint,
+            access_key: std::env::var("NOEXPLORER_TEST_KEY").unwrap(),
+            secret_key: std::env::var("NOEXPLORER_TEST_SECRET").unwrap(),
+            ..Default::default()
+        };
+        let s3 = make_client(&cfg);
+        let (from, to) = ("noexplorer-test", "noexplorer-test-2");
+        let _ = s3.create_bucket().bucket(from).send().await;
+        let _ = s3.create_bucket().bucket(to).send().await;
+        let (a, b) = (Remote::new(&cfg), Remote::new(&cfg)); // two accounts: no server-side copy
+        let dir = tmp_dir();
+        let data: Vec<u8> = (0..(9 * 1024 * 1024 + 5)).map(|i| (i * 31 % 251) as u8).collect();
+        std::fs::write(dir.join("src.bin"), &data).unwrap();
+        let job = Job::untracked("copy", "t".into(), "", to, "");
+        a.upload_file(from, "rl/report final.pdf", &dir.join("src.bin"), data.len() as u64, &job).await.unwrap();
+
+        let tmp_root = dir.join("relay");
+        let size = data.len() as u64;
+        relay(&a, (from, "rl/report final.pdf"), &b, (to, "in/report final.pdf"), size, &tmp_root, &job).await.unwrap();
+
+        let head = s3.head_object().bucket(to).key("in/report final.pdf").send().await.unwrap();
+        assert_eq!(head.content_type(), Some("application/pdf"));
+        let out = dir.join("back.pdf");
+        b.download_file(to, "in/report final.pdf", &out, &job).await.unwrap();
+        assert_eq!(std::fs::read(&out).unwrap(), data);
+        let left =
+            walkdir::WalkDir::new(&tmp_root).into_iter().filter_map(Result::ok).filter(|e| e.file_type().is_file());
+        assert_eq!(left.count(), 0, "temp files left behind");
+
+        a.delete(from, vec!["rl/".into()], None).await.unwrap();
+        b.delete(to, vec!["in/".into()], None).await.unwrap();
         std::fs::remove_dir_all(dir).unwrap();
     }
 
