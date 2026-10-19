@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.20] - 2026-10-19
+
 ### Changed
 - **Azure Blob Storage** is a standard provider (no longer in Settings → Experimental), and only
   needs the storage account name and a key: the endpoint fills itself in.
