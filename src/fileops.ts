@@ -1,4 +1,4 @@
-// Rename, move, duplicate and one-step undo (experimental "file_ops"), in either pane.
+// Rename, move, duplicate and one-step undo, in either pane.
 // Local operations return at once (fileops.rs); remote ones run as a background job ("move" /
 // "dup") whose end refreshes the views (jobs.ts) and arms the undo.
 
@@ -8,7 +8,6 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { trashLocal } from "./actions";
 import type { Pane } from "./pane";
 import { local, remotes } from "./panes";
-import { exp } from "./state";
 import type { Item, JobEvent } from "./types";
 import { askText, fail, plural, toast } from "./util";
 
@@ -120,7 +119,7 @@ export async function duplicateItems(p: Pane, items: Item[]) {
 /** ⌘Z: reverses the last rename, move or duplicate (duplicates go to the Trash / get deleted). */
 export async function undo() {
   const u = last;
-  if (!u || !exp("file_ops")) return;
+  if (!u) return;
   last = null;
   try {
     if (u.side === "local") {

@@ -91,7 +91,7 @@ pub struct General {
     pub auto_sizes: bool,
     /// Settings → Experimental: features that ship off until the user turns them on.
     pub experimental: Experimental,
-    /// Transfer speed cap in KB/s (0 = no limit). Used with `experimental.resume`.
+    /// Transfer speed cap in KB/s (0 = no limit). Applies to every transfer.
     pub speed_limit_kbps: u64,
 }
 
@@ -112,18 +112,10 @@ impl Default for General {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 #[serde(default)]
 pub struct Experimental {
-    /// Rename, move, duplicate and undo, on both sides.
-    pub file_ops: bool,
-    /// Resumable transfers: continue after interruptions, retry, pause, speed limit.
-    pub resume: bool,
     /// Accounts may trust their server's self-signed HTTPS certificate.
     pub self_signed: bool,
     /// Saved local ↔ remote folder pairs: Compare and upload in one click.
     pub backup_pairs: bool,
-    /// Thumbnail grid view.
-    pub grid: bool,
-    /// Tabs, back/forward history and favorites.
-    pub tabs: bool,
     /// SFTP, Google Cloud Storage and Azure Blob accounts.
     pub providers: bool,
 }
@@ -394,7 +386,7 @@ pub fn set_active_profile(app: AppHandle, state: State<'_, AppState>, id: String
 #[tauri::command]
 pub fn save_general(app: AppHandle, state: State<'_, AppState>, general: General) -> Result<Settings, String> {
     let mut s = state.settings();
-    crate::resume::set_speed_limit(if general.experimental.resume { general.speed_limit_kbps } else { 0 });
+    crate::resume::set_speed_limit(general.speed_limit_kbps);
     s.general = general;
     commit(&app, &state, s)
 }

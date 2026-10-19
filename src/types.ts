@@ -29,17 +29,13 @@ export type General = {
   check_updates: boolean;
   auto_sizes: boolean;
   experimental: Experimental;
-  /** KB/s, 0 = no limit (experimental.resume). */
+  /** Transfer speed limit in KB/s, 0 = no limit. */
   speed_limit_kbps: number;
 };
 /** Settings → Experimental (all off by default). Mirrors `Experimental` in config.rs. */
 export type Experimental = {
-  file_ops: boolean;
-  resume: boolean;
   self_signed: boolean;
   backup_pairs: boolean;
-  grid: boolean;
-  tabs: boolean;
   providers: boolean;
 };
 

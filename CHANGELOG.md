@@ -5,6 +5,14 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Rename, move and duplicate**, **resumable transfers** (pause, retry, resume after quitting),
+  the **grid view** and **favorites** are now standard features, no longer in Settings →
+  Experimental. The speed limit moved to **Settings → General**.
+
+### Removed
+- Tabs and back/forward history (⌘T, Ctrl+Tab, ⌘[ ⌘]). Favorites stay: the star in the path bar.
+
 ### Website
 - Livelier home page: icons on the main points and features, a "works with" row, and a
   screenshot preview when the link is shared.

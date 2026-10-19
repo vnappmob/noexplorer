@@ -2,7 +2,7 @@
 // both panes' current folders. Entries are built fresh each time it opens, so they always reflect
 // the current state; actions reuse the same functions as buttons and shortcuts.
 
-import { favorites, openFavorite } from "./nav";
+import { favorites, openFavorite } from "./favorites";
 import { pairs, runPair, savePairFromPanes } from "./backups";
 import { invoke } from "@tauri-apps/api/core";
 import { calcSize, deleteRemote, mkdir, paneAction, remoteName, transfer, trashLocal, TRASH_LABEL } from "./actions";
@@ -47,7 +47,7 @@ function build(): Entry[] {
   cmd(app.showHidden ? "Hide hidden files" : "Show hidden files", "eye", () => paneAction(local, "hidden"));
   if (remotes.length < MAX_VIEWS) cmd("Split view: another account below", "split", () => splitView(remote), "⌘\\");
   if (remotes.length > 1) cmd("Close this remote view", "x", () => closeView(remote), "⌘W");
-  for (const f of exp("tabs") ? favorites() : [])
+  for (const f of favorites())
     out.push({
       group: "Favorites",
       label: f.name,

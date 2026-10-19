@@ -289,7 +289,7 @@ pub(crate) fn part_path(path: &Path) -> PathBuf {
     PathBuf::from(tmp)
 }
 
-/// Bytes already in the `.part` to continue from: only for resumable jobs (experimental `resume`).
+/// Bytes already in the `.part` to continue from: only for resumable jobs.
 pub(crate) async fn resume_offset(tmp: &Path, job: &Job) -> u64 {
     if !job.resume {
         return 0;

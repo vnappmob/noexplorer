@@ -569,7 +569,7 @@ mod tests {
         let listed = c.list(bucket, "rt/folder/").await.unwrap();
         assert!(listed.iter().any(|e| e.dir && e.key == "rt/folder/sub/"));
 
-        // Rename, duplicate a folder, and never overwrite (file ops, experimental).
+        // Rename, duplicate a folder, and never overwrite (file ops).
         c.transfer_within(bucket, "rt/copy/xin chào #1.txt", "rt/copy/renamed.txt", false, None).await.unwrap();
         let copy_dir = c.list_all(bucket, "rt/copy/").await.unwrap();
         assert!(copy_dir.iter().any(|(k, _)| k == "rt/copy/renamed.txt"));

@@ -8,7 +8,7 @@ import { listen } from "@tauri-apps/api/event";
 import { icon } from "./icons";
 import { local, remotes } from "./panes";
 import { openRemote } from "./settings";
-import { app, exp } from "./state";
+import { app } from "./state";
 import type { Pane } from "./pane";
 import type { JobEvent, PendingJob } from "./types";
 import { $, esc, fail, fmtSize, plural, toast } from "./util";
@@ -69,13 +69,13 @@ const numbersOf = (j: JobView) => {
         : "Failed";
 };
 
-/** Pause / resume for a running transfer (experimental resume). */
+/** Pause / resume for a running transfer. */
 const pauseBtn = (j: JobView) =>
-  exp("resume") && j.status === "running" && !isItemJob(j)
+  j.status === "running" && !isItemJob(j)
     ? `<button class="ib" data-pause="${j.id}" data-on="${!j.paused}" title="${j.paused ? "Resume" : "Pause"}" aria-label="${j.paused ? "Resume" : "Pause"} transfer">${icon(j.paused ? "play" : "pause")}</button>`
     : "";
 
-// ---------- interrupted transfers (experimental resume) ----------
+// ---------- interrupted transfers ----------
 
 let interrupted: PendingJob[] = [];
 
@@ -92,7 +92,6 @@ function renderResume() {
 
 /** At startup: offer to resume transfers the app was closed (or crashed) in the middle of. */
 export async function checkInterrupted() {
-  if (!exp("resume")) return;
   interrupted = await invoke<PendingJob[]>("interrupted_jobs").catch(() => []);
   scheduleRender();
 }

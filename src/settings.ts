@@ -1,7 +1,7 @@
 // Settings dialog (Accounts / General / Appearance / About tabs), the account picker and the
 // bucket picker in the remote pane header.
 
-import { favoritesMenuItems, openFavorite } from "./nav";
+import { favoritesMenuItems, openFavorite } from "./favorites";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -342,6 +342,7 @@ async function syncGeneralControls() {
   box("run_in_background").checked = g.run_in_background;
   box("check_updates").checked = g.check_updates;
   box("auto_sizes").checked = g.auto_sizes;
+  box("speed_limit").value = g.speed_limit_kbps ? String(g.speed_limit_kbps) : "";
   box("launch_at_login").checked = await invoke<boolean>("autostart_enabled").catch(() => false);
 }
 
@@ -357,6 +358,7 @@ async function onGeneralChange(ev: Event) {
       run_in_background: box("run_in_background").checked,
       check_updates: box("check_updates").checked,
       auto_sizes: box("auto_sizes").checked,
+      speed_limit_kbps: Math.max(0, Math.floor(Number(box("speed_limit").value) || 0)),
     };
     app.settings = await invoke<Settings>("save_general", { general });
     if (name === "auto_sizes") general.auto_sizes ? requestSizes() : stopSizes();

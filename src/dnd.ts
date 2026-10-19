@@ -13,7 +13,7 @@ import { transfer } from "./actions";
 import { moveItems } from "./fileops";
 import type { Pane } from "./pane";
 import { local, paneOf } from "./panes";
-import { activeProfile, exp } from "./state";
+import { activeProfile } from "./state";
 import type { Item } from "./types";
 import { $, plural } from "./util";
 
@@ -89,11 +89,10 @@ function setupInternalDrag() {
     g.style.left = `${ev.clientX + 14}px`;
     g.style.top = `${ev.clientY + 10}px`;
     const t = dropTargetAt(ev.clientX, ev.clientY);
-    // Cross-pane drops copy. With file ops on, dropping on a folder (row or crumb) in the same pane
-    // moves there, but never onto one of the dragged items or into the folder they're already in.
+    // Cross-pane drops copy. Dropping on a folder (row or crumb) in the same pane moves there, but
+    // never onto one of the dragged items or into the folder they're already in.
     const sameOk =
       !!t?.el &&
-      exp("file_ops") &&
       t.pane === drag.from &&
       t.dir.replace(/[\\/]+$/, "") !== drag.from.cwd.replace(/[\\/]+$/, "") &&
       !drag.items.some((e) => t.dir === e.key || t.dir.startsWith(e.key.replace(/[\\/]*$/, "/")));

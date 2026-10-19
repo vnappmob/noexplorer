@@ -23,6 +23,4 @@ On Windows and Linux, use <kbd>Ctrl</kbd> where this page says <kbd>⌘</kbd>.
 | <kbd>⌘ F</kbd> | Filter the current folder |
 | <kbd>⌘ R</kbd> | Refresh |
 | <kbd>⌘ ,</kbd> | Settings |
-| <kbd>F2</kbd> · <kbd>⌘ Z</kbd> | Rename · undo the last rename, move or duplicate *(experimental)* |
-| <kbd>⌘ [</kbd> <kbd>⌘ ]</kbd> | Back / forward *(experimental)* |
-| <kbd>⌘ T</kbd> · <kbd>Ctrl Tab</kbd> | New tab · next tab (⌘W closes a tab) *(experimental)* |
+| <kbd>F2</kbd> · <kbd>⌘ Z</kbd> | Rename · undo the last rename, move or duplicate |

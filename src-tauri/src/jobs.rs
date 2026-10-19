@@ -42,7 +42,7 @@ pub struct Job {
     pub src_dir: Mutex<Option<String>>,
     /// Set from the UI (`resume::pause`); data flow waits while it's on.
     paused: Arc<AtomicBool>,
-    /// Experimental `resume` was on when the job started: retries, `.part` continuation, journals.
+    /// Retries, `.part` continuation and journals (off only for untracked jobs, e.g. in tests).
     pub resume: bool,
 }
 
@@ -52,7 +52,7 @@ pub struct Flow {
     done: Arc<AtomicU64>,
     cancel: Arc<AtomicBool>,
     paused: Arc<AtomicBool>,
-    /// The speed limit applies (the job started with experimental `resume` on).
+    /// The speed limit applies (tracked jobs; tests run untracked ones unthrottled).
     limited: bool,
 }
 
@@ -106,7 +106,7 @@ pub struct JobEvent {
     src_bucket: Option<String>,
     /// Uploads and copies: the folder the files come from.
     src_dir: Option<String>,
-    /// Paused from the UI (experimental `resume`).
+    /// Paused from the UI.
     paused: bool,
 }
 
@@ -146,7 +146,7 @@ impl Job {
     ) -> Arc<Job> {
         let mut job = Job::untracked(kind, label, account, bucket, prefix);
         let st = app.state::<AppState>();
-        job.resume = st.settings().general.experimental.resume;
+        job.resume = true;
         st.cancels.lock().unwrap().insert(job.id.clone(), job.cancel.clone());
         st.pauses.lock().unwrap().insert(job.id.clone(), job.paused.clone());
         Arc::new(job)

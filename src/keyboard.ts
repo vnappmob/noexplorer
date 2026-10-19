@@ -1,13 +1,11 @@
 // Global keyboard shortcuts. The full table is in README.md — update both together.
 
-import { back, closeTab, cycleTab, forward, newTab, tabCount } from "./nav";
 import { deleteRemote, openItem, transfer, trashLocal } from "./actions";
 import { active, closeView, cyclePane, local, remote, remotes, switchTo } from "./panes";
 import { closePreview, openPreview, previewStep, pv, pvItem } from "./preview";
 import { openSettings, splitView } from "./settings";
 import { editPath, openPalette } from "./palette";
 import { renameItem, undo } from "./fileops";
-import { exp } from "./state";
 import { $ } from "./util";
 
 function onKey(ev: KeyboardEvent) {
@@ -32,21 +30,11 @@ function onKey(ev: KeyboardEvent) {
   if (mod && ev.key === "k") return (ev.preventDefault(), openPalette());
   if (mod && ev.key === "l") return (ev.preventDefault(), editPath(active));
   if (mod && ev.key === "f") return (ev.preventDefault(), active.toggleFilter(true));
-  // File ops (experimental): F2 renames, ⌘Z undoes the last rename / move / duplicate.
-  if (exp("file_ops") && !inInput) {
+  // File ops: F2 renames, ⌘Z undoes the last rename / move / duplicate.
+  if (!inInput) {
     if (ev.key === "F2" && active.selectedItems().length === 1)
       return (ev.preventDefault(), renameItem(active, active.selectedItems()[0]));
     if (mod && ev.key.toLowerCase() === "z" && !ev.shiftKey) return (ev.preventDefault(), undo());
-  }
-  // Tabs and history (experimental): ⌘[ ⌘] back / forward, ⌘T new tab, Ctrl+Tab next tab, and ⌘W
-  // closes a tab before it closes a remote view.
-  if (exp("tabs")) {
-    if (mod && ev.key === "[") return (ev.preventDefault(), back(active));
-    if (mod && ev.key === "]") return (ev.preventDefault(), forward(active));
-    if (mod && !ev.shiftKey && ev.key.toLowerCase() === "t") return (ev.preventDefault(), newTab(active));
-    if (ev.ctrlKey && ev.key === "Tab" && tabCount(active) > 1)
-      return (ev.preventDefault(), cycleTab(active, ev.shiftKey ? -1 : 1));
-    if (mod && ev.key.toLowerCase() === "w" && tabCount(active) > 1) return (ev.preventDefault(), closeTab(active));
   }
   if (ev.key === "Tab" && !inInput) return (ev.preventDefault(), cyclePane(ev.shiftKey));
   // Remote views (ADR-029): ⌘\ splits the focused view, ⌘W closes it (never the last one).
@@ -71,7 +59,7 @@ function onKey(ev: KeyboardEvent) {
     case ev.key === "Enter" || (ev.key === "ArrowDown" && mod):
       if (sel.length === 1) p.activate(sel[0]);
       break;
-    // Grid view (experimental): arrows move around the grid; Tab still switches panes.
+    // Grid view: arrows move around the grid; Tab still switches panes.
     case p.isGrid && !mod && (ev.key === "ArrowLeft" || ev.key === "ArrowRight"):
       p.selectIndex(
         i < 0 ? 0 : Math.max(0, Math.min(p.view.length - 1, i + (ev.key === "ArrowLeft" ? -1 : 1))),

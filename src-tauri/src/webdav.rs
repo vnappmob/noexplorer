@@ -939,7 +939,7 @@ mod tests {
         assert!(share.contains("/s/"), "public share link expected, got {share}");
         d.mkdir("Files", "rt/", "new folder").await.unwrap();
         assert!(d.list("Files", "rt/").await.unwrap().iter().any(|e| e.key == "rt/new folder/"));
-        // Move, copy a folder, and Overwrite: F (file ops, experimental).
+        // Move, copy a folder, and Overwrite: F (file ops).
         d.transfer_within("Files", "rt/a b/c/small.txt", "rt/moved.txt", false, None).await.unwrap();
         assert_eq!(d.read_head("Files", "rt/moved.txt", 3).await.unwrap(), b"sma");
         d.transfer_within("Files", "rt/a b/", "rt/a b copy/", true, None).await.unwrap();

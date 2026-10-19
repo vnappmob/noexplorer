@@ -734,3 +734,20 @@ running app's cache is never touched. The thumbnail disk cap drops to 48 MB (tri
 **Consequences.** On disk: ≤ 48 MB thumbnails + ≤ 16 MB WebKit cache at launch, plus whatever
 WebKit keeps during one session (only non-preview responses now). Reopening a previewed file
 downloads it again. WebView2 and WebKitGTK manage their own caches.
+
+<a id="adr-038"></a>
+
+## ADR-038: Four experiments become standard; tabs and history are removed
+Accepted · 2026-10-19
+
+**Context.** After a few days of use the maintainer judged rename / move / duplicate, resumable
+transfers, the thumbnail grid and favorites good enough to keep, and tabs / back-forward history not
+worth their space (ADR-031 batch).
+**Decision.** Those four are always on: their `exp()` gates and the `file_ops`, `resume`, `grid`,
+`tabs` fields of `Experimental` are gone (old configs still load; unknown fields are ignored).
+Every tracked job is resumable (`Job::resume`), and the speed limit moves to Settings → General.
+Favorites keep the path-bar star and live in `favorites.ts`; `nav.ts` (tabs, history, ⌘[ ⌘] ⌘T
+Ctrl+Tab, mouse back/forward) is deleted, and ⌘W only closes a remote view again.
+**Consequences.** Fewer header buttons and shortcuts. The pause button, resume banner, F2/⌘Z,
+same-pane drag-to-move and the grid button show for everyone, so their docs moved from the
+Experimental page into Moving files and Compare, sizes & more.

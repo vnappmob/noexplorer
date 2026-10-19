@@ -1330,7 +1330,7 @@ mod tests {
         assert!(b2.link("", "docs/n0.txt", 7 * 86_400, false).await.unwrap().contains("/s/"));
         b2.mkdir("", "docs/", "made").await.unwrap();
         assert!(b2.list("", "docs/").await.unwrap().iter().any(|e| e.key == "docs/made/"));
-        // Rename, copy, and Box's 409 for a taken name (file ops, experimental).
+        // Rename, copy, and Box's 409 for a taken name (file ops).
         b2.transfer_within("", "docs/n0.txt", "docs/renamed.txt", false, None).await.unwrap();
         assert!(b2.list("", "docs/").await.unwrap().iter().any(|e| e.key == "docs/renamed.txt"));
         b2.transfer_within("", "docs/renamed.txt", "docs/made/renamed.txt", true, None).await.unwrap();

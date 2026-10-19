@@ -1,4 +1,4 @@
-//! Resumable transfers (experimental `resume`): the global speed limit, retries, and two small
+//! Resumable transfers: the global speed limit, retries, and two small
 //! journals in the app config folder that survive a quit or crash.
 //!
 //! - `pending.json`: transfers that started but didn't finish. On the next launch the UI offers to

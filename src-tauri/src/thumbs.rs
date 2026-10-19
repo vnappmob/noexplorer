@@ -1,4 +1,4 @@
-//! Grid thumbnails (experimental "grid"): small JPEGs (PNG when the image has transparency) made
+//! Grid thumbnails: small JPEGs (PNG when the image has transparency) made
 //! from the file itself, so the grid shows 20 KB pictures instead of decoding whole photos, and
 //! scrolling back doesn't download anything again. Served by `proxy.rs` as
 //! `nxr://localhost/~thumb/<account | ~local>/<container>/<key>?<size>-<modified>`.

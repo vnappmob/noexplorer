@@ -1,6 +1,6 @@
 ---
 title: Compare, sizes & more
-description: Compare folders with checksums, folder sizes, quick look, share links and the command palette.
+description: Compare folders with checksums, folder sizes, grid view, favorites, quick look, share links and the command palette.
 sidebar:
   order: 4
 ---
@@ -17,6 +17,16 @@ After a backup, check that everything arrived. Right-click a folder and choose *
 ## Folder sizes
 
 On your computer, folders show their size as you browse, scanned in the background and kept up to date. The bar at the bottom of the left pane shows the folder against your whole disk. For remote folders, select them and click **Σ Size**.
+
+## Grid view
+
+The list / grid button in each pane header switches to big tiles with thumbnails of images and videos, on this computer and remote. Arrow keys move around the grid.
+
+Image thumbnails are made once and kept in your system's cache folder (at most 48 MB; the least recently seen go first), so scrolling back and reopening a folder is instant. Photos and videos you open in quick look aren't kept on disk; with the thumbnails, NoExplorer's cache stays under about 70 MB. Remote images over 25 MB keep their icon.
+
+## Favorites
+
+Click the star in the path bar to save the folder you're in. Favorites show up in the places menu (this computer), the account menu (remote) and <kbd>⌘ K</kbd>. Click the star again to remove it.
 
 ## Quick look
 

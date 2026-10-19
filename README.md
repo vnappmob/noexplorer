@@ -61,6 +61,12 @@ and you're done.
 - **Runs in the background**: close the window and NoExplorer stays in the menu bar / tray,
   showing transfer progress there.
 - **Auto-updates**: new versions install in place with one click.
+- **Pause, resume and retry**: running transfers can be paused, failed files retry on their own,
+  and transfers cut short by quitting or a crash continue on the next launch. Optional speed limit.
+- **Rename, move and duplicate** on both sides (F2, right-click, drag onto a folder), with ⌘Z
+  undo. Nothing is ever overwritten.
+- **Grid view** with image and video thumbnails, cached (48 MB at most on disk).
+- **Favorites**: star a folder, local or remote, and reach it from the places menu or ⌘K.
 - **Σ Size** for any folder, local or remote. A path bar always shows where you are.
 - Copy a 7-day share link, create folders, delete remote files (in the background, with
   progress), follow and cancel every transfer. Theme and text size settings, resizable panes.
@@ -71,11 +77,6 @@ and you're done.
 Newer features ship in **Settings → Experimental**, off until you turn them on
 ([docs](https://noexplorer.vnappmob.com/docs/experimental/)):
 
-- **Rename, move and duplicate** on both sides, with ⌘Z undo. Nothing is ever overwritten.
-- **Resumable transfers**: automatic retries, pause, a speed limit, and transfers cut short by
-  quitting continue on the next launch.
-- **Thumbnail grid** for images and videos, with cached thumbnails (48 MB at most on disk).
-- **Tabs, back/forward history and favorites** in each pane.
 - **Backup pairs**: save "this folder ↔ that remote folder" and back it up in one click.
 - **Self-signed HTTPS**: trust a NAS's own certificate after comparing its fingerprint.
 - **More storage**: Google Cloud Storage, Azure Blob Storage and SFTP.
@@ -143,8 +144,7 @@ shortcuts, FAQ and [privacy](https://noexplorer.vnappmob.com/docs/privacy).
 | `⌘L` | Type a path |
 | `⌘\` · `⌘W` | Split the remote side (another account below) · close the focused remote view |
 | `⌘R` · `⌘F` · `⌘,` | Refresh · Filter · Settings |
-| `F2` · `⌘Z` | Rename · undo the last rename / move / duplicate *(experimental)* |
-| `⌘[` `⌘]` · `⌘T` · `Ctrl+Tab` | Back / forward · new tab · next tab *(experimental)* |
+| `F2` · `⌘Z` | Rename · undo the last rename / move / duplicate |
 
 ## Limitations
 

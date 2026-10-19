@@ -4,7 +4,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { kindOf } from "./files";
 import { icon } from "./icons";
-import { app, exp } from "./state";
+import { app } from "./state";
 import type { BucketInfo, Crumb, Item, LocalListing, Profile, SortBy } from "./types";
 import { $, esc, fail, fmtDate, fmtSize, plural, store } from "./util";
 
@@ -21,7 +21,7 @@ const FILE_ICON: Record<string, string> = {
 
 /** Rows kept in the DOM beyond the visible ones, on each side (see `drawRows`). */
 const OVERSCAN = 15;
-/** Grid view (experimental): grid rows kept beyond the visible ones. */
+/** Grid view: grid rows kept beyond the visible ones. */
 const GRID_OVERSCAN = 3;
 
 export const paneHooks = {
@@ -85,7 +85,7 @@ export class Pane {
   bucket = "";
   /** Containers of `account` (the bucket picker). */
   buckets: BucketInfo[] = [];
-  /** List or grid (experimental "grid"), per pane kind. */
+  /** List or grid, per pane kind. */
   mode: "list" | "grid";
   /** Grid view: tiles per row (measured in `drawRows`). */
   cols = 1;
@@ -132,10 +132,10 @@ export class Pane {
 
   /** Grid view is on (and allowed: the experiment can be turned off later). */
   get isGrid() {
-    return this.mode === "grid" && exp("grid");
+    return this.mode === "grid";
   }
 
-  /** Switches between list and grid (experimental), keeping the selection in view. */
+  /** Switches between list and grid, keeping the selection in view. */
   setMode(mode: "list" | "grid") {
     this.mode = mode;
     store.set(`${this.kind}.view`, mode);
@@ -146,10 +146,9 @@ export class Pane {
     if (i >= 0) this.reveal(i);
   }
 
-  /** Header button and list class follow the mode and the experiment. */
+  /** Header button and list class follow the mode. */
   applyMode() {
     const b = this.q<HTMLButtonElement>(".view-btn");
-    b.hidden = !exp("grid");
     b.innerHTML = icon(this.isGrid ? "list" : "grid");
     b.title = this.isGrid ? "List view" : "Grid view";
     this.list.classList.toggle("grid", this.isGrid);

@@ -48,10 +48,12 @@ third-party desktop apps.
 **Done in 0.4.1:** live folder sizes (ADR-022) · Move to Trash (ADR-023) · live folder view ·
 virtualized lists (ADR-021) · tray account switcher.
 
-**Experimental (Settings → Experimental, off by default, ADR-031), 2026-10-18:** rename / move /
-duplicate with undo on both sides (parts of 1 and 2), tabs / history / favorites (3), resumable
-transfers with pause and a speed limit, backup pairs, thumbnail grid, self-signed HTTPS
-(ADR-032), Google Cloud Storage / Azure Blob / SFTP (ADR-033). (A native window look and a Vietnamese UI shipped too and were removed at the maintainer's request.)
+**Standard since 2026-10-19 (ADR-038):** rename / move / duplicate with undo on both sides (parts of
+1 and 2), favorites, resumable transfers with pause and a speed limit, thumbnail grid. Tabs and
+back/forward history were tried and removed (not useful enough).
+**Still experimental (Settings → Experimental, off by default, ADR-031):** backup pairs, self-signed
+HTTPS (ADR-032), Google Cloud Storage / Azure Blob / SFTP (ADR-033). (A native window look and a
+Vietnamese UI shipped too and were removed at the maintainer's request.)
 Next for them: real-world runs, then graduating each one out of Experimental.
 
 1. **Local file operations**: rename (F2 / click-to-rename), duplicate, copy/move between local

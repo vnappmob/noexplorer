@@ -37,19 +37,17 @@
           <button class="chip" id="places-chip" aria-haspopup="menu"><span class="chip-ico" data-icon="drive"></span><span class="chip-label">This computer</span><span class="chip-sub" id="places-sub"></span><span class="chev" data-icon="chevDown"></span></button>
           <span class="grow"></span>
           <input class="filter" type="search" placeholder="Filter…" spellcheck="false" aria-label="Filter this folder" hidden />
-          <button class="ib view-btn" title="Grid view" aria-label="Switch between list and grid" hidden><span data-icon="grid"></span></button>
+          <button class="ib view-btn" title="Grid view" aria-label="Switch between list and grid"><span data-icon="grid"></span></button>
           <button class="ib filter-btn" title="Filter (⌘F)" aria-label="Filter"><span data-icon="search"></span></button>
           <button class="ib mkdir-btn" title="New folder" aria-label="New folder"><span data-icon="folderPlus"></span></button>
           <button class="ib refresh" title="Refresh (⌘R)" aria-label="Refresh"><span data-icon="refresh"></span></button>
           <button class="ib more-btn" title="More" aria-label="More actions"><span data-icon="more"></span></button>
         </header>
         <nav class="pathbar" aria-label="Path">
-          <button class="ib back" title="Back (⌘[)" aria-label="Back" hidden><span data-icon="arrowLeft"></span></button>
-          <button class="ib fwd" title="Forward (⌘])" aria-label="Forward" hidden><span data-icon="arrowRight"></span></button>
           <button class="ib up" title="Up one folder (⌫)" aria-label="Up one folder"><span data-icon="arrowUp"></span></button>
           <div class="crumbs" title="Click empty space to type a path (⌘L)"></div>
           <input class="path-input" spellcheck="false" autocomplete="off" aria-label="Go to path" hidden />
-          <button class="ib fav-btn" title="Add to favorites" aria-label="Favorite" hidden><span data-icon="star"></span></button>
+          <button class="ib fav-btn" title="Add to favorites" aria-label="Favorite"><span data-icon="star"></span></button>
           <button class="ib copy-path" title="Copy path" aria-label="Copy path"><span data-icon="copy"></span></button>
           <button class="sum calc-size" title="Total size of this folder (or the selected folders)"><span data-icon="sigma"></span><span class="dirsize">Size</span></button>
         </nav>
@@ -98,7 +96,7 @@
           <button class="chip bucket-chip" aria-haspopup="menu"><span class="chip-ico bucket-ico" data-icon="bucket"></span><span class="chip-label bucket-label">—</span><span class="chev" data-icon="chevDown"></span></button>
           <span class="grow"></span>
           <input class="filter" type="search" placeholder="Filter…" spellcheck="false" aria-label="Filter this folder" hidden />
-          <button class="ib view-btn" title="Grid view" aria-label="Switch between list and grid" hidden><span data-icon="grid"></span></button>
+          <button class="ib view-btn" title="Grid view" aria-label="Switch between list and grid"><span data-icon="grid"></span></button>
           <button class="ib filter-btn" title="Filter (⌘F)" aria-label="Filter"><span data-icon="search"></span></button>
           <button class="ib mkdir-btn" title="New folder" aria-label="New folder"><span data-icon="folderPlus"></span></button>
           <button class="ib refresh" title="Refresh (⌘R)" aria-label="Refresh"><span data-icon="refresh"></span></button>
@@ -107,12 +105,10 @@
           <button class="ib close-view" title="Close this view (⌘W)" aria-label="Close this view" hidden><span data-icon="x"></span></button>
         </header>
         <nav class="pathbar" aria-label="Path">
-          <button class="ib back" title="Back (⌘[)" aria-label="Back" hidden><span data-icon="arrowLeft"></span></button>
-          <button class="ib fwd" title="Forward (⌘])" aria-label="Forward" hidden><span data-icon="arrowRight"></span></button>
           <button class="ib up" title="Up one folder (⌫)" aria-label="Up one folder"><span data-icon="arrowUp"></span></button>
           <span class="scheme">s3://</span><div class="crumbs" title="Click empty space to type a path (⌘L)"></div>
           <input class="path-input" spellcheck="false" autocomplete="off" aria-label="Go to path" hidden />
-          <button class="ib fav-btn" title="Add to favorites" aria-label="Favorite" hidden><span data-icon="star"></span></button>
+          <button class="ib fav-btn" title="Add to favorites" aria-label="Favorite"><span data-icon="star"></span></button>
           <button class="ib copy-path" title="Copy path" aria-label="Copy path"><span data-icon="copy"></span></button>
           <button class="sum calc-size" title="Total size of this folder (or the selected folders)"><span data-icon="sigma"></span><span class="dirsize">Size</span></button>
         </nav>
@@ -226,6 +222,9 @@
           <label class="check"><input type="checkbox" name="check_updates" />
             <span><b>Check for updates automatically</b><br /><small>At startup and every few hours. Updates install in place, with no reinstall needed.</small></span>
           </label>
+          <label class="field">Speed limit for transfers (KB/s, empty = no limit)
+            <input id="speed-limit" name="speed_limit" type="number" min="0" step="100" placeholder="No limit" />
+          </label>
           <div class="buttons"><button type="button" class="check-updates">Check for updates now</button></div>
         </form>
       </section>
@@ -253,9 +252,6 @@
         <p class="hint">Features still being tested. They're off until you turn them on, and may change.</p>
         <form id="exp-form">
           <div id="exp-list"></div>
-          <label class="field" id="speed-row" hidden>Speed limit (KB/s, empty = no limit)
-            <input id="speed-limit" type="number" min="0" step="100" placeholder="No limit" />
-          </label>
         </form>
       </section>
 

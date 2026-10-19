@@ -22,6 +22,14 @@ Close the window and NoExplorer keeps going from the menu bar (macOS) or system 
 
 If you open other folders while files are moving, a strip above the panes keeps showing each transfer: the full path on each side, lined up with its pane, and the files flowing between them (one strip per transfer). Click a side to open that folder, or the middle to open both.
 
+## Pause, resume and speed limit
+
+Each running transfer has a pause button in the transfer card. Failed files retry on their own when the network drops. If NoExplorer is closed (or crashes) in the middle of a transfer, the card offers **Resume** the next time you open it: files already transferred are skipped, unfinished downloads continue where they stopped, and big S3 uploads continue from the parts already on the server. To cap the bandwidth, set a speed limit in **Settings → General**.
+
+## Rename, move and duplicate
+
+<kbd>F2</kbd> renames the selected file or folder. The right-click menu has **Move to…** and **Duplicate**, and dragging onto a folder in the same pane moves there. <kbd>⌘ Z</kbd> undoes the last one. It works on this computer and on remotes, and never replaces a file that's already there.
+
 ## Your local files are safe
 
 - Downloads never overwrite: if a file exists, the new one becomes `name (1).ext`.

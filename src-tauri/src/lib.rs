@@ -76,7 +76,7 @@ pub fn run() {
             resume::init(app.handle());
             thumbs::init(app.handle());
             let g = &settings.general;
-            resume::set_speed_limit(if g.experimental.resume { g.speed_limit_kbps } else { 0 });
+            resume::set_speed_limit(g.speed_limit_kbps);
             app.state::<state::AppState>().set_settings(settings.clone());
             // Clean previews left over from earlier sessions.
             let _ = std::fs::remove_dir_all(transfer::temp_root());

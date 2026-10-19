@@ -4,7 +4,7 @@ import { paneAction, remoteName, TRASH_LABEL } from "./actions";
 import { icon } from "./icons";
 import type { Pane } from "./pane";
 import { local, MAX_VIEWS, remote, remotes } from "./panes";
-import { app, exp } from "./state";
+import { app } from "./state";
 import { $, esc } from "./util";
 
 type Item = [action: string, label: string, iconName: string];
@@ -28,7 +28,7 @@ export function showMenu(p: Pane, x: number, y: number, above = false) {
   if (!p.isRemote) items.push(["reveal", "Show in Finder / Explorer", "search"]);
   if (one && p.isRemote && !one.dir) items.push(["link", "Copy 7-day link", "link"]);
   if (one) items.push(["copy-path", "Copy path", "copy"]);
-  if (sel.length && exp("file_ops")) {
+  if (sel.length) {
     items.push("-");
     if (one) items.push(["rename", "Rename…", "pencil"]);
     items.push(["move", "Move to…", "folder"], ["duplicate", "Duplicate", "copy"]);

@@ -1,4 +1,4 @@
-//! Rename, move and duplicate (experimental `file_ops`), on this computer and on remotes.
+//! Rename, move and duplicate on this computer and on remotes.
 //!
 //! Local operations are plain renames on the same disk and never overwrite: a name that's taken is
 //! an error, and duplicates get "name copy.ext". Moving to another disk would mean deleting the
