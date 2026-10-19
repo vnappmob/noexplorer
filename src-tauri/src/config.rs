@@ -59,6 +59,8 @@ pub struct Profile {
     /// SHA-256 fingerprint ("AB:CD:…") of the server certificate this account trusts even though
     /// the system doesn't (self-signed HTTPS, experimental; tls.rs). Empty = normal checks only.
     pub cert_pin: String,
+    /// Google Cloud Storage: the project whose buckets the bucket picker lists (`x-amz-project-id`, s3.rs).
+    pub project: String,
 }
 
 impl Default for Profile {
@@ -75,6 +77,7 @@ impl Default for Profile {
             path_style: true,
             keychain: false,
             cert_pin: String::new(),
+            project: String::new(),
         }
     }
 }

@@ -49,6 +49,8 @@ Turn on **Settings → Experimental → More storage types** to add these to the
 
 Uses Google's S3-compatible API. In the Cloud console: **Cloud Storage → Settings → Interoperability → Create a key**. Endpoint `https://storage.googleapis.com`, region `auto`, and the key's access ID and secret.
 
+To list your buckets, Google needs to know the project: fill in **Project ID** (shown on the console's project picker), or set a *default project for interoperable access* on the same Interoperability page, or enter a **Default bucket**. Otherwise the test says "Project number must be specified".
+
 ### Azure Blob Storage
 
 Endpoint `https://<account>.blob.core.windows.net`, the storage account name, and one of its keys (**Storage account → Security + networking → Access keys**). Containers show up like buckets.

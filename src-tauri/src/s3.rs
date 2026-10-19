@@ -54,7 +54,7 @@ pub fn make_client_in(p: &Profile, region: &str) -> Client {
         .response_checksum_validation(ResponseChecksumValidation::WhenRequired);
     let endpoint = normalize_endpoint(&p.endpoint);
     if is_gcs(&endpoint) {
-        b = b.interceptor(DropXId);
+        b = b.interceptor(Gcs { project: p.project.trim().to_string() });
     }
     if !endpoint.is_empty() && !is_aws(p) {
         b = b.endpoint_url(endpoint);
@@ -69,9 +69,14 @@ pub fn make_client_in(p: &Profile, region: &str) -> Client {
     Client::from_conf(b.build())
 }
 
-/// Google Cloud Storage's XML API (HMAC keys) speaks S3, but rejects query parameters it doesn't
-/// know with "Invalid argument". The SDK tags many requests with `x-id=<Operation>` (ListBuckets,
-/// GetObject, PutObject, UploadPart…), purely informational, so for GCS it's removed before signing.
+/// Google Cloud Storage's XML API (HMAC keys) speaks S3 with two differences, handled before signing:
+/// - it rejects query parameters it doesn't know with "Invalid argument", and the SDK tags many
+///   requests with `x-id=<Operation>` (ListBuckets, GetObject, PutObject, UploadPart…), purely
+///   informational, so it's removed;
+/// - listing buckets needs the project ("Project number must be specified") unless the key's account
+///   has a default project for interoperable access. It goes in `x-amz-project-id`: Google maps
+///   `x-amz-*` to its `x-goog-*` headers, and refuses a request that mixes the two families
+///   (`ExcessHeaderValues`), which SigV4's own `x-amz-date` would do with `x-goog-project-id`.
 fn is_gcs(endpoint: &str) -> bool {
     endpoint
         .split("://")
@@ -83,11 +88,13 @@ fn is_gcs(endpoint: &str) -> bool {
 }
 
 #[derive(Debug)]
-struct DropXId;
+struct Gcs {
+    project: String,
+}
 
-impl aws_smithy_runtime_api::client::interceptors::Intercept for DropXId {
+impl aws_smithy_runtime_api::client::interceptors::Intercept for Gcs {
     fn name(&self) -> &'static str {
-        "DropXId"
+        "Gcs"
     }
 
     fn modify_before_signing(
@@ -97,9 +104,19 @@ impl aws_smithy_runtime_api::client::interceptors::Intercept for DropXId {
         _cfg: &mut aws_smithy_types::config_bag::ConfigBag,
     ) -> Result<(), aws_smithy_runtime_api::box_error::BoxError> {
         let uri = without_x_id(ctx.request().uri());
+        let root = is_service_root(&uri);
         ctx.request_mut().set_uri(uri)?;
+        if root && !self.project.is_empty() {
+            ctx.request_mut().headers_mut().insert("x-amz-project-id", self.project.clone());
+        }
         Ok(())
     }
+}
+
+/// ListBuckets is the only request on the service root (`https://host/` with no bucket).
+fn is_service_root(uri: &str) -> bool {
+    let rest = uri.split("://").nth(1).unwrap_or(uri);
+    rest.split_once('/').is_none_or(|(_, p)| p.is_empty() || p.starts_with('?'))
 }
 
 /// `…?x-id=GetObject&a=b` → `…?a=b` (and `…?x-id=X` → `…`).
@@ -715,6 +732,27 @@ mod tests {
         assert!(is_gcs("https://storage.googleapis.com:443/"));
         assert!(!is_gcs("https://minio.example.com"));
         assert!(!is_gcs("https://storage.googleapis.com.evil.example"));
+    }
+
+    /// The project header goes on ListBuckets (service root) only.
+    #[tokio::test]
+    async fn gcs_list_buckets_carries_the_project() {
+        let p = Profile {
+            endpoint: "https://storage.googleapis.com".into(),
+            access_key: "GOOG1EXAMPLE".into(),
+            secret_key: "secret".into(),
+            project: "my-project-123".into(),
+            ..Default::default()
+        };
+        let c = make_client_in(&p, "auto");
+        let cfg = PresigningConfig::expires_in(Duration::from_secs(60)).unwrap();
+        let obj = c.get_object().bucket("b").key("k").presigned(cfg).await.unwrap();
+        assert!(obj.headers().all(|(k, _)| k != "x-amz-project-id"), "not on object requests");
+        assert!(is_service_root("https://storage.googleapis.com/"));
+        assert!(is_service_root("https://storage.googleapis.com/?max-buckets=10"));
+        assert!(is_service_root("https://storage.googleapis.com"));
+        assert!(!is_service_root("https://storage.googleapis.com/b/k"));
+        assert!(!is_service_root("https://storage.googleapis.com/b?list-type=2"));
     }
 
     /// Presigning runs the same interceptors as real requests, so this checks the client offline.

@@ -130,7 +130,7 @@ export const PRESETS: Record<ProviderId, Preset> = {
   gcs: {
     kind: "s3",
     label: "Google Cloud Storage",
-    hint: "Uses the S3-compatible XML API with an HMAC key: Cloud Storage → Settings → Interoperability → Create a key. Endpoint https://storage.googleapis.com, region auto.",
+    hint: "Uses the S3-compatible XML API with an HMAC key: Cloud Storage → Settings → Interoperability → Create a key. Endpoint https://storage.googleapis.com, region auto. To list your buckets, enter the project ID (or set a default project for interoperable access on that page, or a default bucket).",
     endpointPlaceholder: "https://storage.googleapis.com",
     endpointRequired: true,
     regionPlaceholder: "auto",

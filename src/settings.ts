@@ -28,7 +28,7 @@ import { $, esc, fail, plural } from "./util";
 
 const dialog = () => $<HTMLDialogElement>("settings");
 const form = () => $<HTMLFormElement>("acct-form");
-const FIELDS = ["name", "endpoint", "region", "access_key", "secret_key", "bucket"] as const;
+const FIELDS = ["name", "endpoint", "region", "access_key", "secret_key", "bucket", "project"] as const;
 
 /** Id of the account in the form; "" = a new, unsaved account. */
 let editing = "";
@@ -113,6 +113,7 @@ function applyPreset(id: ProviderId, fill: boolean) {
   endpoint.placeholder = pr.endpointPlaceholder;
   endpoint.required = pr.endpointRequired;
   input("region").placeholder = pr.regionPlaceholder;
+  $("acct-project-row").hidden = id !== "gcs";
   form()
     .querySelectorAll<HTMLElement>(".s3-only")
     .forEach((el) => (el.hidden = !s3));
@@ -176,6 +177,7 @@ function readForm(): Profile {
     bucket: v("bucket"),
     path_style: f.get("path_style") === "on",
     cert_pin: v("cert_pin"),
+    project: v("project"),
   };
 }
 

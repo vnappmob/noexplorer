@@ -58,8 +58,15 @@ pub fn humanize(full: &str) -> String {
         let message = field(full, "message").unwrap_or("");
         let mut out = if message.is_empty() { code.to_string() } else { format!("{message} ({code})") };
         // Google Cloud Storage explains its generic codes ("Invalid argument") in <Details>.
-        if let Some(d) = details(full).filter(|d| !message.contains(d.as_str())) {
+        let detail = details(full).filter(|d| !message.contains(d.as_str()));
+        if let Some(d) = &detail {
             out = format!("{out}: {d}");
+        }
+        if detail.as_deref().is_some_and(|d| d.contains("Project number must be specified")) {
+            return format!(
+                "{}. Enter your Google Cloud project ID (or project number) in the account's Project ID field, or a default bucket.",
+                out.trim_end_matches('.')
+            );
         }
         if let Some(h) = hint(code, message) {
             out = format!("{}. {h}", out.trim_end_matches('.'));
@@ -242,6 +249,8 @@ mod tests {
 
         let gcs = r#"service error: unhandled error (InvalidArgument): Error { code: "InvalidArgument", message: "Invalid argument." } (ServiceError(ServiceError { source: Unhandled(Unhandled { source: ErrorMetadata { code: Some("InvalidArgument"), message: Some("Invalid argument."), extras: None } }), raw: Response { status: StatusCode(400), body: SdkBody { inner: Once(Some(b"<?xml version='1.0' encoding='UTF-8'?><Error><Code>InvalidArgument</Code><Message>Invalid argument.</Message><Details>Invalid query parameter(s): [x-id]</Details></Error>")) } } }))"#;
         assert_eq!(humanize(gcs), "Invalid argument. (InvalidArgument): Invalid query parameter(s): [x-id]");
+        let project = gcs.replace("Invalid query parameter(s): [x-id]", "Project number must be specified.");
+        assert!(humanize(&project).contains("Project ID field"), "{}", humanize(&project));
 
         let net =
             "dispatch failure: io error: error trying to connect: tcp connect error: Connection refused (os error 61)";

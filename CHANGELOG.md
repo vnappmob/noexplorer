@@ -5,6 +5,10 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Google Cloud Storage: new **Project ID** field, so the bucket list works ("Project number must be
+  specified"). The error explains what to enter when it's missing.
+
 ### Website
 - "Fast where it counts" on the home page: folder sizes vs `du` and `ncdu`, and Nextcloud folder
   listings with and without session reuse (measured numbers).

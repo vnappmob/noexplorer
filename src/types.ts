@@ -21,6 +21,8 @@ export type Profile = {
   keychain?: boolean;
   /** SHA-256 fingerprint of a trusted self-signed certificate ("" = normal checks). tls.rs. */
   cert_pin?: string;
+  /** Google Cloud Storage: the project whose buckets are listed. */
+  project?: string;
 };
 
 /** `config::General` — Settings → General. */
