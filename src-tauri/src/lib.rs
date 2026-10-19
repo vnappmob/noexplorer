@@ -115,6 +115,7 @@ pub fn run() {
             remote::remote_size,
             remote::presign,
             remote::read_text,
+            remote::create_bucket,
             remote::mkdir,
             remote::delete,
             jobs::cancel,

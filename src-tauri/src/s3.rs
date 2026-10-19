@@ -21,7 +21,10 @@ use aws_sdk_s3::config::{
 };
 use aws_sdk_s3::presigning::PresigningConfig;
 use aws_sdk_s3::primitives::ByteStream;
-use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart, Delete, ObjectIdentifier};
+use aws_sdk_s3::types::{
+    BucketLocationConstraint, CompletedMultipartUpload, CompletedPart, CreateBucketConfiguration, Delete,
+    ObjectIdentifier,
+};
 use futures::{StreamExt, TryStreamExt, stream};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
@@ -104,9 +107,10 @@ impl aws_smithy_runtime_api::client::interceptors::Intercept for Gcs {
         _cfg: &mut aws_smithy_types::config_bag::ConfigBag,
     ) -> Result<(), aws_smithy_runtime_api::box_error::BoxError> {
         let uri = without_x_id(ctx.request().uri());
-        let root = is_service_root(&uri);
+        // ListBuckets (the service root) and CreateBucket (PUT on a bare bucket) need the project.
+        let needs = is_service_root(&uri) || (ctx.request().method() == "PUT" && is_bare_bucket(&uri));
         ctx.request_mut().set_uri(uri)?;
-        if root && !self.project.is_empty() {
+        if needs && !self.project.is_empty() {
             ctx.request_mut().headers_mut().insert("x-amz-project-id", self.project.clone());
         }
         Ok(())
@@ -117,6 +121,15 @@ impl aws_smithy_runtime_api::client::interceptors::Intercept for Gcs {
 fn is_service_root(uri: &str) -> bool {
     let rest = uri.split("://").nth(1).unwrap_or(uri);
     rest.split_once('/').is_none_or(|(_, p)| p.is_empty() || p.starts_with('?'))
+}
+
+/// `https://host/bucket` with no key and no query (path-style): what CreateBucket looks like.
+fn is_bare_bucket(uri: &str) -> bool {
+    let rest = uri.split("://").nth(1).unwrap_or(uri);
+    rest.split_once('/').is_some_and(|(_, p)| {
+        let p = p.trim_end_matches('/');
+        !p.is_empty() && !p.contains('/') && !p.contains('?')
+    })
 }
 
 /// `…?x-id=GetObject&a=b` → `…?a=b` (and `…?x-id=X` → `…`).
@@ -183,6 +196,25 @@ impl S3 {
         }
         let mut regional = self.regional.lock().unwrap();
         regional.entry(region.clone()).or_insert_with(|| make_client_in(p, &region)).clone()
+    }
+
+    /// Creates bucket `name` (experimental). On AWS it goes in the account's region, which outside
+    /// us-east-1 has to be named in the request.
+    pub async fn create_bucket(&self, name: &str) -> Result<(), String> {
+        let p = &self.profile;
+        let mut req = self.base.create_bucket().bucket(name);
+        let region = effective_region(p);
+        if is_aws(p) && region != "us-east-1" {
+            let cfg = CreateBucketConfiguration::builder()
+                .location_constraint(BucketLocationConstraint::from(region.as_str()))
+                .build();
+            req = req.create_bucket_configuration(cfg);
+        }
+        req.send().await.map_err(err)?;
+        if is_aws(p) {
+            self.regions.lock().unwrap().insert(name.to_string(), region);
+        }
+        Ok(())
     }
 
     /// Buckets visible to these credentials (+ region when the server reports it, as AWS does).
@@ -753,6 +785,10 @@ mod tests {
         assert!(is_service_root("https://storage.googleapis.com"));
         assert!(!is_service_root("https://storage.googleapis.com/b/k"));
         assert!(!is_service_root("https://storage.googleapis.com/b?list-type=2"));
+        assert!(is_bare_bucket("https://storage.googleapis.com/new-bucket"));
+        assert!(!is_bare_bucket("https://storage.googleapis.com/b/k"));
+        assert!(!is_bare_bucket("https://storage.googleapis.com/b?uploads"));
+        assert!(!is_bare_bucket("https://storage.googleapis.com/"));
     }
 
     /// Presigning runs the same interceptors as real requests, so this checks the client offline.

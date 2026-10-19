@@ -12,7 +12,15 @@ import { setTextSize, setTheme, appearance } from "./appearance";
 import { icon } from "./icons";
 import type { Pane } from "./pane";
 import { active, closeView, local, MAX_VIEWS, remote, remotes, switchTo } from "./panes";
-import { addAccount, openSettings, selectBucket, splitView, switchProfile } from "./settings";
+import {
+  addAccount,
+  canCreateBuckets,
+  newBucket,
+  openSettings,
+  selectBucket,
+  splitView,
+  switchProfile,
+} from "./settings";
 import { app, exp } from "./state";
 import { checkForUpdates } from "./updater";
 import { $, esc, fail, toast } from "./util";
@@ -39,6 +47,8 @@ function build(): Entry[] {
   if (remote.selectedItems().length) cmd(`Delete selection from ${remoteName()}`, "trash", () => deleteRemote(), "⌘⌫");
   if (local.selectedItems().length) cmd(TRASH_LABEL, "trash", () => trashLocal(), "⌘⌫");
   cmd("New folder", "folderPlus", () => mkdir(active));
+  if (canCreateBuckets(remote))
+    cmd(remote.profile()?.kind === "azure" ? "New container…" : "New bucket…", "plus", () => newBucket(remote));
   cmd("Refresh", "refresh", () => active.load(true), "⌘R");
   cmd("Folder size (Σ)", "sigma", () => calcSize(active));
   if (remote.bucket) cmd("Compare this computer ⇄ remote (find differences, checksums)", "compare", openCompare);

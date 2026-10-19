@@ -89,6 +89,7 @@ means the active account (ADR-025).
 | `list` | `bucket, prefix` | `Entry[]` | remote | One folder level. Folders have `dir: true` and a key ending in `/` |
 | `presign` | `bucket, key, secs, inline` | URL | remote | `secs` is clamped to 60 s–7 d. `inline` forces Content-Type/Disposition for preview |
 | `read_text` | `bucket, key, max` | string | remote | Range GET `0..max`, decoded as lossy UTF-8 |
+| `create_bucket` | `account, name` | – | remote | Creates a bucket (S3-compatible, incl. GCS with its project) or an Azure container; name checked first (experimental `create_buckets`) |
 | `mkdir` | `bucket, prefix, name` | – | remote | Writes an empty `prefix+name/` marker object |
 | `delete` | `account?, bucket, keys[]` | job id | remote | Background job (kind `delete`): folders with everything inside; progress in `files_done/files_total` (S3: per batch of up to 1000, WebDAV/Box: per item); cancellable between steps |
 | `remote_move` | `account?, bucket, pairs[[from,to]], copy` | job id | fileops | Rename / move (`copy` false) or duplicate (true) inside one container, server-side (`Remote::transfer_within`); job kind `move` / `dup`; never overwrites |

@@ -131,6 +131,12 @@ impl Azure {
         ok(b.send().await.map_err(net_err)?).await
     }
 
+    /// Creates container `name` (experimental "create_buckets"), private (no public access).
+    pub async fn create_container(&self, name: &str) -> Result<(), String> {
+        self.send(self.req(Method::PUT, &format!("{}?restype=container", self.url(name, "")), Some(0), &[])).await?;
+        Ok(())
+    }
+
     pub async fn containers(&self) -> Result<Vec<BucketInfo>, String> {
         let mut out = vec![];
         let mut marker = String::new();
@@ -656,6 +662,16 @@ mod tests {
         let c = "noexplorer-test";
         let _ = az.send(az.req(Method::PUT, &format!("{}?restype=container", az.url(c, "")), Some(0), &[])).await;
         assert!(az.containers().await.unwrap().iter().any(|b| b.name == c));
+        // New container through the provider interface (name checked first), then gone again.
+        let made = format!("nx-new-{}", std::process::id());
+        let remote = crate::provider::Remote::new(&p);
+        assert!(remote.create_container("Bad_Name").await.is_err());
+        remote.create_container(&made).await.unwrap();
+        assert!(remote.containers().await.unwrap().iter().any(|b| b.name == made));
+        assert!(remote.create_container(&made).await.is_err(), "already exists");
+        az.send(az.req(Method::DELETE, &format!("{}?restype=container", az.url(&made, "")), Some(0), &[]))
+            .await
+            .unwrap();
 
         let dir = std::env::temp_dir().join(format!("nx-az-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();

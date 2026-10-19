@@ -5,6 +5,10 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Experimental **Create buckets** (Settings → Experimental): **New bucket…** in the bucket menu and
+  ⌘K for S3-compatible storage including Google Cloud Storage, and **New container…** for Azure.
+
 ## [0.4.20] - 2026-10-19
 
 ### Changed

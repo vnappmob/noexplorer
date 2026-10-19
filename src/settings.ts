@@ -25,7 +25,7 @@ import type { BucketInfo, General, Profile, Settings } from "./types";
 import { renderExperimental } from "./experimental";
 import { requestSizes, stopSizes } from "./sizes";
 import { checkForUpdates } from "./updater";
-import { $, esc, fail, plural } from "./util";
+import { $, askText, esc, fail, plural, toast } from "./util";
 
 const dialog = () => $<HTMLDialogElement>("settings");
 const form = () => $<HTMLFormElement>("acct-form");
@@ -461,6 +461,25 @@ export function openProfileMenu(v: Pane, anchor = v.q(".profile-chip")) {
   openMenu(anchor, items, { width: 300 });
 }
 
+/** Creates a bucket (or Azure container) on `v`'s account and opens it (experimental). */
+export async function newBucket(v: Pane) {
+  const azure = v.profile()?.kind === "azure";
+  const name = (await askText(azure ? "New container name" : "New bucket name"))?.trim();
+  if (!name) return;
+  try {
+    await invoke("create_bucket", { account: v.account, name });
+    knownBuckets.delete(v.account);
+    v.bucket = name;
+    v.cwd = "";
+    toast(`Created “${name}”`);
+    await loadBuckets(v, true);
+  } catch (e) {
+    fail(e);
+  }
+}
+
+export const canCreateBuckets = (v: Pane) => exp("create_buckets") && hasContainers(v.profile());
+
 export function openBucketMenu(v: Pane, anchor = v.q(".bucket-chip")) {
   const items: MenuItem[] = v.buckets.map((b) => ({
     label: b.name,
@@ -471,6 +490,13 @@ export function openBucketMenu(v: Pane, anchor = v.q(".bucket-chip")) {
     run: () => b.name !== v.bucket && selectBucket(v, b.name),
   }));
   if (!items.length) items.push({ header: "No buckets visible with this key" });
+  if (canCreateBuckets(v)) {
+    const azure = v.profile()?.kind === "azure";
+    items.push(
+      { sep: true },
+      { label: azure ? "New container…" : "New bucket…", icon: "plus", run: () => newBucket(v) },
+    );
+  }
   openMenu(anchor, items, { width: 300, search: v.buckets.length > 6 ? "Find bucket…" : undefined });
 }
 

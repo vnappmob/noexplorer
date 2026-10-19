@@ -121,6 +121,8 @@ pub struct Experimental {
     pub backup_pairs: bool,
     /// SFTP and Google Cloud Storage accounts.
     pub providers: bool,
+    /// "New bucket…" in the bucket menu and ⌘K (S3-compatible and Azure).
+    pub create_buckets: bool,
 }
 
 /// Everything in `config.json`. Mirrors `Settings` in `src/types.ts`.

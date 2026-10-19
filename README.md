@@ -80,6 +80,7 @@ Newer features ship in **Settings → Experimental**, off until you turn them on
 - **Backup pairs**: save "this folder ↔ that remote folder" and back it up in one click.
 - **Self-signed HTTPS**: trust a NAS's own certificate after comparing its fingerprint.
 - **More storage**: Google Cloud Storage and SFTP.
+- **Create buckets** (and Azure containers) from the bucket menu, when your key is allowed to.
 
 ## Install
 

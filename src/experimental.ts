@@ -23,6 +23,11 @@ export const EXPERIMENTS: { key: keyof Experimental; title: string; desc: string
     title: "More storage types",
     desc: "SFTP and Google Cloud Storage in the account form.",
   },
+  {
+    key: "create_buckets",
+    title: "Create buckets",
+    desc: "“New bucket…” in the bucket menu and ⌘K, for S3-compatible storage and Azure containers, when your key is allowed to.",
+  },
 ];
 
 /** Fills the Experimental tab (index.html #exp-form). */

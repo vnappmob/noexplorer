@@ -135,6 +135,29 @@ pub fn file_name(key: &str) -> String {
 }
 
 /// Extensions previewed as text. Keep in sync with `KIND.text` in `src/files.ts`.
+/// Bucket names: 3–63 lowercase letters, digits and hyphens (S3 also allows dots), starting and
+/// ending with a letter or digit. Checked here so the user gets a clear message instead of the
+/// server's "InvalidBucketName"; the server still has the last word (taken names, its own rules).
+pub fn check_bucket_name(name: &str, azure: bool) -> Result<(), String> {
+    let what = if azure { "Container" } else { "Bucket" };
+    let ok_char = |c: char| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || (!azure && c == '.');
+    if !(3..=63).contains(&name.len()) {
+        return Err(format!("{what} names are 3 to 63 characters long"));
+    }
+    if !name.chars().all(ok_char) {
+        let more = if azure { "" } else { ", dots" };
+        return Err(format!("{what} names use lowercase letters, digits{more} and hyphens only"));
+    }
+    let edge = |c: Option<char>| c.is_some_and(|c| c.is_ascii_alphanumeric());
+    if !edge(name.chars().next()) || !edge(name.chars().last()) {
+        return Err(format!("{what} names start and end with a letter or digit"));
+    }
+    if name.contains("..") || name.contains(".-") || name.contains("-.") || (azure && name.contains("--")) {
+        return Err(format!("“{name}” isn't a valid {} name", what.to_lowercase()));
+    }
+    Ok(())
+}
+
 pub fn is_text_like(key: &str) -> bool {
     let ext = key.rsplit('.').next().unwrap_or("").to_lowercase();
     matches!(
@@ -280,5 +303,18 @@ mod tests {
         assert_eq!(upload_mime("docs/a.pdf", Path::new("/tmp/1b2c3d")), "application/pdf");
         assert_eq!(upload_mime("noext", Path::new("/tmp/x/photo.jpg")), "image/jpeg");
         assert_eq!(upload_mime("noext", Path::new("/tmp/1b2c3d")), "application/octet-stream");
+    }
+
+    #[test]
+    fn bucket_names() {
+        for ok in ["photos", "my-backups-2026", "a.b.c"] {
+            assert!(check_bucket_name(ok, false).is_ok(), "{ok}");
+        }
+        for bad in ["ab", "Photos", "my_bucket", "-x-y", "x..y", "x.-y", &"a".repeat(64)] {
+            assert!(check_bucket_name(bad, false).is_err(), "{bad}");
+        }
+        assert!(check_bucket_name("a.b.c", true).is_err(), "no dots in Azure");
+        assert!(check_bucket_name("a--b", true).is_err(), "no double hyphen in Azure");
+        assert!(check_bucket_name("my-container", true).is_ok());
     }
 }

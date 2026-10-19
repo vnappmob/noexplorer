@@ -88,6 +88,21 @@ impl Remote {
         }
     }
 
+    /// Creates a bucket (S3) or container (Azure). The other providers have one fixed container.
+    pub async fn create_container(&self, name: &str) -> Result<(), String> {
+        match self {
+            Remote::S3(s) => {
+                crate::util::check_bucket_name(name, false)?;
+                s.create_bucket(name).await
+            }
+            Remote::Azure(a) => {
+                crate::util::check_bucket_name(name, true)?;
+                a.create_container(name).await
+            }
+            _ => Err("This storage has no buckets to create".into()),
+        }
+    }
+
     /// Every file below `prefix` (no folders or folder markers), with server hashes where the
     /// provider has them (for Compare).
     pub async fn list_files(&self, container: &str, prefix: &str) -> Result<Vec<Entry>, String> {

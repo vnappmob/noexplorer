@@ -39,6 +39,7 @@ export type Experimental = {
   self_signed: boolean;
   backup_pairs: boolean;
   providers: boolean;
+  create_buckets: boolean;
 };
 
 /** `config::Settings` — everything in config.json. */

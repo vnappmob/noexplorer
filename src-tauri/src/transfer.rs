@@ -628,6 +628,27 @@ mod tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
 
+    /// "New bucket…" against dev S3 (see `s3_roundtrip` for the env vars).
+    #[tokio::test]
+    async fn s3_create_bucket() {
+        let Ok(endpoint) = std::env::var("NOEXPLORER_TEST_ENDPOINT") else {
+            eprintln!("skipping s3_create_bucket: NOEXPLORER_TEST_ENDPOINT not set");
+            return;
+        };
+        let cfg = Profile {
+            endpoint,
+            access_key: std::env::var("NOEXPLORER_TEST_KEY").unwrap(),
+            secret_key: std::env::var("NOEXPLORER_TEST_SECRET").unwrap(),
+            ..Default::default()
+        };
+        let c = Remote::new(&cfg);
+        let name = format!("nx-new-{}", std::process::id());
+        assert!(c.create_container("Not_Valid").await.is_err());
+        c.create_container(&name).await.unwrap();
+        assert!(c.containers().await.unwrap().iter().any(|b| b.name == name));
+        make_client(&cfg).delete_bucket().bucket(&name).send().await.unwrap();
+    }
+
     /// Resumable transfers against dev S3 (see `s3_roundtrip` for the env vars): a multipart upload
     /// continues from the parts already on the server, and a download continues its `.part`.
     #[tokio::test]
