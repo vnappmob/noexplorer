@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.17] - 2026-10-19
+
 ### Changed
 - **Rename, move and duplicate**, **resumable transfers** (pause, retry, resume after quitting),
   the **grid view** and **favorites** are now standard features, no longer in Settings →
