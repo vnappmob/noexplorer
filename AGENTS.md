@@ -60,6 +60,7 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   thumbs.rs          Grid thumbnails: 256 px JPEG/PNG, LRU caches in memory (16 MB) and on disk (48 MB, OS cache folder); trims WebKit's cache at launch
   azure.rs           Azure Blob provider: Shared Key signing, block uploads, SAS links
   sftp.rs            SFTP provider (experimental): the system `ssh` carries russh-sftp (your keys/agent/config)
+  askpass.rs         Passwords / key passphrases for that `ssh`: the app binary is its SSH_ASKPASS, fetching the secret over loopback with a one-time token
   box_api.rs         Box provider (beta): BYO OAuth app, loopback sign-in, rotating refresh token, sessions
   compare.rs         Compare local vs remote folders: missing/changed/junk, checksum verify (ETag/SHA-1)
   secrets.rs         Secret keys in the OS credential store (Keychain / Credential Manager / Secret Service)
@@ -135,6 +136,7 @@ Full detail, including the command table, event schema and data flows, is in [do
 - **Drag between panes uses mouse events, not HTML5 drag-and-drop.** HTML5 DnD is broken on Windows while Tauri's file drop is enabled ([ADR-003](docs/DECISIONS.md#adr-003)).
 - **Escape every untrusted string before it goes into `innerHTML`** (file names, keys, errors), using `esc()`. Text previews use `textContent`.
 - **TLS is never switched off.** Self-signed servers are handled by pinning one certificate per account (`tls.rs`); don't add an "accept invalid certificates" option.
+- **Secrets never go into a child's environment, a file or a command line.** `ssh` gets SFTP passwords through `askpass.rs` (the app binary answers `SSH_ASKPASS` over 127.0.0.1 with a one-time token); `run()` checks for askpass mode before anything else.
 - **The diagnostic log (`diag.rs`) gets server errors only through `diag::log`, which redacts signatures, key ids and tokens.** Never log a request's headers or a secret key; add new patterns to `redact` (and its test) when a provider echoes something sensitive.
 - **Secrets stay in the backend.** Secret keys live in the OS credential store (`secrets.rs`, [ADR-020](docs/DECISIONS.md#adr-020)); `config.json` (mode 600) holds them only when no store exists. Every command that returns `Settings` must return `config::redacted()`, and none goes into logs or errors.
 - **Never lose or rotate the updater signing key** (`~/.tauri/noexplorer-updater.key` on the maintainer's Mac, plus the repo secret `TAURI_SIGNING_PRIVATE_KEY`). Installed apps only accept updates signed by it; a new key means every user has to reinstall by hand ([ADR-015](docs/DECISIONS.md#adr-015)).

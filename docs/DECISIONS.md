@@ -751,3 +751,22 @@ Ctrl+Tab, mouse back/forward) is deleted, and ⌘W only closes a remote view aga
 **Consequences.** Fewer header buttons and shortcuts. The pause button, resume banner, F2/⌘Z,
 same-pane drag-to-move and the grid button show for everyone, so their docs moved from the
 Experimental page into Moving files and Compare, sizes & more.
+
+<a id="adr-039"></a>
+
+## ADR-039: SFTP passwords and key passphrases through SSH_ASKPASS
+Accepted · 2026-10-19
+
+**Context.** SFTP ran `ssh` in batch mode (ADR-033), so servers that want a password and keys with
+a passphrase simply failed ("Permission denied"), with no way in from the app.
+**Decision.** Keep the system `ssh` (keys, agent, `~/.ssh/config`, known_hosts) and answer its
+prompts with `SSH_ASKPASS` + `SSH_ASKPASS_REQUIRE=force`, pointing at the app's own binary. In that
+mode `run()` exits before any UI: it connects to a one-shot loopback listener the app opened for
+this `ssh` start (`NOEXPLORER_ASKPASS=<port> <256-bit token>`), sends the token and the prompt, and
+prints the answer. The listener answers at most 4 times within 60 s and is dropped once the session
+is up. The account's secret field holds the password or the key passphrase (keychain, ADR-020),
+`key_file` adds `-i`. With no secret, batch mode stays on. `NumberOfPasswordPrompts=1` avoids
+lockouts from retries. Clear hints for "Permission denied" with and without a saved secret.
+**Consequences.** Password servers and locked keys work; the secret never sits in an environment
+variable, a file or a command line. A pure-Rust SSH client (russh) would avoid the subprocess but
+adds a crypto stack and loses `~/.ssh/config`.

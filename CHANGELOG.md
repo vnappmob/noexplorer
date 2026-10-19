@@ -6,6 +6,9 @@ versions: [SemVer](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- SFTP (experimental) logs in with a **password** or a **key with a passphrase**, kept in your system
+  keychain, and can use a chosen **private key file**. The account form explains which to fill in,
+  and a refused login says what to try.
 - Experimental **Create buckets** (Settings → Experimental): **New bucket…** in the bucket menu and
   ⌘K for S3-compatible storage including Google Cloud Storage, and **New container…** for Azure.
 

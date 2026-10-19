@@ -195,6 +195,9 @@
               <label>Region <input name="region" placeholder="us-east-1" spellcheck="false" /></label>
               <label>Default bucket <input name="bucket" placeholder="(optional)" spellcheck="false" /></label>
             </div>
+            <label id="acct-key-row" hidden>Private key file (optional)
+              <span class="key-pick"><input name="key_file" placeholder="~/.ssh/id_ed25519 (found automatically when empty)" spellcheck="false" /><button type="button" id="acct-key-choose">Choose…</button></span>
+            </label>
             <label id="acct-project-row" hidden>Project ID <input name="project" placeholder="my-project-123 (to list your buckets)" spellcheck="false" /></label>
             <label><span id="lbl-access">Access key</span> <input name="access_key" required spellcheck="false" autocomplete="off" /></label>
             <label><span id="lbl-secret">Secret key</span> <input name="secret_key" type="password" required autocomplete="off" /></label>

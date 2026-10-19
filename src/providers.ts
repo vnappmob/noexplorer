@@ -152,7 +152,7 @@ export const PRESETS: Record<ProviderId, Preset> = {
   sftp: {
     kind: "sftp",
     label: "SFTP",
-    hint: "Logs in with your SSH keys or agent through the ssh command (your ~/.ssh/config applies). Passwords aren't supported yet. Example: sftp://me@nas.local/volume1/backups",
+    hint: "Uses your SSH setup: keys, agent and ~/.ssh/config, like the ssh command. If the server asks for a password, or your key has a passphrase, enter it below (it's kept in your system keychain). Example: sftp://me@nas.local/volume1/backups",
     endpointPlaceholder: "sftp://user@host:22/folder",
     endpointRequired: true,
     regionPlaceholder: "",

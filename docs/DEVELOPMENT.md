@@ -73,7 +73,9 @@ skipped and the other tests still run. On a fresh clone, run `npm run build` onc
 | `compare::tests::*` | Pairing, junk, and Compare against a real S3 bucket (checksums) |
 | `proxy::tests::*`, `thumbs::tests::*` | `nxr://` URLs and Range reads of local files; thumbnail LRU, EXIF orientation, disk trim |
 | `trash::tests::*`, `scan::tests::*`, `sizes::tests::*` | Move to Trash guard and round-trip; folder-size scanner and live index |
-| `azure::tests::azurite_roundtrip`, `sftp::tests::sftp_roundtrip` | Azure Blob against Azurite (incl. `no-store` SAS links); SFTP against `atmoz/sftp` |
+| `azure::tests::azurite_roundtrip`, `sftp::tests::sftp_roundtrip` | Azure Blob against Azurite (incl. `no-store` SAS links, new containers); SFTP against `atmoz/sftp` |
+| `sftp::tests::sftp_logins`, `askpass::tests::*` | SFTP password and key-passphrase logins via askpass, wrong/missing secret messages; the token protocol |
+| `transfer::tests::s3_create_bucket`, `util::tests::bucket_names` | New bucket on dev S3, name rules |
 | `jobs::tests::*`, `resume::tests::*` | Job events never deadlock; retries, throttling |
 | `transfer::tests::s3_resume`, `s3_pause_limit_journal` | Resumable transfers: multipart continued from the server's parts, `.part` download continued, pause, speed limit, journal |
 | `fileops::tests::*`, round-trips | Rename / move / duplicate never overwrite (local), and remote move/copy on S3, Nextcloud and the Box mock |
@@ -116,11 +118,16 @@ to the S3 + Nextcloud test variables.
 docker run -d --name nx-azurite -p 10000:10000 mcr.microsoft.com/azure-storage/azurite \
   azurite-blob --blobHost 0.0.0.0 --skipApiVersionCheck --loose
 ssh-keygen -q -t ed25519 -N "" -f /tmp/nx-sftp-key
-docker run -d --name nx-sftp -p 2222:22 -v /tmp/nx-sftp-key.pub:/home/demo/.ssh/keys/id.pub:ro atmoz/sftp demo::1001::upload
+ssh-keygen -q -t ed25519 -N "phrase 123" -f /tmp/nx-sftp-locked
+docker run -d --name nx-sftp -p 2222:22 -v /tmp/nx-sftp-key.pub:/home/demo/.ssh/keys/a.pub:ro \
+  -v /tmp/nx-sftp-locked.pub:/home/demo/.ssh/keys/b.pub:ro atmoz/sftp demo::1001::upload pw:pwsecret:1002::upload
 ```
 
 Then add `NOEXPLORER_TEST_AZURITE=http://127.0.0.1:10000/devstoreaccount1`,
-`NOEXPLORER_TEST_SFTP=sftp://demo@127.0.0.1:2222/upload` and `NOEXPLORER_TEST_SFTP_KEY=/tmp/nx-sftp-key`.
+`NOEXPLORER_TEST_SFTP=sftp://demo@127.0.0.1:2222/upload` and `NOEXPLORER_TEST_SFTP_KEY=/tmp/nx-sftp-key`;
+for `sftp_logins` (password and key passphrase through askpass) also `NOEXPLORER_TEST_SFTP_HOST=127.0.0.1:2222`,
+`NOEXPLORER_TEST_SFTP_PASS=pwsecret`, `NOEXPLORER_TEST_SFTP_KEY_LOCKED=/tmp/nx-sftp-locked` and
+`NOEXPLORER_TEST_SFTP_PHRASE='phrase 123'`.
 
 ## Manual test checklist (before a release, or after UI changes)
 

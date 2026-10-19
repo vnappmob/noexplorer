@@ -2199,3 +2199,13 @@ dialog::backdrop {
   color: var(--accent);
   cursor: pointer;
 }
+
+/* Account form: SFTP key file, typed or chosen. */
+.key-pick {
+  display: flex;
+  gap: 8px;
+}
+.key-pick input {
+  flex: 1;
+  min-width: 0;
+}

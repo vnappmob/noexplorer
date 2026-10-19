@@ -61,6 +61,8 @@ pub struct Profile {
     pub cert_pin: String,
     /// Google Cloud Storage: the project whose buckets the bucket picker lists (`x-amz-project-id`, s3.rs).
     pub project: String,
+    /// SFTP: a private key file (`ssh -i`), when it isn't one ssh finds on its own.
+    pub key_file: String,
 }
 
 impl Default for Profile {
@@ -78,6 +80,7 @@ impl Default for Profile {
             keychain: false,
             cert_pin: String::new(),
             project: String::new(),
+            key_file: String::new(),
         }
     }
 }

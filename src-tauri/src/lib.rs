@@ -18,6 +18,7 @@
 //! Plugins: opener, dialog, updater + process (auto-update & relaunch),
 //! single-instance. Launch at login is our own [`autostart`] module (started with `--hidden`).
 
+mod askpass;
 mod autostart;
 mod azure;
 mod box_api;
@@ -52,6 +53,8 @@ pub(crate) const HIDDEN_ARG: &str = "--hidden";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Started by `ssh` as its askpass program: answer and exit, no app (askpass.rs).
+    askpass::run_if_asked();
     let app = tauri::Builder::default()
         // Must be first: a second launch just focuses the running instance (which may be in the tray).
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| tray::show_main(app)))

@@ -23,6 +23,8 @@ export type Profile = {
   cert_pin?: string;
   /** Google Cloud Storage: the project whose buckets are listed. */
   project?: string;
+  /** SFTP: a private key file for `ssh -i` (optional). */
+  key_file?: string;
 };
 
 /** `config::General` — Settings → General. */

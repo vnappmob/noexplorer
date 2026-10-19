@@ -3,12 +3,14 @@
 //!
 //! Using `ssh` itself means the user's keys, agent, `~/.ssh/config` and `known_hosts` all apply,
 //! and host keys are checked by OpenSSH (`accept-new`: a new server is remembered, a changed key is
-//! refused). It runs in batch mode, so there are no password prompts: key or agent login only.
+//! refused). With no password saved it runs in batch mode (keys and agent only). With one, `ssh`
+//! asks NoExplorer for it (`askpass.rs`), as the server password or the key's passphrase.
 //! `ssh` ships with macOS, Linux and Windows 10+ (OpenSSH Client).
 //!
 //! The account form maps to: `endpoint` = `sftp://user@host:port/path` (or `host`, `user@host`),
-//! `access_key` = user name (optional, overrides the one in the address). One container, "Files",
-//! rooted at the address's path (the login folder when there's none).
+//! `access_key` = user name (optional, overrides the one in the address), `secret_key` = password
+//! or key passphrase (optional, in the keychain), `key_file` = private key (optional, `-i`). One
+//! container, "Files", rooted at the address's path (the login folder when there's none).
 
 use std::path::Path;
 use std::sync::Arc;
@@ -39,6 +41,9 @@ pub struct Sftp {
     /// Tests: an ssh config file (`-F`) with the test key and known_hosts.
     #[cfg(test)]
     pub(crate) ssh_config: Option<std::path::PathBuf>,
+    /// Tests: the askpass program (the app binary in real use; the test runner can't be it).
+    #[cfg(test)]
+    pub(crate) askpass_exe: Option<std::path::PathBuf>,
 }
 
 impl Sftp {
@@ -67,6 +72,8 @@ impl Sftp {
             child: tokio::sync::Mutex::new(None),
             #[cfg(test)]
             ssh_config: None,
+            #[cfg(test)]
+            askpass_exe: None,
         }
     }
 
@@ -91,16 +98,32 @@ impl Sftp {
         if let Some(f) = &self.ssh_config {
             cmd.arg("-F").arg(f);
         }
-        cmd.args([
-            "-o",
-            "BatchMode=yes",
-            "-o",
-            "ConnectTimeout=15",
-            "-o",
-            "StrictHostKeyChecking=accept-new",
-            "-o",
-            "ServerAliveInterval=30",
-        ]);
+        // A saved password / passphrase: ssh asks the app for it (askpass.rs), once per method.
+        let secret = self.profile.secret_key.trim();
+        let _askpass = if secret.is_empty() {
+            cmd.args(["-o", "BatchMode=yes"]);
+            None
+        } else {
+            let srv = crate::askpass::Server::start(secret.to_string()).await.map_err(|e| e.to_string())?;
+            #[cfg(test)]
+            let exe = self.askpass_exe.clone().map_or_else(std::env::current_exe, Ok);
+            #[cfg(not(test))]
+            let exe = std::env::current_exe();
+            cmd.env("SSH_ASKPASS", exe.map_err(|e| e.to_string())?)
+                .env("SSH_ASKPASS_REQUIRE", "force")
+                .env(crate::askpass::ENV, srv.env_value())
+                .args(["-o", "BatchMode=no", "-o", "NumberOfPasswordPrompts=1"]);
+            Some(srv)
+        };
+        let key = self.profile.key_file.trim();
+        if !key.is_empty() {
+            let key = match key.strip_prefix("~/") {
+                Some(rest) => dirs::home_dir().map(|h| h.join(rest)).unwrap_or_else(|| key.into()),
+                None => key.into(),
+            };
+            cmd.arg("-i").arg(key);
+        }
+        cmd.args(["-o", "ConnectTimeout=15", "-o", "StrictHostKeyChecking=accept-new", "-o", "ServerAliveInterval=30"]);
         if let Some(p) = self.port {
             cmd.arg("-p").arg(p.to_string());
         }
@@ -138,7 +161,16 @@ impl Sftp {
             .map(str::trim)
             .rfind(|l| !l.is_empty() && !l.starts_with("**") && !l.starts_with("Warning:"))
             .map(|l| format!("SSH: {l}"));
-        Err(reason.unwrap_or_else(|| format!("Couldn't open an SFTP session: {why}")))
+        let hint = match () {
+            _ if !msg.contains("Permission denied") => "",
+            _ if secret.is_empty() => {
+                ". The server didn't accept your SSH keys: enter the password (or your key's passphrase) in the account, or choose the key file"
+            }
+            _ => ". Check the password (or the key's passphrase), the user name and the key file",
+        };
+        Err(reason
+            .map(|r| if hint.is_empty() { r } else { format!("{}{hint}", r.trim_end_matches('.')) })
+            .unwrap_or_else(|| format!("Couldn't open an SFTP session: {why}")))
     }
 
     /// The open session, connecting on first use (and after a dropped connection).
@@ -518,6 +550,72 @@ mod tests {
     /// Against an SFTP container, e.g.
     /// `docker run -d -p 2222:22 -v $KEY.pub:/home/demo/.ssh/keys/id.pub:ro atmoz/sftp demo::1001::upload`,
     /// with `NOEXPLORER_TEST_SFTP=sftp://demo@127.0.0.1:2222/upload` and `NOEXPLORER_TEST_SFTP_KEY=$KEY`.
+    /// Password and key-passphrase logins through askpass.rs, against the same server as
+    /// `sftp_roundtrip` started with a password user and a passphrase-protected key (DEVELOPMENT.md).
+    #[tokio::test]
+    async fn sftp_logins() {
+        let (Ok(host), Ok(pass), Ok(key), Ok(phrase)) = (
+            std::env::var("NOEXPLORER_TEST_SFTP_HOST"),
+            std::env::var("NOEXPLORER_TEST_SFTP_PASS"),
+            std::env::var("NOEXPLORER_TEST_SFTP_KEY_LOCKED"),
+            std::env::var("NOEXPLORER_TEST_SFTP_PHRASE"),
+        ) else {
+            eprintln!("skipping sftp_logins: NOEXPLORER_TEST_SFTP_HOST / _PASS / _KEY_LOCKED / _PHRASE not set");
+            return;
+        };
+        let dir = std::env::temp_dir().join(format!("nx-sftp-login-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        // The test runner can't be the askpass program; this script speaks the same protocol.
+        let script = dir.join("askpass.sh");
+        std::fs::write(
+            &script,
+            "#!/bin/bash\nread -r port token <<< \"$NOEXPLORER_ASKPASS\"\nexec 3<>/dev/tcp/127.0.0.1/$port\nprintf '%s\\n%s\\n' \"$token\" \"$1\" >&3\nIFS= read -r answer <&3\n[ -n \"$answer\" ] && printf '%s\\n' \"$answer\"\n",
+        )
+        .unwrap();
+        #[cfg(unix)]
+        std::fs::set_permissions(&script, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+        let known = dir.join("known_hosts");
+        let conf = |name: &str, body: &str| {
+            let f = dir.join(name);
+            std::fs::write(
+                &f,
+                format!("Host *\n  IdentityAgent none\n  UserKnownHostsFile {}\n{body}", known.display()),
+            )
+            .unwrap();
+            f
+        };
+        let login = |endpoint: String, secret: &str, key_file: &str, cfg: std::path::PathBuf| {
+            let mut sf = Sftp::new(&Profile {
+                endpoint,
+                secret_key: secret.into(),
+                key_file: key_file.into(),
+                ..Default::default()
+            });
+            sf.ssh_config = Some(cfg);
+            sf.askpass_exe = Some(script.clone());
+            sf
+        };
+        let pw_cfg = conf("pw", "  PubkeyAuthentication no\n");
+        let key_cfg = conf("key", "  IdentitiesOnly yes\n  PasswordAuthentication no\n");
+
+        // Password user.
+        let ok = login(format!("sftp://pw@{host}/upload"), &pass, "", pw_cfg.clone());
+        assert_eq!(ok.containers().await.unwrap()[0].name, "Files");
+        let wrong = login(format!("sftp://pw@{host}/upload"), "not-it", "", pw_cfg.clone());
+        let e = wrong.containers().await.err().expect("wrong password must fail");
+        assert!(e.contains("Permission denied") && e.contains("Check the password"), "{e}");
+        let none = login(format!("sftp://pw@{host}/upload"), "", "", pw_cfg);
+        let e = none.containers().await.err().expect("no password must fail");
+        assert!(e.contains("enter the password"), "{e}");
+
+        // Passphrase-protected key, chosen with the key file field.
+        let ok = login(format!("sftp://demo@{host}/upload"), &phrase, &key, key_cfg.clone());
+        assert_eq!(ok.containers().await.unwrap()[0].name, "Files");
+        let locked = login(format!("sftp://demo@{host}/upload"), "", &key, key_cfg);
+        assert!(locked.containers().await.err().expect("locked key must fail").contains("Permission denied"));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     #[tokio::test]
     async fn sftp_roundtrip() {
         let (Ok(endpoint), Ok(key)) =

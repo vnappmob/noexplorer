@@ -57,7 +57,13 @@ To list your buckets, Google needs to know the project: fill in **Project ID** (
 
 ### SFTP
 
-Enter an address like `sftp://me@nas.local/volume1/backups`. NoExplorer connects with the `ssh` command, so your SSH keys, agent and `~/.ssh/config` apply. Passwords aren't supported yet: set up key login first. A server you've never connected to is remembered on first use; a changed server key is refused.
+Enter an address like `sftp://me@nas.local/volume1/backups`. NoExplorer connects with the `ssh` command, so your SSH keys, agent and `~/.ssh/config` apply, just like in a terminal.
+
+- **SSH keys (recommended):** leave the password empty. A key in `~/.ssh` or your agent is used on its own; for another one, fill in **Private key file** (or click **Choose…**).
+- **Key with a passphrase:** put the passphrase in **Password or key passphrase**.
+- **Password login:** put the server password in the same field.
+
+The password or passphrase is kept in your system keychain, and only handed to `ssh` when it asks. A server you've never connected to is remembered on first use; a changed server key is refused.
 
 ### Self-signed HTTPS
 

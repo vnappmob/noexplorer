@@ -3,9 +3,10 @@
 
 import { favoritesMenuItems, openFavorite } from "./favorites";
 import { getVersion } from "@tauri-apps/api/app";
+import { homeDir, join } from "@tauri-apps/api/path";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { ask } from "@tauri-apps/plugin-dialog";
+import { ask, open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { appearance, setTextSize, setTheme, type Theme } from "./appearance";
 import { addView, MAX_VIEWS, remote, remotes, savedViews, saveViews, switchTo } from "./panes";
@@ -29,7 +30,7 @@ import { $, askText, esc, fail, plural, toast } from "./util";
 
 const dialog = () => $<HTMLDialogElement>("settings");
 const form = () => $<HTMLFormElement>("acct-form");
-const FIELDS = ["name", "endpoint", "region", "access_key", "secret_key", "bucket", "project"] as const;
+const FIELDS = ["name", "endpoint", "region", "access_key", "secret_key", "bucket", "project", "key_file"] as const;
 
 /** Id of the account in the form; "" = a new, unsaved account. */
 let editing = "";
@@ -85,7 +86,13 @@ function editAccount(p: Profile | null) {
   // The backend never sends a saved secret back: leave the field empty to keep it.
   const secret = f.elements.namedItem("secret_key") as HTMLInputElement;
   secret.required = !p;
-  secret.placeholder = p ? (p.keychain ? "Saved in your system keychain" : "Saved") + " · type to replace" : "";
+  secret.placeholder = p
+    ? p.keychain
+      ? "Saved in your system keychain · type to replace"
+      : p.kind === "sftp"
+        ? "None: your SSH keys or agent"
+        : "Saved · type to replace"
+    : "";
   const provider = p ? guessProvider(p) : "custom";
   syncProviderOptions();
   if (EXPERIMENTAL_PROVIDERS.includes(provider) && !$("acct-provider").querySelector(`option[value="${provider}"]`))
@@ -161,12 +168,17 @@ function applyPreset(id: ProviderId, fill: boolean) {
         ? "Account key"
         : pr.kind === "nextcloud"
           ? "App password"
-          : "Password";
+          : sftp
+            ? "Password or key passphrase (optional)"
+            : "Password";
   input("access_key").required = pr.kind !== "nextcloud" && !sftp;
   syncAzurePlaceholder();
-  // SFTP logs in with SSH keys: no secret to type.
-  input("secret_key").closest("label")!.hidden = sftp;
-  if (sftp) input("secret_key").required = false;
+  // SFTP: SSH keys / agent by default; a password or key passphrase only when the server needs it.
+  $("acct-key-row").hidden = !sftp;
+  if (sftp) {
+    input("secret_key").required = false;
+    if (!editing) input("secret_key").placeholder = "Empty = your SSH keys or agent";
+  }
   if (!fill) return;
   if (guessProvider({ endpoint: endpoint.value }) !== id || !s3) endpoint.value = "";
   input("region").value = pr.region;
@@ -189,6 +201,7 @@ function readForm(): Profile {
     path_style: f.get("path_style") === "on",
     cert_pin: v("cert_pin"),
     project: v("project"),
+    key_file: v("key_file"),
   };
 }
 
@@ -615,6 +628,11 @@ export function setupSettings() {
   form().addEventListener("submit", saveAccount);
   $("acct-test").onclick = testAccount;
   input("access_key").addEventListener("input", syncAzurePlaceholder);
+  $("acct-key-choose").onclick = async () => {
+    const ssh = await join(await homeDir(), ".ssh").catch(() => undefined);
+    const f = await open({ title: "Private key file", defaultPath: ssh, multiple: false, directory: false });
+    if (typeof f === "string") input("key_file").value = f;
+  };
   $("acct-nc-login").onclick = () => (readForm().kind === "box" ? boxSignIn() : nextcloudSignIn());
   $("acct-nc-cancel").onclick = () => invoke("cancel_login");
   $("acct-delete").onclick = deleteAccount;
