@@ -600,6 +600,92 @@ main {
   color: var(--fg2);
 }
 
+/* ---------- benchmarks (home page): measured numbers only (ADR-022, webdav.rs) ---------- */
+.speed {
+  padding: 80px 0 0;
+}
+.speed h2 {
+  margin: 0 0 20px;
+  font-size: 24px;
+  text-align: center;
+}
+.bench-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.bench {
+  margin: 0;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+.bench h3 {
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+.bench figcaption {
+  font-size: 13.5px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.brow {
+  display: grid;
+  grid-template-columns: 112px 1fr 64px;
+  align-items: center;
+  gap: 12px;
+  margin: 9px 0;
+}
+.brow span {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--fg2);
+}
+.brow i {
+  height: 12px;
+  width: var(--w);
+  min-width: 8px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--fg) 25%, transparent);
+  animation: grow 0.9s ease-out both;
+  transform-origin: left;
+}
+.brow b {
+  font-family: var(--mono);
+  font-size: 13px;
+  text-align: right;
+}
+.brow.us span,
+.brow.us b {
+  color: var(--accent);
+  font-weight: 700;
+}
+.brow.us i {
+  background: var(--accent);
+}
+.bnote {
+  margin: 12px 0 0;
+  font-size: 13.5px;
+  color: var(--fg2);
+}
+@keyframes grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+@media (max-width: 720px) {
+  .bench-grid {
+    grid-template-columns: 1fr;
+  }
+  .speed {
+    padding-top: 56px;
+  }
+  .brow {
+    grid-template-columns: 96px 1fr 56px;
+  }
+}
+
 /* ---------- feature grid (bottom of the home page) ---------- */
 .more {
   padding: 80px 0 0;
@@ -705,7 +791,8 @@ footer p {
     scroll-behavior: auto;
   }
   .abar i,
-  .beam path {
+  .beam path,
+  .brow i {
     animation: none;
   }
 }

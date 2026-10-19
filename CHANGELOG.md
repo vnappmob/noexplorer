@@ -5,6 +5,10 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Website
+- "Fast where it counts" on the home page: folder sizes vs `du` and `ncdu`, and Nextcloud folder
+  listings with and without session reuse (measured numbers).
+
 ## [0.4.19] - 2026-10-19
 
 ### Added

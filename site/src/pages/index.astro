@@ -1,6 +1,6 @@
 ---
-// Home page: one message (local ↔ remote transfers), the app mockup, download, a few points and a
-// short feature grid. Detail lives in the docs (Starlight, /docs/). Keep it short (AGENTS.md).
+// Home page: one message (local ↔ remote transfers), the app mockup, download, a few points,
+// measured benchmarks (only numbers we measured) and a short feature grid. Detail lives in the docs (Starlight, /docs/). Keep it short (AGENTS.md).
 const site = "https://noexplorer.vnappmob.com/";
 const ld = {
   "@context": "https://schema.org",
@@ -174,6 +174,28 @@ const ld = {
         </div>
       </section>
 
+      <section class="speed" aria-labelledby="speed-title">
+        <h2 id="speed-title">Fast where it counts</h2>
+        <div class="bench-grid">
+          <figure class="bench">
+            <h3><span aria-hidden="true">📊</span> Folder sizes, faster than ncdu</h3>
+            <figcaption>Sizing a folder of 224,000 files (warm cache, Apple Silicon)</figcaption>
+            <div class="brow us"><span>NoExplorer</span><i style="--w: 8.6%"></i><b>0.55 s</b></div>
+            <div class="brow"><span>ncdu&nbsp;-t&nbsp;8</span><i style="--w: 11.4%"></i><b>0.73 s</b></div>
+            <div class="brow"><span>du&nbsp;-sk</span><i style="--w: 56%"></i><b>3.6 s</b></div>
+            <div class="brow"><span>ncdu</span><i style="--w: 100%"></i><b>6.4 s</b></div>
+            <p class="bnote">Then kept up to date as files change. Going back to a folder: 0.13 s.</p>
+          </figure>
+          <figure class="bench">
+            <h3><span aria-hidden="true">☁️</span> Nextcloud folders open ~9× quicker</h3>
+            <figcaption>Listing one folder on the same Nextcloud server</figcaption>
+            <div class="brow us"><span>NoExplorer</span><i style="--w: 11.3%"></i><b>13 ms</b></div>
+            <div class="brow"><span>plain&nbsp;WebDAV</span><i style="--w: 100%"></i><b>115 ms</b></div>
+            <p class="bnote">NoExplorer keeps its session, so the server doesn't re-check your app password on every request.</p>
+          </figure>
+        </div>
+      </section>
+
       <section class="more" aria-labelledby="more-title">
         <h2 id="more-title">And the rest of what you'd expect</h2>
         <ul class="features">
@@ -184,7 +206,7 @@ const ld = {
             <a href="/docs/transfers/#several-accounts-at-once"><i aria-hidden="true">🔀</i><b>Cloud to cloud</b><span>Up to three accounts side by side; drag between them to copy.</span></a>
           </li>
           <li>
-            <a href="/docs/tools/#folder-sizes"><i aria-hidden="true">📊</i><b>Folder sizes</b><span>Every folder's size as you browse, faster than ncdu.</span></a>
+            <a href="/docs/tools/#grid-view"><i aria-hidden="true">🖼️</i><b>Grid &amp; favorites</b><span>Thumbnails of photos and videos; star the folders you use most.</span></a>
           </li>
           <li>
             <a href="/docs/tools/#quick-look"><i aria-hidden="true">👀</i><b>Quick look</b><span>Images, video, PDF and text, without downloading.</span></a>
