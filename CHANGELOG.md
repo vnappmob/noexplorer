@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.21] - 2026-10-19
+
 ### Added
 - SFTP (experimental) logs in with a **password** or a **key with a passphrase**, kept in your system
   keychain, and can use a chosen **private key file**. The account form explains which to fill in,
