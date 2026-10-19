@@ -259,6 +259,28 @@ main {
   font-size: 13.5px;
   color: var(--muted);
 }
+/* "Works with": the storage people come for, as small chips under the buttons. */
+.works {
+  list-style: none;
+  margin: 14px auto 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 1000px;
+}
+.works li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  font-size: 13.5px;
+  color: var(--fg2);
+}
 
 /* ---------- the app mock ---------- */
 .app {
@@ -557,6 +579,18 @@ main {
   gap: 32px;
   padding: 88px 0 8px;
 }
+.points .emo {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font-size: 22px;
+  font-weight: 700;
+}
 .points h3 {
   margin: 0 0 6px;
   font-size: 18px;
@@ -603,6 +637,12 @@ main {
 .features span {
   color: var(--fg2);
   font-size: 14.5px;
+}
+.features i {
+  font-style: normal;
+  font-size: 22px;
+  line-height: 1;
+  margin-bottom: 6px;
 }
 .more-link {
   margin: 18px 0 0;

@@ -6,8 +6,8 @@
 
 <p align="center">
   <b>No explorer needed: just drag it to your bucket.</b><br/>
-  A tiny dual-pane file manager for S3-compatible storage (MinIO, SeaweedFS, AWS S3, …).<br/>
-  macOS · Windows · Linux
+  A tiny two-pane file manager: your computer on the left, your cloud on the right.<br/>
+  S3 (AWS, MinIO, R2, B2, Wasabi…) · Nextcloud · WebDAV · Box &nbsp;—&nbsp; macOS · Windows · Linux
 </p>
 
 <p align="center">
@@ -20,14 +20,12 @@
 
 ---
 
-```
-┌──────── This computer ─────────┬──────── my-bucket ────────────┐
-│ ~ › Projects › website         │ my-bucket › backups            │
-│ 📁 src                         │ 📁 2026-10                     │
-│ 📄 dump.sql   ───── drag ─────────▶  upload                     │
-│               ◀──── drag ────────── 📄 site.tar.gz  download    │
-└────────────────────────────────┴────────────────────────────────┘
-```
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/screenshot-dark.png" />
+    <img src="assets/screenshot-light.png" alt="NoExplorer: this computer on the left, a MinIO bucket on the right, a folder uploading" width="900" />
+  </picture>
+</p>
 
 ## Why
 
@@ -64,8 +62,23 @@ and you're done.
   showing transfer progress there.
 - **Auto-updates**: new versions install in place with one click.
 - **Σ Size** for any folder, local or remote. A path bar always shows where you are.
-- Copy a 7-day share link, create folders, delete from S3, follow progress (with cancel)
-  for every transfer. Theme and text size settings, resizable panes. About 13 MB on macOS.
+- Copy a 7-day share link, create folders, delete remote files (in the background, with
+  progress), follow and cancel every transfer. Theme and text size settings, resizable panes.
+  About a 15 MB download on macOS.
+
+### Experimental
+
+Newer features ship in **Settings → Experimental**, off until you turn them on
+([docs](https://noexplorer.vnappmob.com/docs/experimental/)):
+
+- **Rename, move and duplicate** on both sides, with ⌘Z undo. Nothing is ever overwritten.
+- **Resumable transfers**: automatic retries, pause, a speed limit, and transfers cut short by
+  quitting continue on the next launch.
+- **Thumbnail grid** for images and videos, with cached thumbnails (48 MB at most on disk).
+- **Tabs, back/forward history and favorites** in each pane.
+- **Backup pairs**: save "this folder ↔ that remote folder" and back it up in one click.
+- **Self-signed HTTPS**: trust a NAS's own certificate after comparing its fingerprint.
+- **More storage**: Google Cloud Storage, Azure Blob Storage and SFTP.
 
 ## Install
 
@@ -136,7 +149,10 @@ shortcuts, FAQ and [privacy](https://noexplorer.vnappmob.com/docs/privacy).
 ## Limitations
 
 - You can't drag files from the app out to Finder/Explorer yet. Drop them in the left pane instead.
-- Self-signed HTTPS certificates aren't accepted. Use HTTP on a LAN or a trusted certificate.
+- Self-signed HTTPS certificates need the experimental option above (one pinned certificate per
+  account); TLS checks are never switched off.
+- Copying between two different accounts goes through your computer, one file at a time
+  (a copy within one S3 account runs on the server).
 - Local files are only ever moved to the Trash, never deleted permanently, on purpose.
 
 See the [roadmap](docs/ROADMAP.md) for what's next.

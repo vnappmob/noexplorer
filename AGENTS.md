@@ -213,7 +213,7 @@ entry to `EXPERIMENTS` in `experimental.ts`, and gate the feature with `exp("key
 - **Tauri drop positions are physical pixels.** Divide by `devicePixelRatio` before calling `elementFromPoint`.
 - **The website deploys from Cloudflare, not GitHub Actions.** Workers Builds watches the repo. Build logs live in the Cloudflare dashboard (Workers & Pages → `noexplorer-site` → Deployments), not under Actions.
 - **"A timestamp was expected but was not found" in the macOS release job** is Apple's timestamp server failing, not our code. Re-run only that job (`gh run rerun <id> --failed`); it uploads into the same draft and tauri-action merges its entries into `latest.json`.
-- **The home page stays short on purpose** (maintainer, 2026-10-17): one message (local ↔ remote transfer), the mockup, download, three points. Feature detail goes into the docs pages, not `site/index.html`.
+- **The home page stays short on purpose** (maintainer, 2026-10-17): one message (local ↔ remote transfer), the mockup, download, three points. Feature detail goes into the docs pages, not `site/src/pages/index.astro`. Emoji and the app mockup keep it lively without more text.
 - **The workflow token can't create releases in the vnappmob org** (403 "Resource not accessible by integration"). Create the draft with `gh release create vX.Y.Z --draft --verify-tag` right after pushing the tag; `tauri-action` uploads into it.
 - **macOS signing secrets live in GitHub Actions.** Without them `release.yml` still builds, but unsigned ([docs/RELEASING.md](docs/RELEASING.md)).
 

@@ -5,6 +5,10 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Website
+- Livelier home page: icons on the main points and features, a "works with" row, and a
+  screenshot preview when the link is shared.
+
 ## [0.4.16] - 2026-10-19
 
 ### Fixed

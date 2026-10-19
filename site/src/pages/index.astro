@@ -37,8 +37,12 @@ const ld = {
       property="og:description"
       content="Your computer on the left, your cloud on the right. Drag to upload or download."
     />
-    <meta property="og:image" content="https://noexplorer.vnappmob.com/icon.png" />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content="https://noexplorer.vnappmob.com/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="666" />
+    <meta property="og:image:alt" content="NoExplorer: your computer on the left, your cloud on the right" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://noexplorer.vnappmob.com/og.png" />
     <meta name="twitter:title" content="NoExplorer" />
     <meta name="twitter:description" content="Your computer on the left, your cloud on the right. Drag to upload or download." />
     <meta name="keywords" content="S3 client, S3 file manager, MinIO client, Nextcloud client, WebDAV client, Box, dual-pane file manager, backup, macOS, Windows, Linux, open source" />
@@ -74,7 +78,15 @@ const ld = {
           <a class="btn" href="/docs/">Read the docs</a>
         </div>
         <p class="other" id="dl-other"></p>
-        <p class="trust">Free &amp; open source · S3 · Nextcloud · WebDAV · Box</p>
+        <p class="trust">Free &amp; open source · no account, no tracking</p>
+        <ul class="works" aria-label="Works with">
+          <li><span aria-hidden="true">🪣</span>Amazon S3</li>
+          <li><span aria-hidden="true">🗄️</span>MinIO &amp; self-hosted</li>
+          <li><span aria-hidden="true">🟠</span>R2 · B2 · Wasabi</li>
+          <li><span aria-hidden="true">☁️</span>Nextcloud</li>
+          <li><span aria-hidden="true">🌐</span>WebDAV &amp; NAS</li>
+          <li><span aria-hidden="true">📦</span>Box</li>
+        </ul>
 
         <!-- The app, drawn in HTML so it stays crisp and follows the page's light/dark theme. -->
         <div class="app" aria-hidden="true">
@@ -146,14 +158,17 @@ const ld = {
 
       <section class="points">
         <div>
+          <span class="emo" aria-hidden="true">⇄</span>
           <h3>Drag either way</h3>
           <p>Left to right uploads, right to left downloads. Folders keep their structure.</p>
         </div>
         <div>
+          <span class="emo" aria-hidden="true">🚀</span>
           <h3>Big files, no fuss</h3>
           <p>Parallel transfers with live progress. They keep going when you close the window.</p>
         </div>
         <div>
+          <span class="emo" aria-hidden="true">🛡️</span>
           <h3>Nothing gets lost</h3>
           <p>Downloads never overwrite your files, and Compare shows that everything arrived.</p>
         </div>
@@ -163,22 +178,22 @@ const ld = {
         <h2 id="more-title">And the rest of what you'd expect</h2>
         <ul class="features">
           <li>
-            <a href="/docs/tools/#compare-folders"><b>Compare &amp; verify</b><span>See what's missing after a backup, checked by checksum.</span></a>
+            <a href="/docs/tools/#compare-folders"><i aria-hidden="true">✅</i><b>Compare &amp; verify</b><span>See what's missing after a backup, checked by checksum.</span></a>
           </li>
           <li>
-            <a href="/docs/transfers/#several-accounts-at-once"><b>Cloud to cloud</b><span>Up to three accounts side by side; drag between them to copy.</span></a>
+            <a href="/docs/transfers/#several-accounts-at-once"><i aria-hidden="true">🔀</i><b>Cloud to cloud</b><span>Up to three accounts side by side; drag between them to copy.</span></a>
           </li>
           <li>
-            <a href="/docs/tools/#folder-sizes"><b>Folder sizes</b><span>Every folder's size as you browse, faster than ncdu.</span></a>
+            <a href="/docs/tools/#folder-sizes"><i aria-hidden="true">📊</i><b>Folder sizes</b><span>Every folder's size as you browse, faster than ncdu.</span></a>
           </li>
           <li>
-            <a href="/docs/tools/#quick-look"><b>Quick look</b><span>Images, video, PDF and text, without downloading.</span></a>
+            <a href="/docs/tools/#quick-look"><i aria-hidden="true">👀</i><b>Quick look</b><span>Images, video, PDF and text, without downloading.</span></a>
           </li>
           <li>
-            <a href="/docs/accounts/"><b>Your storage</b><span>S3, R2, B2, Wasabi, MinIO, Nextcloud, WebDAV, Box.</span></a>
+            <a href="/docs/accounts/"><i aria-hidden="true">🔌</i><b>Your storage</b><span>S3, R2, B2, Wasabi, MinIO, Nextcloud, WebDAV, Box.</span></a>
           </li>
           <li>
-            <a href="/docs/privacy/"><b>Private by design</b><span>Keys in your keychain, no accounts, no tracking.</span></a>
+            <a href="/docs/privacy/"><i aria-hidden="true">🔒</i><b>Private by design</b><span>Keys in your keychain, no accounts, no tracking.</span></a>
           </li>
         </ul>
         <p class="more-link"><a href="/docs/">Read the docs →</a></p>

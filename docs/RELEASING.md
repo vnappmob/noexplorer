@@ -97,9 +97,9 @@ When that day comes:
 
 ## Website
 
-- The source is `/site`: static HTML/CSS/JS (home page `index.html` + `app.js`; docs pages in `site/docs/`), `_headers` (security and cache headers) and
-  `404.html`. It is served by **Cloudflare Workers static assets** (no Worker code). The
-  config is `wrangler.jsonc`.
+- The source is `/site`, an Astro project (see below). The build output `site/dist` is served by
+  **Cloudflare Workers static assets** (no Worker code), with `site/public/_headers` (security and
+  cache headers) and `404.html`. The config is `wrangler.jsonc`.
 - **Cloudflare Workers Builds** (Cloudflare's GitHub integration) deploys on every push to
   `main`. It runs `npx wrangler deploy`, which reads `wrangler.jsonc`. Pull requests get a
   preview URL. Nothing lives in GitHub Actions and no secrets are needed. Build logs are in
@@ -111,7 +111,8 @@ When that day comes:
   1. **Workers & Pages → Create → Import a repository** → connect GitHub and grant the
      Cloudflare app access to `vnappmob/noexplorer`.
   2. Worker name: **`noexplorer-site`** (it must match `name` in `wrangler.jsonc`).
-  3. Build command: *(leave empty)*. Deploy command: `npx wrangler deploy` (the default).
+  3. Build command: *(leave empty: `wrangler deploy` builds the site itself)*. Deploy command:
+     `npx wrangler deploy` (the default).
      Root directory: `/`.
   4. Optional, under Settings → Build → Build watch paths: include `site/*` and
      `wrangler.jsonc`, so app-only commits don't trigger a deploy.
