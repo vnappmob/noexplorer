@@ -28,6 +28,7 @@ mod diag;
 mod fileops;
 mod jobs;
 mod local;
+mod onedrive;
 mod provider;
 mod proxy;
 mod remote;
@@ -134,6 +135,7 @@ pub fn run() {
             webdav::nextcloud_login,
             webdav::cancel_login,
             box_api::box_login,
+            onedrive::onedrive_login,
             compare::compare,
             transfer::upload_rel,
             transfer::download_rel,

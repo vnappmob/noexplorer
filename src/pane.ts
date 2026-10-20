@@ -264,11 +264,13 @@ export class Pane {
           ? "nextcloud://"
           : kind === "box"
             ? "box://"
-            : kind === "azure"
-              ? "azure://"
-              : kind === "sftp"
-                ? "sftp://"
-                : "dav://";
+            : kind === "onedrive"
+              ? "onedrive://"
+              : kind === "azure"
+                ? "azure://"
+                : kind === "sftp"
+                  ? "sftp://"
+                  : "dav://";
     this.crumbs = [{ name: this.bucket || "—", path: "" }];
     let acc = "";
     for (const p of this.cwd.split("/").filter(Boolean)) {
@@ -315,6 +317,7 @@ export class Pane {
     if (p.kind === "nextcloud") return `${base}/remote.php/dav/files/${encodeURIComponent(p.access_key)}/${this.cwd}`;
     if (p.kind === "webdav") return `${base}/${this.cwd}`;
     if (p.kind === "box") return `box://${this.cwd}`;
+    if (p.kind === "onedrive") return `onedrive://${this.cwd}`;
     if (p.kind === "azure") return `${azureEndpoint(p)}/${this.bucket}/${this.cwd}`;
     if (p.kind === "sftp") return `${base}/${this.cwd}`;
     return `s3://${this.bucket}/${this.cwd}`;
@@ -411,8 +414,10 @@ export class Pane {
       const host =
         p.kind === "box"
           ? "box.com"
-          : (p.kind === "azure" ? azureEndpoint(p) : p.endpoint).replace(/^https?:\/\//, "").replace(/\/+$/, "") ||
-            "Amazon S3";
+          : p.kind === "onedrive"
+            ? "onedrive.live.com"
+            : (p.kind === "azure" ? azureEndpoint(p) : p.endpoint).replace(/^https?:\/\//, "").replace(/\/+$/, "") ||
+              "Amazon S3";
       this.list.innerHTML =
         n.kind === "connecting"
           ? `<div class="empty notice"><span class="spin" aria-hidden="true"></span><b>Connecting to ${esc(p.name)}…</b>${esc(host)}</div>`

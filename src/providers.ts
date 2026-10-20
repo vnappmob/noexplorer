@@ -2,13 +2,29 @@
 // should suggest and show, and how an account is summarized in lists. The backend does the real
 // work (provider.rs; s3.rs for AWS regions; webdav.rs for Nextcloud/WebDAV).
 
-import type { Profile, ProviderKind } from "./types";
+import type { Experimental, Profile, ProviderKind } from "./types";
 
 export type ProviderId =
-  "custom" | "aws" | "r2" | "b2" | "wasabi" | "do" | "oci" | "nextcloud" | "webdav" | "box" | "gcs" | "azure" | "sftp";
+  | "custom"
+  | "aws"
+  | "r2"
+  | "b2"
+  | "wasabi"
+  | "do"
+  | "oci"
+  | "nextcloud"
+  | "webdav"
+  | "box"
+  | "onedrive"
+  | "gcs"
+  | "azure"
+  | "sftp";
 
-/** Shown in the provider picker only with Settings → Experimental → Box accounts. */
-export const EXPERIMENTAL_PROVIDERS: ProviderId[] = ["box"];
+/** Providers shown in the picker only with their Settings → Experimental switch on. */
+export const EXPERIMENTAL_PROVIDERS: Partial<Record<ProviderId, keyof Experimental>> = {
+  box: "box_beta",
+  onedrive: "onedrive_beta",
+};
 
 type Preset = {
   label: string;
@@ -115,6 +131,17 @@ export const PRESETS: Record<ProviderId, Preset> = {
     pathStyle: true,
     matches: () => false,
   },
+  onedrive: {
+    kind: "onedrive",
+    label: "OneDrive",
+    hint: "Sign in with your Microsoft account: personal, work or school. Nothing to set up; your password stays with Microsoft, and NoExplorer only gets access to your files. A work or school account may need your IT admin to allow NoExplorer first.",
+    endpointPlaceholder: "",
+    endpointRequired: false,
+    regionPlaceholder: "",
+    region: "",
+    pathStyle: true,
+    matches: () => false,
+  },
   webdav: {
     kind: "webdav",
     label: "WebDAV",
@@ -180,8 +207,7 @@ export function endpointHost(endpoint: string) {
 
 /** Which preset an existing account looks like (S3 with an empty endpoint = AWS). */
 export function guessProvider(p: Pick<Profile, "endpoint"> & { kind?: ProviderKind }): ProviderId {
-  if (p.kind === "nextcloud" || p.kind === "webdav" || p.kind === "box" || p.kind === "azure" || p.kind === "sftp")
-    return p.kind;
+  if (p.kind && p.kind !== "s3") return p.kind;
   const h = endpointHost(p.endpoint);
   for (const id of ["aws", "r2", "b2", "wasabi", "do", "gcs", "oci"] as const) if (PRESETS[id].matches(h)) return id;
   return "custom";
@@ -191,6 +217,7 @@ export function guessProvider(p: Pick<Profile, "endpoint"> & { kind?: ProviderKi
 export function describeAccount(p: Profile) {
   const id = guessProvider(p);
   if (id === "box") return "Box";
+  if (id === "onedrive") return p.access_key ? `OneDrive · ${p.access_key}` : "OneDrive";
   if (id === "sftp") return `SFTP · ${endpointHost(p.endpoint)}`;
   if (id === "azure") return `Azure · ${endpointHost(azureEndpoint(p)).split(".")[0]}`;
   if (id === "nextcloud" || id === "webdav") return `${PRESETS[id].label} · ${endpointHost(p.endpoint)}`;
@@ -224,12 +251,13 @@ export const LOOK: Record<ProviderId, { mono: string; hue: number; blurb: string
   webdav: { mono: "DAV", hue: 250, name: "WebDAV", blurb: "NAS or any WebDAV server" },
   sftp: { mono: ">_", hue: 165, name: "SFTP", blurb: "Any SSH server" },
   box: { mono: "box", hue: 212, name: "Box", blurb: "Your own Box app · beta" },
+  onedrive: { mono: "OD", hue: 214, name: "OneDrive", blurb: "Sign in with Microsoft · beta" },
 };
 
 export const PICKER_GROUPS: { title: string; ids: ProviderId[] }[] = [
   { title: "Object storage", ids: ["aws", "custom", "r2", "b2", "wasabi", "do", "gcs", "azure", "oci"] },
   { title: "File servers", ids: ["nextcloud", "webdav", "sftp"] },
-  { title: "Cloud drives", ids: ["box"] },
+  { title: "Cloud drives", ids: ["onedrive", "box"] },
 ];
 
 /** A provider badge (`.pbadge`); `sm` for lists. */

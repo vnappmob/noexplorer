@@ -27,7 +27,7 @@ import {
 import { activeProfile, app, exp } from "./state";
 import { icon } from "./icons";
 import { openMenu, type MenuItem } from "./popover";
-import type { BucketInfo, General, Profile, Settings } from "./types";
+import type { BucketInfo, Experimental, General, Profile, Settings } from "./types";
 import { renderExperimental } from "./experimental";
 import { requestSizes, stopSizes } from "./sizes";
 import { checkForUpdates } from "./updater";
@@ -96,7 +96,10 @@ function renderProvButton(id: ProviderId) {
 
 function openProvMenu() {
   const current = $<HTMLSelectElement>("acct-provider").value as ProviderId;
-  const allowed = (id: ProviderId) => !EXPERIMENTAL_PROVIDERS.includes(id) || exp("box_beta") || id === current;
+  const allowed = (id: ProviderId) => {
+    const key = EXPERIMENTAL_PROVIDERS[id];
+    return !key || exp(key) || id === current;
+  };
   provMenu().innerHTML = PICKER_GROUPS.map((g) => {
     const ids = g.ids.filter(allowed);
     if (!ids.length) return "";
@@ -174,12 +177,12 @@ function editAccount(p: Profile | null) {
     : "";
   const provider = p ? guessProvider(p) : "custom";
   syncProviderOptions();
-  if (EXPERIMENTAL_PROVIDERS.includes(provider) && !$("acct-provider").querySelector(`option[value="${provider}"]`))
+  if (EXPERIMENTAL_PROVIDERS[provider] && !$("acct-provider").querySelector(`option[value="${provider}"]`))
     $<HTMLSelectElement>("acct-provider").add(new Option(PRESETS[provider].label, provider));
   $<HTMLSelectElement>("acct-provider").value = provider;
   applyPreset(provider, false);
   // Nextcloud can sign in through the browser instead: no password to type.
-  secret.required = !p && provider !== "nextcloud";
+  secret.required = !p && provider !== "nextcloud" && provider !== "onedrive";
   $<HTMLButtonElement>("acct-delete").hidden = !p;
   input("cert_pin").value = p?.cert_pin ?? "";
   renderCert();
@@ -222,12 +225,27 @@ function applyPreset(id: ProviderId, fill: boolean) {
     .querySelectorAll<HTMLElement>(".s3-only")
     .forEach((el) => (el.hidden = !s3));
   const box = pr.kind === "box";
-  $("acct-signin").hidden = pr.kind !== "nextcloud" && !box;
-  $("acct-nc-login").textContent = box ? "Sign in with Box…" : "Sign in with Nextcloud…";
-  $("acct-signin-hint").textContent = box
-    ? "Opens your browser to approve your Box app. Fill in the Client ID and secret below first."
-    : "Opens your browser. Or enter a user name and an app password below.";
-  $("acct-endpoint-row").hidden = box;
+  // OneDrive: signing in is all there is (NoExplorer's own Microsoft app, onedrive.rs).
+  const od = pr.kind === "onedrive";
+  $("acct-signin").hidden = pr.kind !== "nextcloud" && !box && !od;
+  $("acct-nc-login").textContent = od
+    ? editing
+      ? "Sign in again…"
+      : "Sign in with Microsoft…"
+    : box
+      ? "Sign in with Box…"
+      : "Sign in with Nextcloud…";
+  $("acct-signin-hint").textContent = od
+    ? editing
+      ? `Signed in as ${input("access_key").value || "your Microsoft account"}. Sign in again to renew access or switch accounts.`
+      : "Opens your browser to sign in to Microsoft and allow NoExplorer to read and write your files."
+    : box
+      ? "Opens your browser to approve your Box app. Fill in the Client ID and secret below first."
+      : "Opens your browser. Or enter a user name and an app password below.";
+  $("acct-conn").hidden = od;
+  $("acct-test").hidden = od && !editing; // nothing to test before signing in
+  $("acct-cred").hidden = od;
+  $("acct-endpoint-row").hidden = box || od;
   endpoint.required = pr.endpointRequired && !box;
   const azure = pr.kind === "azure";
   const sftp = pr.kind === "sftp";
@@ -258,7 +276,9 @@ function applyPreset(id: ProviderId, fill: boolean) {
           : sftp
             ? "Password or key passphrase (optional)"
             : "Password";
-  input("access_key").required = pr.kind !== "nextcloud" && !sftp;
+  input("access_key").required = pr.kind !== "nextcloud" && !sftp && !od;
+  // A new account needs its secret, except where signing in (or SSH keys) replaces it.
+  input("secret_key").required = !editing && pr.kind !== "nextcloud" && !sftp && !od;
   syncAzurePlaceholder();
   // SFTP: SSH keys / agent by default; a password or key passphrase only when the server needs it.
   $("acct-key-row").hidden = !sftp;
@@ -315,7 +335,7 @@ function renderSetup(values: Record<string, string>) {
         .join("")
     : "";
   box.hidden = !simple || !st.fields.length;
-  $("acct-endpoint-row").hidden = simple || id === "box";
+  $("acct-endpoint-row").hidden = simple || id === "box" || id === "onedrive";
   input("endpoint").required = !simple && PRESETS[id].endpointRequired && id !== "box";
   syncSetup();
 }
@@ -405,11 +425,11 @@ function readForm(): Profile {
 
 // ---------- experimental providers ----------
 
-/** Adds or removes Box in the provider picker (Safari can't hide <option>s). */
+/** Adds or removes experimental providers in the picker (Safari can't hide <option>s). */
 function syncProviderOptions() {
   const sel = $<HTMLSelectElement>("acct-provider");
-  const on = exp("box_beta");
-  for (const id of EXPERIMENTAL_PROVIDERS) {
+  for (const [id, key] of Object.entries(EXPERIMENTAL_PROVIDERS) as [ProviderId, keyof Experimental][]) {
+    const on = exp(key);
     const opt = sel.querySelector<HTMLOptionElement>(`option[value="${id}"]`);
     // Keep an option the open account already uses, even with the experiment off.
     if (!on && opt && sel.value !== id) opt.remove();
@@ -478,8 +498,9 @@ async function testAccount(): Promise<boolean> {
 /** Save = test first, then persist and switch the remote pane to this account. */
 async function saveAccount(ev: Event) {
   ev.preventDefault();
-  // Box accounts are created by signing in (that's where the tokens come from).
+  // Box and new OneDrive accounts are created by signing in (that's where the tokens come from).
   if (readForm().kind === "box") return boxSignIn();
+  if (readForm().kind === "onedrive" && !editing) return oneDriveSignIn();
   if (!(await testAccount())) return;
   try {
     const s = await invoke<Settings>("save_profile", { profile: readForm() });
@@ -506,6 +527,25 @@ async function boxSignIn() {
       id: editing || null,
       name: input("name").value,
     });
+    await applySettings(s, s.active);
+    dialog().close();
+  } catch (e) {
+    setMsg(`✗ ${e}`, "err");
+  } finally {
+    btn.disabled = false;
+    $("acct-nc-cancel").hidden = true;
+  }
+}
+
+/** OneDrive: Microsoft's sign-in page in the browser; the backend saves the account and its
+ * refresh token (keychain). */
+async function oneDriveSignIn() {
+  const btn = $<HTMLButtonElement>("acct-nc-login");
+  btn.disabled = true;
+  $("acct-nc-cancel").hidden = false;
+  setMsg("Sign in to Microsoft in the browser window that just opened…");
+  try {
+    const s = await invoke<Settings>("onedrive_login", { id: editing || null, name: input("name").value });
     await applySettings(s, s.active);
     dialog().close();
   } catch (e) {
@@ -834,7 +874,10 @@ export function setupSettings() {
     const f = await open({ title: "Private key file", defaultPath: ssh, multiple: false, directory: false });
     if (typeof f === "string") input("key_file").value = f;
   };
-  $("acct-nc-login").onclick = () => (readForm().kind === "box" ? boxSignIn() : nextcloudSignIn());
+  $("acct-nc-login").onclick = () => {
+    const kind = readForm().kind;
+    return kind === "box" ? boxSignIn() : kind === "onedrive" ? oneDriveSignIn() : nextcloudSignIn();
+  };
   $("acct-nc-cancel").onclick = () => invoke("cancel_login");
   $("acct-delete").onclick = deleteAccount;
   $("acct-add").onclick = () => editAccount(null);

@@ -714,7 +714,7 @@ pub async fn box_login(
         enc(REDIRECT_URI)
     );
     app.opener().open_url(&auth, None::<&str>).map_err(|e| e.to_string())?;
-    let code = wait_for_code(&listener, &csrf).await?;
+    let code = wait_for_code(&listener, &csrf, "/callback?", "Box").await?;
     drop(listener);
 
     let r = http()
@@ -757,8 +757,14 @@ pub async fn box_login(
     crate::config::store_account(&app, &state, p)
 }
 
-/// Accepts connections on the loopback listener until Box redirects back with `code`.
-async fn wait_for_code(listener: &tokio::net::TcpListener, csrf: &str) -> Result<String, String> {
+/// Accepts connections on the loopback listener until the provider (`who`) redirects back to
+/// `path` (e.g. `/callback?`) with `code`. Shared with OneDrive's sign-in.
+pub(crate) async fn wait_for_code(
+    listener: &tokio::net::TcpListener,
+    csrf: &str,
+    path: &str,
+    who: &str,
+) -> Result<String, String> {
     let deadline = Instant::now() + Duration::from_secs(15 * 60);
     loop {
         if crate::webdav::LOGIN_CANCEL.load(Ordering::Relaxed) {
@@ -778,21 +784,24 @@ async fn wait_for_code(listener: &tokio::net::TcpListener, csrf: &str) -> Result
             .unwrap_or(0);
         let head = String::from_utf8_lossy(&buf[..n]).to_string();
         let target = head.split_whitespace().nth(1).unwrap_or("").to_string();
-        let Some(query) = target.strip_prefix("/callback?") else {
+        let Some(query) = target.strip_prefix(path) else {
             let _ = sock.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").await;
             continue;
         };
         let params = parse_query(query);
         let (msg, result) = if params.get("state").map(String::as_str) != Some(csrf) {
             (
-                "This sign-in link doesn't match. Start again from NoExplorer.",
+                "This sign-in link doesn't match. Start again from NoExplorer.".to_string(),
                 Err("Sign-in didn't match (state)".to_string()),
             )
         } else if let Some(code) = params.get("code") {
-            ("NoExplorer is connected to Box. You can close this tab.", Ok(code.clone()))
+            (format!("NoExplorer is connected to {who}. You can close this tab."), Ok(code.clone()))
         } else {
             let why = params.get("error_description").or(params.get("error")).cloned().unwrap_or("denied".into());
-            ("Box sign-in was not completed. You can close this tab.", Err(format!("Box sign-in failed: {why}")))
+            (
+                format!("{who} sign-in was not completed. You can close this tab."),
+                Err(format!("{who} sign-in failed: {why}")),
+            )
         };
         let page = format!(
             "<!doctype html><meta charset=utf-8><title>NoExplorer</title><body style=\"font:16px system-ui;padding:3em;text-align:center\"><p>{msg}</p></body>"
@@ -816,15 +825,15 @@ fn parent_of(key: &str) -> String {
     }
 }
 
-fn enc(s: &str) -> String {
+pub(crate) fn enc(s: &str) -> String {
     percent_encoding::utf8_percent_encode(s, percent_encoding::NON_ALPHANUMERIC).to_string()
 }
 
-fn form(pairs: &[(&str, &str)]) -> String {
+pub(crate) fn form(pairs: &[(&str, &str)]) -> String {
     pairs.iter().map(|(k, v)| format!("{}={}", enc(k), enc(v))).collect::<Vec<_>>().join("&")
 }
 
-fn parse_query(q: &str) -> HashMap<String, String> {
+pub(crate) fn parse_query(q: &str) -> HashMap<String, String> {
     q.split('&')
         .filter_map(|kv| kv.split_once('='))
         .map(|(k, v)| {
@@ -886,7 +895,7 @@ async fn ok(r: Response) -> Result<Response, String> {
 }
 
 /// `2026-10-16T10:01:02-07:00` → Unix millis.
-fn parse_rfc3339(s: &str) -> Option<i64> {
+pub(crate) fn parse_rfc3339(s: &str) -> Option<i64> {
     let (date, rest) = s.split_once('T')?;
     let mut d = date.split('-').map(|x| x.parse::<i64>().ok());
     let (y, m, day) = (d.next()??, d.next()?? as u32, d.next()?? as u32);
@@ -910,7 +919,7 @@ fn parse_rfc3339(s: &str) -> Option<i64> {
 }
 
 /// RFC 3339 timestamp `secs` from now (UTC).
-fn rfc3339_in(secs: u64) -> String {
+pub(crate) fn rfc3339_in(secs: u64) -> String {
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() + secs;
     let (y, m, d) = crate::webdav::civil_from_days((now / 86_400) as i64);
     let t = now % 86_400;

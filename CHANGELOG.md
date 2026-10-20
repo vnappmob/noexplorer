@@ -5,6 +5,11 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **OneDrive** (experimental, Settings → Experimental → OneDrive accounts): click **Sign in with
+  Microsoft…** and you're connected. Personal, work and school accounts; uploads of any size,
+  recycle-bin deletes, view links, copies and moves on OneDrive's side.
+
 ### Changed
 - **New accounts without hunting for an endpoint**: R2 asks for the account ID; B2, Wasabi and
   DigitalOcean for a region picked from a list; Oracle Cloud for the namespace and region; AWS and

@@ -23,6 +23,11 @@ export const EXPERIMENTS: { key: keyof Experimental; title: string; desc: string
     title: "Box accounts",
     desc: "Box in the account form, with your own Box app. It works against our test double but hasn't been tried on a real Box account yet.",
   },
+  {
+    key: "onedrive_beta",
+    title: "OneDrive accounts",
+    desc: "OneDrive in the account form: sign in with your Microsoft account, nothing to set up. It works against our test double; real accounts are being tried now.",
+  },
 ];
 
 /** Fills the Experimental tab (index.html #exp-form). */

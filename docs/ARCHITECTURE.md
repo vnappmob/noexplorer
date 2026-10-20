@@ -40,6 +40,7 @@ This is the deep reference. For orientation, read [AGENTS.md](../AGENTS.md) firs
 | `webdav.rs` | Nextcloud / WebDAV provider | `Dav` (own client: PROPFIND/GET Range/PUT/MKCOL/DELETE/MOVE), Nextcloud chunked upload v2 and OCS shares, `parse_multistatus`, Login Flow v2 (`nextcloud_login`, `cancel_login`), shared `http()` client (ADR-026) |
 | `proxy.rs` | Preview proxy | The `nxr://` scheme: streams `Remote::read_range` to the webview with Range + CORS for providers without presigned URLs, local files (`~local`) and grid thumbnails (`~thumb`); answers on the main thread (ADR-035) |
 | `thumbs.rs` | Grid thumbnails | 256 px JPEG/PNG thumbnails, LRU caches in memory (16 MB) and on disk (48 MB); trims WebKit's disk cache at launch (ADR-036, ADR-037) |
+| `onedrive.rs` | OneDrive provider (beta) | `OneDrive`: Microsoft Graph by path, NoExplorer's public Entra app (PKCE, no secret), refresh token in the keychain, ≤ 4 MB PUT or 10 MiB upload-session chunks, async copies via the monitor URL, recycle-bin deletes; `onedrive_login` (ADR-045) |
 | `box_api.rs` | Box provider (beta) | `BoxCom`: token refresh with rotation (keychain), path → ID cache, multipart and session uploads with SHA-1, versions, trash deletes, shared links; `box_login` (loopback OAuth) (ADR-027) |
 | `compare.rs` | Compare folders | `compare` / `diff`: local walk (junk, symlinks), `Remote::list_files` with hashes, pairing, parallel hash checks (MD5 / multipart ETag / SHA-1), `"compare-progress"` (ADR-028) |
 | `state.rs` | Shared state | `AppState { settings, remotes, cancels }`. **`remote(account)`** returns the cached `Arc<Remote>` for a profile id (active when `None`); `set_settings()` drops the clients of changed accounts only |
@@ -82,7 +83,8 @@ means the active account (ADR-025).
 | `stop_sizes` | – | – | sizes | Clears the focus and cancels the running scan (auto sizes turned off) |
 | `volume_info` | `path` | `VolumeInfo {name, total, available}` | local | The disk under `path`, for the storage bar. macOS: NSURL volume resource values (available = "important usage", as System Settings shows); Windows: `GetDiskFreeSpaceExW`; Linux: `statvfs` |
 | `nextcloud_login` | `server, id?, name` | `Settings` | webdav | Login Flow v2: opens the browser, polls until approved (20 min), saves the account with its app password in the keychain, makes it active |
-| `cancel_login` | – | – | webdav | Stops a waiting `nextcloud_login` or `box_login` |
+| `cancel_login` | – | – | webdav | Stops a waiting `nextcloud_login`, `box_login` or `onedrive_login` |
+| `onedrive_login` | `id?, name` | `Settings` | onedrive | Opens Microsoft's sign-in (auth code + PKCE) with a `http://localhost:<random port>` redirect, exchanges the code, saves the account (refresh token in the keychain) |
 | `box_login` | `client_id, client_secret, id?, name` | `Settings` | box_api | Opens Box's authorize page, waits on `127.0.0.1:53682/callback`, exchanges the code, saves the account (client secret + refresh token in the keychain) |
 | `compare` | `id, account?, bucket, prefix, local, verify` | `Diff` | compare | Local folder vs remote folder; emits `"compare-progress"`; `cancel(id)` stops it |
 | `upload_rel` | `account?, bucket, prefix, root, rels[]` | job id | transfer | Uploads `root/rel` to `prefix + rel` (Compare → Upload) |
@@ -290,6 +292,7 @@ Imports go one way to avoid cycles: `main → (actions, dnd, keyboard, menu, set
 | What | Where |
 |---|---|
 | Accounts + General (`Settings`, JSON, mode 0600; secret keys only when no OS store is available) | `<app config dir>/config.json`: macOS `~/Library/Application Support/com.vnappmob.noexplorer/`, Windows `%APPDATA%\com.vnappmob.noexplorer\`, Linux `~/.config/com.vnappmob.noexplorer/` |
+| OneDrive refresh tokens | OS credential store, `account = onedrive-refresh:<profile id>` (saved again whenever Microsoft sends a new one) |
 | Box refresh tokens | OS credential store, `account = box-refresh:<profile id>` (rotated on every refresh) |
 | Secret keys | OS credential store: Keychain / Credential Manager / Secret Service, `service = <app identifier>`, `account = <profile id>` |
 | UI preferences (`localStorage`) | `bucket@<profileId>`, `prefix@<profileId>`, `localPath`, `hidden`, `local.sortBy`, `local.sortDir`, `remote.sortBy`, `remote.sortDir`, `theme`, `textSize`, `split` |

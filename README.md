@@ -83,6 +83,7 @@ Newer features ship in **Settings → Experimental**, off until you turn them on
 
 - **Backup pairs**: save "this folder ↔ that remote folder" and back it up in one click.
 - **Self-signed HTTPS**: trust a NAS's own certificate after comparing its fingerprint.
+- **OneDrive accounts**: sign in with Microsoft, nothing to set up (being tried on real accounts).
 - **Box accounts** with your own Box app (not yet tried on a real Box account).
 
 ## Install

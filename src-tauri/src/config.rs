@@ -34,6 +34,9 @@ pub enum ProviderKind {
     /// SFTP: `endpoint` = `sftp://user@host:port/path`; login with SSH keys / agent
     /// through the system `ssh` (`sftp.rs`).
     Sftp,
+    /// OneDrive through Microsoft Graph: `access_key` = the signed-in email (display only), refresh
+    /// token in the keychain (`onedrive.rs`).
+    Onedrive,
 }
 
 /// One remote account. Mirrors `Profile` in `src/types.ts`.
@@ -124,6 +127,8 @@ pub struct Experimental {
     pub backup_pairs: bool,
     /// Box accounts (beta: tested against a mock only).
     pub box_beta: bool,
+    /// OneDrive accounts (beta: tested against a mock only).
+    pub onedrive_beta: bool,
 }
 
 /// Everything in `config.json`. Mirrors `Settings` in `src/types.ts`.
@@ -379,6 +384,7 @@ pub fn delete_profile(app: AppHandle, state: State<'_, AppState>, id: String) ->
     let store = OsStore::new(&app);
     store.delete(&id);
     store.delete(&crate::box_api::refresh_key(&id)); // Box sign-in, if any
+    store.delete(&crate::onedrive::refresh_key(&id)); // OneDrive sign-in, if any
     commit(&app, &state, s)
 }
 

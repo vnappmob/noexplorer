@@ -16,6 +16,7 @@ use crate::azure::Azure;
 use crate::box_api::BoxCom;
 use crate::config::{Profile, ProviderKind};
 use crate::jobs::Job;
+use crate::onedrive::OneDrive;
 use crate::s3::S3;
 use crate::sftp::Sftp;
 use crate::webdav::Dav;
@@ -54,6 +55,8 @@ pub enum Remote {
     Azure(Azure),
     /// SFTP through the system `ssh` (`sftp.rs`).
     Sftp(Sftp),
+    /// OneDrive through Microsoft Graph (`onedrive.rs`).
+    OneDrive(OneDrive),
 }
 
 impl Remote {
@@ -64,6 +67,7 @@ impl Remote {
             ProviderKind::Box => Remote::Box(BoxCom::new(p)),
             ProviderKind::Azure => Remote::Azure(Azure::new(p)),
             ProviderKind::Sftp => Remote::Sftp(Sftp::new(p)),
+            ProviderKind::Onedrive => Remote::OneDrive(OneDrive::new(p)),
         }
     }
 
@@ -73,6 +77,7 @@ impl Remote {
             Remote::S3(s) => s.account(),
             Remote::Dav(d) => d.account(),
             Remote::Box(b) => b.account(),
+            Remote::OneDrive(o) => o.account(),
             Remote::Azure(a) => a.account(),
             Remote::Sftp(f) => f.account(),
         }
@@ -83,6 +88,7 @@ impl Remote {
             Remote::S3(s) => s.containers().await,
             Remote::Dav(d) => d.containers().await,
             Remote::Box(b) => b.containers().await,
+            Remote::OneDrive(o) => o.containers().await,
             Remote::Azure(a) => a.containers().await,
             Remote::Sftp(f) => f.containers().await,
         }
@@ -110,6 +116,7 @@ impl Remote {
             Remote::S3(s) => s.list_files(container, prefix).await,
             Remote::Dav(d) => walk_files(prefix, |dir| async move { d.list(container, &dir).await }).await,
             Remote::Box(b) => walk_files(prefix, |dir| async move { b.list(container, &dir).await }).await,
+            Remote::OneDrive(o) => walk_files(prefix, |dir| async move { o.list(container, &dir).await }).await,
             Remote::Azure(a) => a.list_files(container, prefix).await,
             Remote::Sftp(f) => walk_files(prefix, |dir| async move { f.list(container, &dir).await }).await,
         }
@@ -121,6 +128,7 @@ impl Remote {
             Remote::S3(s) => s.list(container, prefix).await,
             Remote::Dav(d) => d.list(container, prefix).await,
             Remote::Box(b) => b.list(container, prefix).await,
+            Remote::OneDrive(o) => o.list(container, prefix).await,
             Remote::Azure(a) => a.list(container, prefix).await,
             Remote::Sftp(f) => f.list(container, prefix).await,
         }
@@ -133,6 +141,7 @@ impl Remote {
             Remote::S3(s) => s.list_all(container, prefix).await,
             Remote::Dav(d) => d.list_all(container, prefix).await,
             Remote::Box(b) => b.list_all(container, prefix).await,
+            Remote::OneDrive(o) => o.list_all(container, prefix).await,
             Remote::Azure(a) => a.list_all(container, prefix).await,
             Remote::Sftp(f) => Ok(walk_files(prefix, |dir| async move { f.list(container, &dir).await })
                 .await?
@@ -148,6 +157,7 @@ impl Remote {
             Remote::S3(s) => s.link(container, key, secs, inline).await,
             Remote::Dav(d) => d.link(container, key, secs, inline).await,
             Remote::Box(b) => b.link(container, key, secs, inline).await,
+            Remote::OneDrive(o) => o.link(container, key, secs, inline).await,
             Remote::Azure(a) => a.link(container, key, secs, inline).await,
             // Previews stream through the app (proxy.rs); SFTP has no share links.
             Remote::Sftp(f) if inline => Ok(crate::proxy::url(f.account(), container, key)),
@@ -161,6 +171,7 @@ impl Remote {
             Remote::S3(s) => s.read_head(container, key, max).await,
             Remote::Dav(d) => d.read_head(container, key, max).await,
             Remote::Box(b) => b.read_head(container, key, max).await,
+            Remote::OneDrive(o) => o.read_head(container, key, max).await,
             Remote::Azure(a) => a.read_head(container, key, max).await,
             Remote::Sftp(f) => f.read_head(key, max).await,
         }
@@ -180,6 +191,7 @@ impl Remote {
             Remote::S3(s) => s.read_range(container, key, start, end, cap).await,
             Remote::Dav(d) => d.read_range(key, start, end, cap).await,
             Remote::Box(b) => b.read_range(key, start, end, cap).await,
+            Remote::OneDrive(o) => o.read_range(key, start, end, cap).await,
             Remote::Azure(a) => a.read_range(container, key, start, end, cap).await,
             Remote::Sftp(f) => f.read_range(key, start, end, cap).await,
         }
@@ -201,6 +213,7 @@ impl Remote {
             Remote::S3(s) => s.mkdir(container, prefix, name).await,
             Remote::Dav(d) => d.mkdir(container, prefix, name).await,
             Remote::Box(b) => b.mkdir(container, prefix, name).await,
+            Remote::OneDrive(o) => o.mkdir(container, prefix, name).await,
             Remote::Azure(a) => a.mkdir(container, prefix, name).await,
             Remote::Sftp(f) => f.mkdir(container, prefix, name).await,
         }
@@ -224,6 +237,7 @@ impl Remote {
             Remote::S3(s) => s.transfer_within(container, from, to, keep, job).await,
             Remote::Dav(d) => d.transfer_within(container, from, to, keep, job).await,
             Remote::Box(b) => b.transfer_within(container, from, to, keep, job).await,
+            Remote::OneDrive(o) => o.transfer_within(container, from, to, keep, job).await,
             Remote::Azure(a) => a.transfer_within(container, from, to, keep, job).await,
             Remote::Sftp(f) => f.transfer_within(container, from, to, keep, job).await,
         }
@@ -236,6 +250,7 @@ impl Remote {
             Remote::S3(s) => s.delete(container, keys, job).await,
             Remote::Dav(d) => d.delete(container, keys, job).await,
             Remote::Box(b) => b.delete(container, keys, job).await,
+            Remote::OneDrive(o) => o.delete(container, keys, job).await,
             Remote::Azure(a) => a.delete(container, keys, job).await,
             Remote::Sftp(f) => f.delete(container, keys, job).await,
         }
@@ -253,6 +268,7 @@ impl Remote {
             Remote::S3(s) => s.upload_file(container, key, path, size, job).await,
             Remote::Dav(d) => d.upload_file(container, key, path, size, job).await,
             Remote::Box(b) => b.upload_file(container, key, path, size, job).await,
+            Remote::OneDrive(o) => o.upload_file(container, key, path, size, job).await,
             Remote::Azure(a) => a.upload_file(container, key, path, size, job).await,
             Remote::Sftp(f) => f.upload_file(container, key, path, size, job).await,
         }
@@ -264,6 +280,7 @@ impl Remote {
             Remote::S3(s) => s.download_file(container, key, path, job).await,
             Remote::Dav(d) => d.download_file(container, key, path, job).await,
             Remote::Box(b) => b.download_file(container, key, path, job).await,
+            Remote::OneDrive(o) => o.download_file(container, key, path, job).await,
             Remote::Azure(a) => a.download_file(container, key, path, job).await,
             Remote::Sftp(f) => f.download_file(container, key, path, job).await,
         }

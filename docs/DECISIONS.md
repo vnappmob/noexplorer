@@ -882,3 +882,27 @@ is recognized with `guessProvider` and fills the form.
 (`<datalist>`), so a new region still works by typing it. Saving an Oracle account rewrites an
 old `…oraclecloud.com` endpoint to the `…oci.customer-oci.com` form, which Oracle documents as
 equivalent.
+
+## ADR-045: OneDrive through Microsoft Graph with NoExplorer's own public app
+
+**Context.** Users asked for OneDrive. Google Drive was dropped because its file scopes need a paid
+security assessment; Box needs each user to create their own OAuth app. Microsoft's identity
+platform lets a desktop app be a *public client*: it ships its client ID and has no secret.
+
+**Decision.** NoExplorer has one app registration in Microsoft Entra (multi-tenant + personal
+accounts, "Mobile and desktop" redirect `http://localhost`, public client flows on; delegated
+`Files.ReadWrite`, `offline_access`, `User.Read`). Its client ID is a constant in `onedrive.rs`.
+Sign-in is authorization code + PKCE through the browser to a random loopback port (Entra ignores
+the port of a localhost redirect). The refresh token lives in the keychain; Graph is addressed by
+path (`/me/drive/root:/a/b:`), so no ID cache. Uploads ≤ 4 MB are one PUT; larger ones use an
+upload session in 10 MiB chunks (a multiple of 320 KiB), sent without the bearer token. Copies are
+asynchronous on Microsoft's side and followed through the monitor URL. OneNote notebooks and
+items shared from other drives are left out of listings (they can't be addressed by path here).
+Ships behind Settings → Experimental until it's been used on real accounts.
+
+**Consequences.** Users click one button. Work and school tenants that block user consent need an
+admin to approve the app; publisher verification (free, through Microsoft Partner Center with the
+vnappmob.com domain) makes that rarer. Compare can only verify files on personal accounts (SHA-1);
+work accounts report only quickXorHash, so they count as "same size". Tested against a mock Graph
+(`onedrive_roundtrip_against_mock`); the diagnostic log drops query strings, which carry
+pre-authorized upload and download tokens.

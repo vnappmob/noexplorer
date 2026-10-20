@@ -200,7 +200,7 @@
                     <button type="button" id="acct-nc-cancel" hidden>Cancel</button>
                     <small id="acct-signin-hint">Opens your browser. Or enter a user name and an app password below.</small>
                   </div>
-                  <fieldset class="set-group">
+                  <fieldset class="set-group" id="acct-conn">
                     <legend>Connection</legend>
                     <div id="acct-setup" class="acct-setup" hidden></div>
                     <label id="acct-endpoint-row"><span id="lbl-endpoint">Endpoint</span>
@@ -214,7 +214,7 @@
                     </div>
                     <label id="acct-project-row" hidden>Project ID <input name="project" placeholder="my-project-123 (to list your buckets)" spellcheck="false" /></label>
                   </fieldset>
-                  <fieldset class="set-group">
+                  <fieldset class="set-group" id="acct-cred">
                     <legend>Sign in</legend>
                     <label><span id="lbl-access">Access key</span> <input name="access_key" required spellcheck="false" autocomplete="off" /></label>
                     <label><span id="lbl-secret">Secret key</span> <input name="secret_key" type="password" required autocomplete="off" /></label>
