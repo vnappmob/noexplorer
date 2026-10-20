@@ -82,6 +82,12 @@ parallel GETs yet (roadmap). Measured on a laptop against local SeaweedFS in Doc
 
 <a id="adr-006"></a>
 
+**Update 2026-10-20 (per provider).** `Remote::file_concurrency()` sets files in flight per provider:
+6 by default, 3 for OneDrive. The maintainer saw one file upload to OneDrive faster than several at
+once; Graph throttles a user's concurrent requests with 429/503 + Retry-After, so extra parallel
+files mostly add waiting. Copies between accounts use the smaller of the two. Throttling is
+logged (`diag.rs`, path only) so slow runs can be told apart from throttled ones.
+
 ## ADR-006: The app never deletes or overwrites local files
 Accepted · 2026-10-15 · amended by [ADR-023](#adr-023) (Move to Trash, never a permanent delete)
 

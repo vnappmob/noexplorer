@@ -119,7 +119,7 @@ pub async fn upload(
             });
         }
         stream::iter(files)
-            .for_each_concurrent(FILE_CONCURRENCY, |(path, key, size)| {
+            .for_each_concurrent(c.file_concurrency(), |(path, key, size)| {
                 let (c, j, bucket) = (c.clone(), j.clone(), bucket.clone());
                 async move {
                     if j.cancelled() {
@@ -171,7 +171,7 @@ pub async fn upload_rel(
         j.files_total.store(files.len() as u64, Ordering::Relaxed);
         j.bytes_total.store(files.iter().map(|f| f.2).sum(), Ordering::Relaxed);
         stream::iter(files)
-            .for_each_concurrent(FILE_CONCURRENCY, |(path, key, size)| {
+            .for_each_concurrent(c.file_concurrency(), |(path, key, size)| {
                 let (c, j, bucket) = (c.clone(), j.clone(), bucket.clone());
                 async move {
                     if j.cancelled() {
@@ -223,7 +223,7 @@ pub async fn download_rel(
         j.files_total.store(files.len() as u64, Ordering::Relaxed);
         j.bytes_total.store(files.iter().map(|f| f.1).sum(), Ordering::Relaxed);
         stream::iter(files)
-            .for_each_concurrent(FILE_CONCURRENCY, |(key, _, path)| {
+            .for_each_concurrent(c.file_concurrency(), |(key, _, path)| {
                 let (c, j, bucket) = (c.clone(), j.clone(), bucket.clone());
                 async move {
                     if j.cancelled() {
@@ -314,7 +314,7 @@ pub async fn copy_remote(
         j.bytes_total.store(files.iter().map(|f| f.1 * weight).sum(), Ordering::Relaxed);
         let tmp_root = temp_root().join(format!("copy-{}", uuid::Uuid::new_v4()));
         stream::iter(files)
-            .for_each_concurrent(FILE_CONCURRENCY, |(key, size, dst_key)| {
+            .for_each_concurrent(src.file_concurrency().min(dst.file_concurrency()), |(key, size, dst_key)| {
                 let (src, dst, j, sb, db, tmp_root) =
                     (src.clone(), dst.clone(), j.clone(), src_bucket.clone(), dst_bucket.clone(), tmp_root.clone());
                 async move {
@@ -453,7 +453,7 @@ pub async fn download(
         j.files_done.store(skipped.len() as u64, Ordering::Relaxed);
         j.bytes_done.store(skipped.iter().sum(), Ordering::Relaxed);
         stream::iter(files)
-            .for_each_concurrent(FILE_CONCURRENCY, |(key, _, path)| {
+            .for_each_concurrent(c.file_concurrency(), |(key, _, path)| {
                 let (c, j, bucket) = (c.clone(), j.clone(), bucket.clone());
                 async move {
                     if j.cancelled() {

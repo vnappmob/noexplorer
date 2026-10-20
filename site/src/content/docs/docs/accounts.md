@@ -1,6 +1,6 @@
 ---
 title: Connect your storage
-description: Add S3 (AWS, R2, B2, Wasabi, Google Cloud, Oracle…), Azure Blob, Nextcloud, WebDAV, SFTP OneDrive and (experimental) Box accounts.
+description: Add S3 (AWS, R2, B2, Wasabi, Google Cloud, Oracle…), Azure Blob, Nextcloud, WebDAV, SFTP, OneDrive and (experimental) Box accounts.
 sidebar:
   order: 2
 ---
@@ -39,6 +39,12 @@ NoExplorer gets its own app password. You never type your Nextcloud password int
 ## WebDAV and NAS
 
 Pick **WebDAV** and enter the full folder URL from your server or NAS (Synology, QNAP, Apache, nginx…), your user name and password.
+
+The address must be the NAS's **WebDAV** address, not the one you open in a browser to manage it. The web page answers too, but it can't list or store files: NoExplorer then says *This address isn't a WebDAV folder*, and uploads fail with HTTP 405.
+
+- **Synology:** install **WebDAV Server** from Package Center and turn on HTTPS (port 5006). Use `https://<nas>:5006/<shared folder>`, and give your user read/write on that shared folder (Control Panel → Shared Folder → Edit → Permissions).
+- **QNAP:** Control Panel → Network & File Services → **WebDAV** → enable it, then set WebDAV permissions per shared folder. Use `https://<nas>/<shared folder>` (or the port shown there).
+- **Behind your own nginx or reverse proxy:** the proxy has to pass WebDAV methods (`PROPFIND`, `PUT`, `MKCOL`, `MOVE`, `COPY`, `DELETE`) through to the NAS's WebDAV port. nginx's own pages answer them with *405 Not Allowed*. Point the proxy at port 5005/5006 (Synology), or connect to that port directly.
 
 ## OneDrive
 

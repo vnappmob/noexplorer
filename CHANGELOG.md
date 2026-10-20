@@ -5,6 +5,18 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- **WebDAV / NAS:** an address that is a web page (a NAS's management page, an nginx site) no longer
+  looks like a connected, empty folder. The connection test says it isn't WebDAV and how to find
+  the WebDAV address (Synology, QNAP, reverse proxies).
+- Uploads the server refuses (HTTP 405, 403, file too large) fail at once instead of being retried
+  four times.
+
+### Changed
+- **OneDrive moves 3 files at a time** instead of 6: OneDrive slows down an account that sends many
+  requests at once, so fewer files in parallel finish sooner. Throttling is now noted in the
+  diagnostic log.
+
 ## [0.4.27] - 2026-10-20
 
 ### Changed

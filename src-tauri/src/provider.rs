@@ -71,6 +71,15 @@ impl Remote {
         }
     }
 
+    /// How many files a transfer moves at once. OneDrive throttles a user's parallel requests
+    /// (429 + Retry-After) well before the line is full, so a few files at a time finish sooner.
+    pub fn file_concurrency(&self) -> usize {
+        match self {
+            Remote::OneDrive(_) => 3,
+            _ => crate::transfer::FILE_CONCURRENCY,
+        }
+    }
+
     /// The profile id of this account.
     pub fn account(&self) -> &str {
         match self {

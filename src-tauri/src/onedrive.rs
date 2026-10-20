@@ -168,7 +168,15 @@ impl OneDrive {
             match r.status() {
                 StatusCode::UNAUTHORIZED if !force => force = true,
                 StatusCode::TOO_MANY_REQUESTS | StatusCode::SERVICE_UNAVAILABLE if attempt < 3 => {
-                    tokio::time::sleep(retry_after(&r)).await;
+                    // Logged so a slow transfer can be told apart from throttling (path only).
+                    let wait = retry_after(&r);
+                    let mut url = r.url().clone();
+                    url.set_query(None);
+                    crate::diag::log(
+                        "onedrive",
+                        &format!("HTTP {} {url}: throttled, waiting {}s", r.status().as_u16(), wait.as_secs()),
+                    );
+                    tokio::time::sleep(wait).await;
                 }
                 _ => return Ok(r),
             }

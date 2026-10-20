@@ -93,6 +93,11 @@ pub fn transient(e: &str) -> bool {
         "invalid",
         "unauthorized",
         "signature",
+        // The server said no (HTTP 405/403/413): asking again gets the same answer.
+        "refused",
+        "not allowed",
+        "too large",
+        "isn't a webdav",
     ]
     .iter()
     .any(|w| l.contains(w))
@@ -268,6 +273,8 @@ mod tests {
         assert!(transient("Can't reach the server (check the address and your connection)"));
         assert!(transient("dispatch failure: timeout"));
         assert!(!transient("Access denied"));
+        assert!(!transient("The server refused this operation (HTTP 405)"));
+        assert!(!transient("Not allowed on OneDrive (HTTP 403)"));
         assert!(!transient("cancelled"));
         assert!(!transient("“a.txt” already exists there"));
     }

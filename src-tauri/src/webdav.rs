@@ -199,7 +199,16 @@ impl Dav {
             )
             .await
             .map_err(net_err)?;
-        let xml = ok(r).await?.text().await.map_err(net_err)?;
+        let r = ok(r).await?;
+        // A web page (a NAS login screen, a reverse proxy's site) answers 200 instead of 207. Without
+        // this, it would look like a connected, empty folder.
+        if r.status() != StatusCode::MULTI_STATUS {
+            let mut url = r.url().clone();
+            url.set_query(None);
+            crate::diag::log("webdav", &format!("PROPFIND {url} answered HTTP {} (not WebDAV)", r.status().as_u16()));
+            return Err(NOT_DAV.into());
+        }
+        let xml = r.text().await.map_err(net_err)?;
         Ok(parse_multistatus(&xml)
             .into_iter()
             .filter_map(|p| {
@@ -668,6 +677,10 @@ pub(crate) fn net_err(e: reqwest::Error) -> String {
     msg
 }
 
+const NOT_DAV: &str = "This address isn't a WebDAV folder: the server answered with a web page. Use the WebDAV \
+address (Synology: turn on WebDAV Server, then https://<nas>:5006/<shared folder>; QNAP: turn on WebDAV, then \
+https://<nas>/<shared folder>), not the NAS's web page.";
+
 /// Passes 2xx/207 through; turns anything else into a readable error.
 async fn ok(r: Response) -> Result<Response, String> {
     let st = r.status();
@@ -690,7 +703,8 @@ async fn ok(r: Response) -> Result<Response, String> {
         401 => "Wrong user name or (app) password".into(),
         403 => "Not allowed".into(),
         404 => "Not found".into(),
-        405 => "The server refused this operation".into(),
+        // Typical when the address is a web server rather than WebDAV, or the folder is read-only.
+        405 => "The server refused this operation: is this the WebDAV address, with write access for this user?".into(),
         409 => "The parent folder doesn't exist".into(),
         412 => "It changed on the server meanwhile".into(),
         423 => "It's locked on the server".into(),
@@ -848,6 +862,35 @@ fn parse_multistatus(xml: &str) -> Vec<Prop> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A NAS's web page (nginx, a login screen) answers PROPFIND with 200 + HTML: the connection
+    /// test must fail instead of showing an empty folder.
+    #[tokio::test]
+    async fn web_page_is_not_webdav() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            while let Ok((mut sock, _)) = listener.accept().await {
+                let mut buf = [0u8; 4096];
+                let _ = sock.read(&mut buf).await;
+                let page = "<html><body>Welcome</body></html>";
+                let _ = sock
+                    .write_all(format!("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{page}", page.len()).as_bytes())
+                    .await;
+            }
+        });
+        let p = Profile {
+            kind: ProviderKind::Webdav,
+            endpoint: format!("http://{addr}/share/"),
+            access_key: "u".into(),
+            secret_key: "p".into(),
+            ..Default::default()
+        };
+        let e = Dav::new(&p).containers().await.err().expect("a web page must not pass as WebDAV");
+        assert!(e.contains("isn't a WebDAV folder"), "{e}");
+        assert!(!crate::resume::transient(&e), "not retried");
+    }
 
     #[test]
     fn cookie_jar_keeps_updates_and_drops() {
