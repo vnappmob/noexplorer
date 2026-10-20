@@ -22,6 +22,13 @@ Amazon S3, Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, MinIO, Seaw
 
 Click **Test**, then **Save & use**, and pick a bucket.
 
+**No endpoint to look up for the big providers.** For Amazon S3, Cloudflare R2, Backblaze B2, Wasabi,
+DigitalOcean Spaces, Google Cloud Storage and Oracle Cloud the form asks only for what their
+console shows (an account ID, a namespace, a region picked from a list) and builds the endpoint
+for you; it's shown under the fields. Pasting an endpoint works too: paste it in any field (or in
+**Custom S3** → Endpoint) and NoExplorer picks the provider and fills the fields. **Custom
+endpoint…** under the fields lets you type one yourself (a private link, a different domain).
+
 ## Nextcloud and ownCloud
 
 1. Pick **Nextcloud / ownCloud** and enter your server address.
@@ -51,7 +58,7 @@ Pick **Azure Blob Storage**, then enter the storage account name and one of its 
 
 Oracle Cloud Object Storage works through its Amazon S3 Compatibility API. Pick **Oracle Cloud**, then:
 
-- **Endpoint:** `https://<namespace>.compat.objectstorage.<region>.oci.customer-oci.com` (older `…oraclecloud.com` addresses work too). The namespace is on any bucket's details page; the region is like `us-ashburn-1`, and NoExplorer reads it from the endpoint.
+- **Namespace and Region:** the namespace is on any bucket's details page; pick the region (like `us-ashburn-1`) from the list. NoExplorer builds the endpoint `https://<namespace>.compat.objectstorage.<region>.oci.customer-oci.com` (pasting it, or an older `…oraclecloud.com` one, also works).
 - **Access key / Secret key:** a **Customer Secret Key** (Profile → User settings → Customer secret keys). Oracle shows the secret only once.
 
 Buckets created through the S3 API go to the compartment chosen for it in Oracle's settings (the root compartment by default), and only buckets in that compartment are listed.

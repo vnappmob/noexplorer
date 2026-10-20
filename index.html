@@ -202,9 +202,11 @@
                   </div>
                   <fieldset class="set-group">
                     <legend>Connection</legend>
+                    <div id="acct-setup" class="acct-setup" hidden></div>
                     <label id="acct-endpoint-row"><span id="lbl-endpoint">Endpoint</span>
                       <input name="endpoint" placeholder="https://s3.example.com or http://192.168.1.10:9000" required spellcheck="false" />
                     </label>
+                    <p id="acct-ep-note" class="ep-note" hidden></p>
                     <div id="acct-cert" class="cert-row" hidden>
                       <input type="hidden" name="cert_pin" />
                       <span id="acct-cert-text"></span>

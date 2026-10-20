@@ -41,7 +41,7 @@ export const PRESETS: Record<ProviderId, Preset> = {
   aws: {
     kind: "s3",
     label: "AWS S3",
-    hint: "Leave the endpoint empty. Each bucket's region is detected automatically; Region is only the default.",
+    hint: "Just the access key and secret (IAM → Users → Security credentials). Each bucket's region is found automatically.",
     endpointPlaceholder: "(leave empty: recommended)",
     endpointRequired: false,
     regionPlaceholder: "e.g. ap-southeast-1 (optional)",
@@ -52,7 +52,7 @@ export const PRESETS: Record<ProviderId, Preset> = {
   r2: {
     kind: "s3",
     label: "Cloudflare R2",
-    hint: "Endpoint: https://<ACCOUNT_ID>.r2.cloudflarestorage.com (R2 → Manage API tokens). Region: auto.",
+    hint: "Paste your Account ID (R2 overview page) and an API token's access key and secret (R2 → Manage API tokens). Or paste the S3 endpoint the token page shows: the form fills itself in.",
     endpointPlaceholder: "https://<ACCOUNT_ID>.r2.cloudflarestorage.com",
     endpointRequired: true,
     regionPlaceholder: "auto",
@@ -63,7 +63,7 @@ export const PRESETS: Record<ProviderId, Preset> = {
   b2: {
     kind: "s3",
     label: "Backblaze B2",
-    hint: "Endpoint from the bucket page, e.g. https://s3.us-west-004.backblazeb2.com. Region is read from it.",
+    hint: "Pick your bucket's region (the bucket page shows its endpoint, e.g. s3.us-west-004.backblazeb2.com; pasting it works too) and an application key (keyID + applicationKey).",
     endpointPlaceholder: "https://s3.us-west-004.backblazeb2.com",
     endpointRequired: true,
     regionPlaceholder: "(from the endpoint)",
@@ -74,7 +74,7 @@ export const PRESETS: Record<ProviderId, Preset> = {
   wasabi: {
     kind: "s3",
     label: "Wasabi",
-    hint: "Endpoint for your bucket's region, e.g. https://s3.ap-southeast-1.wasabisys.com.",
+    hint: "Pick your bucket's region and an access key (Access Keys → Create new access key).",
     endpointPlaceholder: "https://s3.ap-southeast-1.wasabisys.com",
     endpointRequired: true,
     regionPlaceholder: "(from the endpoint)",
@@ -85,7 +85,7 @@ export const PRESETS: Record<ProviderId, Preset> = {
   do: {
     kind: "s3",
     label: "DigitalOcean Spaces",
-    hint: "Endpoint: https://<region>.digitaloceanspaces.com, e.g. https://sgp1.digitaloceanspaces.com.",
+    hint: "Pick your Space's datacenter (sgp1, nyc3…) and a Spaces access key (API → Spaces Keys).",
     endpointPlaceholder: "https://sgp1.digitaloceanspaces.com",
     endpointRequired: true,
     regionPlaceholder: "(from the endpoint)",
@@ -129,7 +129,7 @@ export const PRESETS: Record<ProviderId, Preset> = {
   oci: {
     kind: "s3",
     label: "Oracle Cloud",
-    hint: "Uses Oracle's Amazon S3 Compatibility API. Endpoint https://<namespace>.compat.objectstorage.<region>.oci.customer-oci.com (the namespace is on the bucket's details page); the access key and secret are a Customer Secret Key (Profile → User settings → Customer secret keys). Buckets made here go to the compartment set for the S3 API (the root one by default).",
+    hint: "Uses Oracle's Amazon S3 Compatibility API. Enter your namespace (on any bucket's details page) and region; the access key and secret are a Customer Secret Key (Profile → User settings → Customer secret keys). Buckets made here go to the compartment set for the S3 API (the root one by default).",
     endpointPlaceholder: "https://<namespace>.compat.objectstorage.us-ashburn-1.oci.customer-oci.com",
     endpointRequired: true,
     regionPlaceholder: "(from the endpoint)",
@@ -141,7 +141,7 @@ export const PRESETS: Record<ProviderId, Preset> = {
   gcs: {
     kind: "s3",
     label: "Google Cloud Storage",
-    hint: "Uses the S3-compatible XML API with an HMAC key: Cloud Storage → Settings → Interoperability → Create a key. Endpoint https://storage.googleapis.com, region auto. To list your buckets, enter the project ID (or set a default project for interoperable access on that page, or a default bucket).",
+    hint: "Uses the S3-compatible XML API with an HMAC key: Cloud Storage → Settings → Interoperability → Create a key. To list your buckets, enter the project ID (or set a default project for interoperable access on that page, or a default bucket).",
     endpointPlaceholder: "https://storage.googleapis.com",
     endpointRequired: true,
     regionPlaceholder: "auto",
@@ -235,3 +235,144 @@ export const PICKER_GROUPS: { title: string; ids: ProviderId[] }[] = [
 /** A provider badge (`.pbadge`); `sm` for lists. */
 export const badge = (id: ProviderId, sm = false) =>
   `<span class="pbadge${sm ? " sm" : ""}${LOOK[id].mono.length > 2 ? " long" : ""}" style="--h:${LOOK[id].hue}" aria-hidden="true">${LOOK[id].mono}</span>`;
+
+// ---------- simple setup: build the endpoint from what the provider's console shows ----------
+
+export type SetupField = { name: string; label: string; placeholder: string; options?: string[] };
+export type Setup = {
+  /** Fields to type instead of an endpoint (none = nothing to type). */
+  fields: SetupField[];
+  /** The endpoint for these values ("" while a field is missing). */
+  endpoint: (v: Record<string, string>) => string;
+  /** Values back from a saved endpoint; null = a custom endpoint the simple form can't show. */
+  parse: (endpoint: string) => Record<string, string> | null;
+};
+
+const host = (e: string) =>
+  e
+    .trim()
+    .replace(/^[a-z]+:\/\//i, "")
+    .replace(/\/+$/, "")
+    .toLowerCase();
+const blank = (e: string): Record<string, string> | null => (host(e) ? null : {});
+const all = (v: Record<string, string>, names: string[]) => names.every((n) => v[n]?.trim());
+
+const B2_REGIONS = ["us-west-000", "us-west-001", "us-west-002", "us-west-004", "us-east-005", "eu-central-003"];
+const WASABI_REGIONS = [
+  "us-east-1",
+  "us-east-2",
+  "us-central-1",
+  "us-west-1",
+  "ca-central-1",
+  "eu-central-1",
+  "eu-central-2",
+  "eu-west-1",
+  "eu-west-2",
+  "eu-west-3",
+  "eu-south-1",
+  "ap-northeast-1",
+  "ap-northeast-2",
+  "ap-southeast-1",
+  "ap-southeast-2",
+];
+const DO_REGIONS = ["nyc3", "sfo2", "sfo3", "ams3", "fra1", "lon1", "tor1", "sgp1", "syd1", "blr1", "atl1"];
+const OCI_REGIONS = [
+  "us-ashburn-1",
+  "us-phoenix-1",
+  "us-sanjose-1",
+  "us-chicago-1",
+  "ca-toronto-1",
+  "ca-montreal-1",
+  "mx-queretaro-1",
+  "mx-monterrey-1",
+  "sa-saopaulo-1",
+  "sa-vinhedo-1",
+  "sa-santiago-1",
+  "sa-bogota-1",
+  "uk-london-1",
+  "uk-cardiff-1",
+  "eu-frankfurt-1",
+  "eu-amsterdam-1",
+  "eu-paris-1",
+  "eu-marseille-1",
+  "eu-zurich-1",
+  "eu-stockholm-1",
+  "eu-milan-1",
+  "eu-madrid-1",
+  "me-dubai-1",
+  "me-abudhabi-1",
+  "me-jeddah-1",
+  "me-riyadh-1",
+  "il-jerusalem-1",
+  "af-johannesburg-1",
+  "ap-mumbai-1",
+  "ap-hyderabad-1",
+  "ap-singapore-1",
+  "ap-singapore-2",
+  "ap-tokyo-1",
+  "ap-osaka-1",
+  "ap-seoul-1",
+  "ap-chuncheon-1",
+  "ap-sydney-1",
+  "ap-melbourne-1",
+  "ap-batam-1",
+];
+
+export const SETUP: Partial<Record<ProviderId, Setup>> = {
+  aws: { fields: [], endpoint: () => "", parse: (e) => (host(e) ? null : {}) },
+  gcs: {
+    fields: [],
+    endpoint: () => "https://storage.googleapis.com",
+    parse: (e) => (["", "storage.googleapis.com"].includes(host(e)) ? {} : null),
+  },
+  r2: {
+    fields: [{ name: "account", label: "Account ID", placeholder: "On the R2 overview page, right side" }],
+    endpoint: (v) => (all(v, ["account"]) ? `https://${v.account.trim().toLowerCase()}.r2.cloudflarestorage.com` : ""),
+    parse: (e) => {
+      const m = host(e).match(/^([a-z0-9]+)\.r2\.cloudflarestorage\.com$/);
+      return m ? { account: m[1] } : blank(e);
+    },
+  },
+  b2: {
+    fields: [
+      { name: "region", label: "Region", placeholder: "e.g. us-west-004 (on the bucket page)", options: B2_REGIONS },
+    ],
+    endpoint: (v) => (all(v, ["region"]) ? `https://s3.${v.region.trim()}.backblazeb2.com` : ""),
+    parse: (e) => {
+      const m = host(e).match(/^s3\.([a-z0-9-]+)\.backblazeb2\.com$/);
+      return m ? { region: m[1] } : blank(e);
+    },
+  },
+  wasabi: {
+    fields: [{ name: "region", label: "Region", placeholder: "e.g. ap-southeast-1", options: WASABI_REGIONS }],
+    endpoint: (v) => (all(v, ["region"]) ? `https://s3.${v.region.trim()}.wasabisys.com` : ""),
+    parse: (e) => {
+      const m = host(e).match(/^s3\.([a-z0-9-]+)\.wasabisys\.com$/);
+      return m ? { region: m[1] } : blank(e);
+    },
+  },
+  do: {
+    fields: [{ name: "region", label: "Region", placeholder: "e.g. sgp1", options: DO_REGIONS }],
+    endpoint: (v) => (all(v, ["region"]) ? `https://${v.region.trim()}.digitaloceanspaces.com` : ""),
+    parse: (e) => {
+      const m = host(e).match(/^([a-z0-9]+)\.digitaloceanspaces\.com$/);
+      return m ? { region: m[1] } : blank(e);
+    },
+  },
+  oci: {
+    fields: [
+      { name: "namespace", label: "Namespace", placeholder: "On any bucket's details page" },
+      { name: "region", label: "Region", placeholder: "e.g. us-ashburn-1", options: OCI_REGIONS },
+    ],
+    endpoint: (v) =>
+      all(v, ["namespace", "region"])
+        ? `https://${v.namespace.trim().toLowerCase()}.compat.objectstorage.${v.region.trim()}.oci.customer-oci.com`
+        : "",
+    parse: (e) => {
+      const m = host(e).match(
+        /^([a-z0-9-]+)\.compat\.objectstorage\.([a-z0-9-]+)\.(oci\.customer-oci|oraclecloud)\.com$/,
+      );
+      return m ? { namespace: m[1], region: m[2] } : blank(e);
+    },
+  },
+};

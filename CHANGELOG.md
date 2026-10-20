@@ -5,6 +5,13 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **New accounts without hunting for an endpoint**: R2 asks for the account ID; B2, Wasabi and
+  DigitalOcean for a region picked from a list; Oracle Cloud for the namespace and region; AWS and
+  Google Cloud need nothing. The endpoint is built and shown under the fields. Pasting any of these
+  endpoints, in any field, picks the provider and fills the form. **Custom endpoint…** still lets
+  you type one.
+
 ## [0.4.25] - 2026-10-20
 
 ### Added

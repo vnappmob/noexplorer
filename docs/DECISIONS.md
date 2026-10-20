@@ -864,3 +864,21 @@ tree ready, and asked whether Oracle Cloud Object Storage needs its own provider
 **Consequences.** Not yet run against a real Oracle tenancy; the diagnostic log
 (`diag.rs`) will show the server's answer if something differs (ListObjectsV2 isn't on Oracle's
 list, though it's widely used with it).
+
+## ADR-044: Simple account setup builds the endpoint
+
+**Context.** Every S3 preset asked for a full endpoint URL, which users had to find in each
+provider's docs. Azure already built its endpoint from the account name, and that was easier.
+
+**Decision.** `SETUP` in `providers.ts` gives a preset a few fields (R2 account ID; B2, Wasabi,
+DigitalOcean region; Oracle namespace + region; none for AWS and GCS), an `endpoint()` that builds
+the URL and a `parse()` that reads one back. The form (`settings.ts` `renderSetup`) shows those
+fields instead of the endpoint box and writes the endpoint into the hidden field, so the backend
+and `config.json` still only see an endpoint. A saved endpoint that `parse()` can't show (an R2
+jurisdiction, a private address) opens in the raw endpoint box. A pasted endpoint, in any field,
+is recognized with `guessProvider` and fills the form.
+
+**Consequences.** Nothing changes in Rust or in saved accounts. Region lists are suggestions
+(`<datalist>`), so a new region still works by typing it. Saving an Oracle account rewrites an
+old `…oraclecloud.com` endpoint to the `…oci.customer-oci.com` form, which Oracle documents as
+equivalent.

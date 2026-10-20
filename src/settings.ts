@@ -21,6 +21,7 @@ import {
   guessProvider,
   hasContainers,
   PRESETS,
+  SETUP,
   type ProviderId,
 } from "./providers";
 import { activeProfile, app, exp } from "./state";
@@ -125,8 +126,8 @@ function chooseProvider(id: ProviderId) {
   applyPreset(id, true);
   renderCert();
   // A new S3 account usually needs its region; AWS and GCS find theirs.
-  ($("acct-more") as HTMLDetailsElement).open = !editing && PRESETS[id].kind === "s3" && id !== "aws" && id !== "gcs";
-  (PRESETS[id].endpointRequired ? input("endpoint") : input("access_key")).focus();
+  ($("acct-more") as HTMLDetailsElement).open = false;
+  firstField().focus();
 }
 
 function bindProvMenu() {
@@ -265,11 +266,122 @@ function applyPreset(id: ProviderId, fill: boolean) {
     input("secret_key").required = false;
     if (!editing) input("secret_key").placeholder = "Empty = your SSH keys or agent";
   }
-  if (!fill) return;
-  if (guessProvider({ endpoint: endpoint.value }) !== id || !s3) endpoint.value = "";
-  input("region").value = pr.region;
-  input("path_style").checked = pr.pathStyle;
-  (pr.endpointRequired ? endpoint : input("access_key")).focus();
+  if (fill) {
+    if (guessProvider({ endpoint: endpoint.value }) !== id || !s3) endpoint.value = "";
+    input("region").value = pr.region;
+    input("path_style").checked = pr.pathStyle;
+  }
+  // The simple fields when the endpoint is one they can show; a custom one stays as typed.
+  const parsed = SETUP[id]?.parse(endpoint.value) ?? null;
+  rawEndpoint = !!SETUP[id] && !parsed;
+  renderSetup(parsed ?? {});
+  if (fill) firstField().focus();
+}
+
+// ---------- simple setup: the endpoint built from a few fields (providers.ts SETUP) ----------
+
+/** The user chose to type the endpoint (or a saved one is custom): no simple fields. */
+let rawEndpoint = false;
+const providerId = () => $<HTMLSelectElement>("acct-provider").value as ProviderId;
+const setupInputs = () => [...$("acct-setup").querySelectorAll<HTMLInputElement>("input[data-setup]")];
+
+function setupValues() {
+  const v: Record<string, string> = {};
+  for (const i of setupInputs()) v[i.dataset.setup!] = i.value;
+  return v;
+}
+
+/** Where typing starts: the first simple field, else the endpoint when it's needed, else the key. */
+function firstField(): HTMLInputElement {
+  const ep = input("endpoint");
+  return setupInputs()[0] ?? ($("acct-endpoint-row").hidden !== false || !ep.required ? input("access_key") : ep);
+}
+
+/** Draws the provider's simple fields (or shows the raw endpoint) and the line under them. */
+function renderSetup(values: Record<string, string>) {
+  const id = providerId();
+  const st = SETUP[id];
+  const simple = !!st && !rawEndpoint;
+  const box = $("acct-setup");
+  box.innerHTML = simple
+    ? st.fields
+        .map((f) => {
+          const list = f.options ? ` list="setup-${f.name}"` : "";
+          const opts = f.options
+            ? `<datalist id="setup-${f.name}">${f.options.map((o) => `<option value="${esc(o)}"></option>`).join("")}</datalist>`
+            : "";
+          return `<label>${esc(f.label)} <input data-setup="${esc(f.name)}" value="${esc(values[f.name] ?? "")}" placeholder="${esc(f.placeholder)}" required spellcheck="false" autocomplete="off"${list} />${opts}</label>`;
+        })
+        .join("")
+    : "";
+  box.hidden = !simple || !st.fields.length;
+  $("acct-endpoint-row").hidden = simple || id === "box";
+  input("endpoint").required = !simple && PRESETS[id].endpointRequired && id !== "box";
+  syncSetup();
+}
+
+/** Simple fields → the endpoint, shown under them with a way out to a custom one. */
+function syncSetup() {
+  const st = SETUP[providerId()];
+  const note = $("acct-ep-note");
+  note.hidden = !st;
+  if (!st) return;
+  if (rawEndpoint) {
+    note.innerHTML = `<button type="button" class="ep-link" data-ep="simple">Use the simple form</button>`;
+    return;
+  }
+  const ep = st.endpoint(setupValues());
+  input("endpoint").value = ep;
+  const shown = ep
+    ? `<code>${esc(ep)}</code>`
+    : providerId() === "aws"
+      ? "automatic, for each bucket's region"
+      : "fills in as you type";
+  note.innerHTML = `<span>Endpoint: ${shown}</span><button type="button" class="ep-link" data-ep="raw">Custom endpoint…</button>`;
+  renderCert();
+}
+
+/** A pasted endpoint (in a simple field or the endpoint box): switch to its provider and fill
+ * the simple fields from it. False when it isn't one the simple form knows. */
+function adoptEndpoint(text: string): boolean {
+  const ep = text.trim();
+  if (!/[./]/.test(ep)) return false;
+  const id = guessProvider({ endpoint: ep });
+  const parsed = SETUP[id]?.parse(ep);
+  if (!parsed || !Object.keys(parsed).length) return false;
+  if (id !== providerId()) {
+    $<HTMLSelectElement>("acct-provider").value = id;
+    input("endpoint").value = ep;
+    applyPreset(id, true); // keeps the endpoint: it's this provider's
+  }
+  rawEndpoint = false;
+  renderSetup(parsed);
+  // On to the first thing still missing.
+  (setupInputs().find((i) => !i.value) ?? input("access_key")).focus();
+  return true;
+}
+
+function bindSetup() {
+  $("acct-setup").addEventListener("input", (ev) => {
+    if (!adoptEndpoint((ev.target as HTMLInputElement).value)) syncSetup();
+  });
+  input("endpoint").addEventListener("input", () => {
+    if (providerId() === "custom" || !SETUP[providerId()]) adoptEndpoint(input("endpoint").value);
+  });
+  $("acct-ep-note").addEventListener("click", (ev) => {
+    const a = (ev.target as HTMLElement).closest<HTMLElement>("[data-ep]")?.dataset.ep;
+    if (a === "raw") {
+      rawEndpoint = true;
+      renderSetup({});
+      input("endpoint").focus();
+      input("endpoint").select();
+    } else if (a === "simple") {
+      const parsed = SETUP[providerId()]?.parse(input("endpoint").value);
+      rawEndpoint = false;
+      renderSetup(parsed ?? {});
+      firstField().focus();
+    }
+  });
 }
 
 function readForm(): Profile {
@@ -727,6 +839,7 @@ export function setupSettings() {
   $("acct-delete").onclick = deleteAccount;
   $("acct-add").onclick = () => editAccount(null);
   bindProvMenu();
+  bindSetup();
   // Self-signed HTTPS (experimental): the certificate row follows the address and provider.
   input("endpoint").addEventListener("input", renderCert);
   $("acct-provider").addEventListener("change", renderCert);

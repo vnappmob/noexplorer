@@ -2442,6 +2442,40 @@ details.set-group[open] > summary {
 #acct-form label:not(.set-row) input {
   color: var(--fg);
 }
+/* Simple setup (settings.ts renderSetup): a few fields instead of an endpoint, and the result under them. */
+.acct-setup {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.ep-note {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: -2px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.ep-note span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ep-note code {
+  color: var(--fg2);
+}
+.ep-link {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+.ep-link:hover {
+  text-decoration: underline;
+}
 .acct-foot {
   border-top: 1px solid var(--line);
   padding: 10px 24px 14px;
