@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.27] - 2026-10-20
+
 ### Changed
 - **OneDrive is a standard feature** (no longer under Settings → Experimental), and NoExplorer is
   now a Microsoft-verified publisher app, so most work and school accounts can sign in without
