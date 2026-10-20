@@ -48,9 +48,10 @@ and you're done.
   files means **Move to Trash** (recoverable).
 - **Self-hosted friendly**: path-style requests are on by default, and the connection test
   works even when the key can't list buckets.
-- **S3, Google Cloud Storage, Azure Blob, Nextcloud, WebDAV and SFTP**: AWS, R2, B2, Wasabi,
-  MinIO… plus Nextcloud/ownCloud (sign in through the browser), any WebDAV server or NAS, and any
-  SSH server (keys, agent, password or key passphrase). Box is experimental. Previews and
+- **S3, Google Cloud Storage, Azure Blob, OneDrive, Nextcloud, WebDAV and SFTP**: AWS, R2, B2,
+  Wasabi, Oracle, MinIO… plus OneDrive (sign in with Microsoft), Nextcloud/ownCloud (sign in through
+  the browser), any WebDAV server or NAS, and any SSH server (keys, agent, password or key
+  passphrase). Box is experimental. Previews and
   transfers work the same way everywhere.
 - **Compare folders**: after a backup, see exactly what's missing or different on each side.
   Contents are checked by checksum without downloading, system junk (`.DS_Store`…) is explained,
@@ -83,7 +84,6 @@ Newer features ship in **Settings → Experimental**, off until you turn them on
 
 - **Backup pairs**: save "this folder ↔ that remote folder" and back it up in one click.
 - **Self-signed HTTPS**: trust a NAS's own certificate after comparing its fingerprint.
-- **OneDrive accounts**: sign in with Microsoft, nothing to set up (being tried on real accounts).
 - **Box accounts** with your own Box app (not yet tried on a real Box account).
 
 ## Install
@@ -106,6 +106,9 @@ Download the installer for your OS from the
 
 The first time you launch the app it opens **Settings → Accounts**. Add as many accounts as
 you like, then switch between them from the picker in the remote pane header.
+
+**OneDrive:** pick *OneDrive* and click **Sign in with Microsoft…**. That's all: personal, work
+and school accounts, no app or key to set up.
 
 **Nextcloud / ownCloud:** pick *Nextcloud*, enter your server address and click **Sign in with
 Nextcloud…**. Approve in the browser and you're done (NoExplorer gets its own app password, kept

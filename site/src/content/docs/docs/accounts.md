@@ -1,6 +1,6 @@
 ---
 title: Connect your storage
-description: Add S3 (AWS, R2, B2, Wasabi, Google Cloud, Oracle…), Azure Blob, Nextcloud, WebDAV, SFTP and (experimental) OneDrive and Box accounts.
+description: Add S3 (AWS, R2, B2, Wasabi, Google Cloud, Oracle…), Azure Blob, Nextcloud, WebDAV, SFTP OneDrive and (experimental) Box accounts.
 sidebar:
   order: 2
 ---
@@ -40,12 +40,12 @@ NoExplorer gets its own app password. You never type your Nextcloud password int
 
 Pick **WebDAV** and enter the full folder URL from your server or NAS (Synology, QNAP, Apache, nginx…), your user name and password.
 
-## OneDrive (experimental)
+## OneDrive
 
-Turn on **Settings → Experimental → OneDrive accounts**, pick **OneDrive**, and click **Sign in with Microsoft…**. Your browser opens Microsoft's own sign-in page; approve NoExplorer and you're done. There's no app to create and no key to copy.
+Pick **OneDrive** and click **Sign in with Microsoft…**. Your browser opens Microsoft's own sign-in page; approve NoExplorer and you're done. There's no app to create and no key to copy.
 
 - Personal Microsoft accounts work straight away.
-- Work or school accounts: some organizations only allow apps their admin has approved. If Microsoft says you need approval, ask your IT admin to allow **NoExplorer**.
+- Work or school accounts: NoExplorer is a verified publisher app (VNAppMob), which most organizations let you approve yourself. If Microsoft still says you need approval, ask your IT admin to allow **NoExplorer**.
 - NoExplorer asks only for your files (`Files.ReadWrite`), your basic profile (to name the account) and to stay signed in. Your password never reaches the app; the sign-in is kept in your system keychain.
 - Deleted items go to the OneDrive recycle bin. **Copy link** makes a view-only link (with an expiry where your plan allows one).
 

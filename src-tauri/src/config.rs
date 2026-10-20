@@ -127,8 +127,6 @@ pub struct Experimental {
     pub backup_pairs: bool,
     /// Box accounts (beta: tested against a mock only).
     pub box_beta: bool,
-    /// OneDrive accounts (beta: tested against a mock only).
-    pub onedrive_beta: bool,
 }
 
 /// Everything in `config.json`. Mirrors `Settings` in `src/types.ts`.

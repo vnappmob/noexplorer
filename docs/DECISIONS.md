@@ -906,3 +906,23 @@ vnappmob.com domain) makes that rarer. Compare can only verify files on personal
 work accounts report only quickXorHash, so they count as "same size". Tested against a mock Graph
 (`onedrive_roundtrip_against_mock`); the diagnostic log drops query strings, which carry
 pre-authorized upload and download tokens.
+
+## ADR-046: OneDrive standard; bigger upload chunks, parallel downloads
+
+**Context.** The maintainer confirmed OneDrive on a real account and verified VNAppMob as the app's
+publisher (2026-10-20), but found OneDrive much slower than MinIO or Azure. Part of that is the
+service: an internet round trip per request and Microsoft's throttling, against a server on the
+LAN. Part was ours. An upload session takes its chunks strictly in order, one request at a time
+(S3 and Azure send 4 parts at once), and we used 10 MiB chunks, so a 1 GB file waited on ~100
+round trips plus Microsoft's processing between them. Downloads came down one connection, which
+OneDrive's download servers often cap per connection.
+
+**Decision.** `onedrive_beta` is removed (graduated as ADR-038 describes). Upload chunks are 50 MiB
+(160 × 320 KiB, under Graph's 60 MiB per request). Files ≥ 32 MiB download as 16 MiB ranges, 4 at
+once, from the item's pre-authorized `@microsoft.graph.downloadUrl`, written at their offsets in
+the `.part`; a server that ignores Range falls back to one stream.
+
+**Consequences.** A failed chunk costs up to 50 MiB to resend. A parallel download that fails
+removes its `.part` instead of keeping it for resume (it has gaps); resumed downloads and files
+under 32 MiB keep the single-stream path. Not measured against real OneDrive yet: the mock only
+proves the ranges and chunk order.

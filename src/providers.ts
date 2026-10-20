@@ -23,7 +23,6 @@ export type ProviderId =
 /** Providers shown in the picker only with their Settings → Experimental switch on. */
 export const EXPERIMENTAL_PROVIDERS: Partial<Record<ProviderId, keyof Experimental>> = {
   box: "box_beta",
-  onedrive: "onedrive_beta",
 };
 
 type Preset = {
@@ -251,7 +250,7 @@ export const LOOK: Record<ProviderId, { mono: string; hue: number; blurb: string
   webdav: { mono: "DAV", hue: 250, name: "WebDAV", blurb: "NAS or any WebDAV server" },
   sftp: { mono: ">_", hue: 165, name: "SFTP", blurb: "Any SSH server" },
   box: { mono: "box", hue: 212, name: "Box", blurb: "Your own Box app · beta" },
-  onedrive: { mono: "OD", hue: 214, name: "OneDrive", blurb: "Sign in with Microsoft · beta" },
+  onedrive: { mono: "OD", hue: 214, name: "OneDrive", blurb: "Sign in with Microsoft" },
 };
 
 export const PICKER_GROUPS: { title: string; ids: ProviderId[] }[] = [

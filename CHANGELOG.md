@@ -5,6 +5,14 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **OneDrive is a standard feature** (no longer under Settings → Experimental), and NoExplorer is
+  now a Microsoft-verified publisher app, so most work and school accounts can sign in without
+  asking IT.
+- **Faster OneDrive transfers**: uploads go in 50 MiB pieces instead of 10 MiB (OneDrive takes a
+  file's pieces one at a time, so fewer, bigger pieces finish sooner), and files of 32 MB or more
+  download over 4 connections at once.
+
 ## [0.4.26] - 2026-10-20
 
 ### Added

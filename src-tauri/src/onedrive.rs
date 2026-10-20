@@ -5,11 +5,16 @@
 //!   The refresh token goes to the keychain (`onedrive-refresh:<profile id>`) and is saved again
 //!   whenever Microsoft sends a new one; the access token lives in memory.
 //! - Graph addresses items by path (`/me/drive/root:/a/b:`), so unlike Box there's no ID cache.
-//! - Uploads: ≤ 4 MB in one PUT; larger files through an upload session in 10 MiB chunks (a
-//!   multiple of 320 KiB, as Graph requires), sent in order to a pre-authorized URL. An existing
+//! - Uploads: ≤ 4 MB in one PUT; larger files through an upload session in 50 MiB chunks (a
+//!   multiple of 320 KiB, as Graph requires; it accepts up to 60 MiB). Graph takes a session's
+//!   chunks strictly in order, one at a time, so big chunks are what keeps an upload moving: each
+//!   chunk is a round trip plus Microsoft's own processing before the next may start. An existing
 //!   file is replaced (a new version on OneDrive), like overwriting on S3.
-//! - Deletes go to the OneDrive recycle bin. Downloads follow Graph's redirect to a pre-authorized
-//!   URL (reqwest drops the bearer token on the cross-host hop).
+//! - Downloads: files ≥ 32 MiB are fetched as 4 ranges at once from the item's pre-authorized
+//!   download URL (one connection to Microsoft's download servers is often capped well below the
+//!   line speed); smaller ones, and resumed ones, follow Graph's redirect in one stream (reqwest
+//!   drops the bearer token on the cross-host hop).
+//! - Deletes go to the OneDrive recycle bin.
 
 use std::path::Path;
 use std::sync::atomic::Ordering;
@@ -36,8 +41,12 @@ pub const CLIENT_ID: &str = "87fa48bc-edbd-4d05-b935-ded940f85614";
 const SCOPES: &str = "Files.ReadWrite offline_access User.Read";
 /// Files up to this go in one PUT (Graph's limit for simple uploads).
 const SIMPLE_MAX: u64 = 4 * 1024 * 1024;
-/// Upload session chunk: 32 × 320 KiB.
-const CHUNK: u64 = 32 * 320 * 1024;
+/// Upload session chunk: 160 × 320 KiB = 50 MiB (Graph's limit is 60 MiB per request).
+const CHUNK: u64 = 160 * 320 * 1024;
+/// Files at least this big download in parallel ranges.
+const PARALLEL_MIN: u64 = 32 * 1024 * 1024;
+const RANGE: u64 = 16 * 1024 * 1024;
+const DOWNLOAD_STREAMS: usize = 4;
 const WALK_CONCURRENCY: usize = 4;
 /// Path segments keep these as they are; everything else is percent-encoded.
 const SEGMENT: &AsciiSet = &NON_ALPHANUMERIC.remove(b'-').remove(b'.').remove(b'_').remove(b'~');
@@ -523,6 +532,18 @@ impl OneDrive {
         }
         let tmp = part_path(path);
         let offset = resume_offset(&tmp, job).await;
+        if offset == 0 {
+            let meta = self.json(|h| h.get(self.item(key))).await?;
+            let size = meta["size"].as_u64().unwrap_or(0);
+            if let (true, Some(dl)) = (size >= PARALLEL_MIN, meta["@microsoft.graph.downloadUrl"].as_str()) {
+                match self.download_ranges(dl, size, &tmp, job).await {
+                    Ok(()) => return tokio::fs::rename(&tmp, path).await.map_err(|e| e.to_string()),
+                    // The server ignored Range: fall back to one stream below.
+                    Err(e) if e == NO_RANGES => job.bytes_done.store(0, Ordering::Relaxed),
+                    Err(e) => return Err(e),
+                }
+            }
+        }
         let url = format!("{}/content", self.item(key));
         let r = self
             .send(|h| {
@@ -558,6 +579,59 @@ impl OneDrive {
                 Err(e)
             }
         }
+    }
+}
+
+const NO_RANGES: &str = "no ranges";
+
+impl OneDrive {
+    /// Downloads `size` bytes from a pre-authorized URL as [`DOWNLOAD_STREAMS`] ranges at once,
+    /// each written at its offset in `tmp`. A failure removes `tmp`: with gaps in it, it can't be
+    /// resumed from its length the way a one-stream `.part` can.
+    async fn download_ranges(&self, url: &str, size: u64, tmp: &Path, job: &Job) -> Result<(), String> {
+        let f = tokio::fs::File::create(tmp).await.map_err(|e| e.to_string())?;
+        f.set_len(size).await.map_err(|e| e.to_string())?;
+        drop(f);
+        let ranges: Vec<(u64, u64)> =
+            (0..size).step_by(RANGE as usize).map(|a| (a, (a + RANGE).min(size) - 1)).collect();
+        let res: Result<Vec<()>, String> = futures::stream::iter(ranges)
+            .map(|(a, b)| async move {
+                // The download URL carries its own authorization: no bearer token.
+                let r = self.http.get(url).header("Range", format!("bytes={a}-{b}")).send().await.map_err(net_err)?;
+                if r.status() != StatusCode::PARTIAL_CONTENT {
+                    return Err(if r.status().is_success() {
+                        NO_RANGES.to_string()
+                    } else {
+                        ok(r).await.err().unwrap_or_default()
+                    });
+                }
+                let mut f = tokio::fs::OpenOptions::new().write(true).open(tmp).await.map_err(|e| e.to_string())?;
+                tokio::io::AsyncSeekExt::seek(&mut f, std::io::SeekFrom::Start(a)).await.map_err(|e| e.to_string())?;
+                let mut w = tokio::io::BufWriter::with_capacity(1 << 20, f);
+                let mut body = r.bytes_stream();
+                let mut got = 0u64;
+                while let Some(chunk) = body.try_next().await.map_err(net_err)? {
+                    if job.cancelled() {
+                        return Err("cancelled".to_string());
+                    }
+                    w.write_all(&chunk).await.map_err(|e| e.to_string())?;
+                    got += chunk.len() as u64;
+                    job.flow(chunk.len() as u64).await;
+                }
+                w.flush().await.map_err(|e| e.to_string())?;
+                if got != b - a + 1 {
+                    return Err("OneDrive ended a download early".to_string());
+                }
+                Ok(())
+            })
+            .buffer_unordered(DOWNLOAD_STREAMS)
+            .try_collect()
+            .await;
+        if let Err(e) = res {
+            let _ = tokio::fs::remove_file(tmp).await;
+            return Err(e);
+        }
+        Ok(())
     }
 }
 
@@ -724,6 +798,8 @@ mod tests {
         refreshes: u32,
         next: u64,
         base: String,
+        /// Ranged requests to the download URL (parallel downloads).
+        ranged: u32,
     }
 
     impl Mock {
@@ -757,7 +833,8 @@ mod tests {
             let name = p.rsplit('/').next().unwrap_or("").to_string();
             match self.items.get(p).cloned().flatten() {
                 Some(d) => {
-                    json!({ "id": id, "name": name, "size": d.len(), "lastModifiedDateTime": "2026-10-20T10:00:00Z",
+                    json!({ "id": id.clone(), "name": name, "size": d.len(), "lastModifiedDateTime": "2026-10-20T10:00:00Z",
+                            "@microsoft.graph.downloadUrl": format!("{}/dl/{id}", self.base),
                                   "file": { "hashes": { "sha1Hash": hex(&sha1::Sha1::digest(&d)).to_uppercase() } } })
                 }
                 None => {
@@ -888,6 +965,7 @@ mod tests {
                 let data = m.items[&p].clone().unwrap();
                 match headers.get("range").and_then(|r| r.strip_prefix("bytes=")).and_then(|r| r.split_once('-')) {
                     Some((a, b)) => {
+                        m.ranged += 1;
                         let a: usize = a.parse().unwrap();
                         let b = b.parse::<usize>().unwrap_or(data.len() - 1).min(data.len() - 1);
                         respond(206, &data[a..=b], &format!("Content-Range: bytes {a}-{b}/{}\r\n", data.len()))
@@ -1054,13 +1132,13 @@ mod tests {
 
         let dir = std::env::temp_dir().join(format!("nx-onedrive-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
-        let big: Vec<u8> = (0..(25 * 1024 * 1024 + 7)).map(|i| (i * 31 % 251) as u8).collect();
+        let big: Vec<u8> = (0..(55 * 1024 * 1024 + 7)).map(|i| (i * 31 % 251) as u8).collect();
         std::fs::write(dir.join("big.bin"), &big).unwrap();
         std::fs::write(dir.join("a.txt"), "hello onedrive").unwrap();
         let job = Job::untracked("up", "t".into(), "od", "OneDrive", "");
         d.upload_file("", "docs/sub/a b#1.txt", &dir.join("a.txt"), 14, &job).await.unwrap(); // parents made by Graph
         let size = big.len() as u64;
-        d.upload_file("", "docs/big.bin", &dir.join("big.bin"), size, &job).await.unwrap(); // session, 3 chunks
+        d.upload_file("", "docs/big.bin", &dir.join("big.bin"), size, &job).await.unwrap(); // session, 2 chunks
         for i in 0..3 {
             std::fs::write(dir.join("n.txt"), format!("n{i}")).unwrap();
             d.upload_file("", &format!("docs/n{i}.txt"), &dir.join("n.txt"), 2, &job).await.unwrap();
@@ -1089,6 +1167,7 @@ mod tests {
         assert_eq!(d.list("", "docs/sub/").await.unwrap()[0].size, 11);
         d.download_file("", "docs/big.bin", &dir.join("out.bin"), &job).await.unwrap();
         assert!(std::fs::read(dir.join("out.bin")).unwrap() == big, "download differs");
+        assert_eq!(state.lock().unwrap().ranged, 4, "a 55 MiB file comes down as 4 ranges");
         let (part, total) = d.read_range("docs/big.bin", 5, Some(14), 1 << 20).await.unwrap();
         assert_eq!((part.as_slice(), total), (&big[5..15], Some(size)));
         assert!(d.link("", "docs/n0.txt", 7 * 86_400, false).await.unwrap().starts_with("https://1drv.ms/"));
