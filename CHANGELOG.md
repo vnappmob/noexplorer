@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.26] - 2026-10-20
+
 ### Added
 - **OneDrive** (experimental, Settings → Experimental → OneDrive accounts): click **Sign in with
   Microsoft…** and you're connected. Personal, work and school accounts; uploads of any size,
