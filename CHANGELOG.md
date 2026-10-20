@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.28] - 2026-10-20
+
 ### Fixed
 - **WebDAV / NAS:** an address that is a web page (a NAS's management page, an nginx site) no longer
   looks like a connected, empty folder. The connection test says it isn't WebDAV and how to find
