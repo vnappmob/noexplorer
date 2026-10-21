@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.30] - 2026-10-21
+
 ### Added
 - **Folder sizes show at once.** Local sizes from earlier scans are remembered across launches and
   shown right away (dimmed, the total with ≈) while the background scan refreshes them.
