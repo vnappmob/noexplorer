@@ -42,6 +42,7 @@ export type Experimental = {
   backup_pairs: boolean;
   box_beta: boolean;
   bucket_policy: boolean;
+  remote_sizes: boolean;
 };
 
 /** `config::Settings` — everything in config.json. */
@@ -51,7 +52,7 @@ export type Settings = { profiles: Profile[]; active: string; download_dir: stri
 export type BucketInfo = { name: string; region: string | null };
 
 /** `remote::SizeInfo` — result of `remote_size` / `local_size`. */
-export type SizeInfo = { bytes: number; files: number };
+export type SizeInfo = { bytes: number; files: number; partial?: boolean };
 
 /** `provider::Entry` — a row in either pane. `key` is the remote key/path (remote) or absolute path (local). */
 export type Item = {
@@ -64,8 +65,12 @@ export type Item = {
   calc?: boolean;
   /** UI-only, search results: the folder it's in, relative to the folder searched (search.ts). */
   where?: string;
-  /** UI-only: `size` is a lower bound (some subfolders were skipped). */
+  /** UI-only: `size` is a lower bound (some subfolders were skipped, or a remote count stopped early). */
   partial?: boolean;
+  /** UI-only: `size` is remembered (an earlier scan or calculation), not fresh. */
+  stale?: boolean;
+  /** UI-only: when a remembered remote `size` was calculated (ms). */
+  sizeAt?: number;
 };
 
 /** `compare::Diff` — result of `compare` (Compare dialog). */
@@ -91,8 +96,10 @@ export type Totals = { bytes: number; files: number; dirs: number; skipped: numb
 /** `sizes::DirSizes` — `folder_sizes` result and the `"dir-sizes"` event. */
 export type DirSizes = {
   folder: string;
-  sizes: (Totals & { path: string })[];
+  sizes: (Totals & { path: string; stale?: boolean })[];
   total: Totals | null;
+  /** `total` is remembered from an earlier scan (shown until the scan refreshes it). */
+  total_stale?: boolean;
   scanning: boolean;
   /** The folder's own entries changed on disk: list it again. */
   relist: boolean;

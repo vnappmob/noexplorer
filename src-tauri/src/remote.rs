@@ -16,6 +16,8 @@ pub struct SizeInfo {
     pub bytes: u64,
     /// Files only; folder marker objects are not counted.
     pub files: u64,
+    /// Counting stopped at the cap: the numbers are a lower bound.
+    pub partial: bool,
 }
 
 /// Containers (buckets) of an account.
@@ -24,17 +26,18 @@ pub async fn list_buckets(state: State<'_, AppState>, account: Option<String>) -
     state.remote(account.as_deref())?.containers().await
 }
 
-/// Recursive size of everything under `prefix` ("" = whole bucket).
+/// Recursive size of everything under `prefix` ("" = whole bucket). `cap` = automatic sizes
+/// (experimental): count at most that many objects, S3 and Azure only.
 #[tauri::command]
 pub async fn remote_size(
     state: State<'_, AppState>,
     account: Option<String>,
     bucket: String,
     prefix: String,
+    cap: Option<u64>,
 ) -> Result<SizeInfo, String> {
-    let all = state.remote(account.as_deref())?.list_all(&bucket, &prefix).await?;
-    let files = all.iter().filter(|(k, _)| !k.ends_with('/'));
-    Ok(SizeInfo { bytes: files.clone().map(|(_, s)| s).sum(), files: files.count() as u64 })
+    let (bytes, files, partial) = state.remote(account.as_deref())?.folder_size(&bucket, &prefix, cap).await?;
+    Ok(SizeInfo { bytes, files, partial })
 }
 
 /// One folder level: sub-folders and files directly under `prefix`.

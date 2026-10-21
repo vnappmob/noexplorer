@@ -189,6 +189,31 @@ impl Azure {
         }
     }
 
+    /// Bytes and files under `prefix`, counting at most `cap` blobs (flag = stopped early).
+    pub async fn folder_size(&self, container: &str, prefix: &str, cap: u64) -> Result<(u64, u64, bool), String> {
+        let (mut bytes, mut files) = (0u64, 0u64);
+        let mut marker = String::new();
+        loop {
+            let url = format!(
+                "{}?restype=container&comp=list&prefix={}&marker={}",
+                self.url(container, ""),
+                q(prefix),
+                q(&marker)
+            );
+            let xml = self.send(self.req(Method::GET, &url, None, &[])).await?.text().await.map_err(net_err)?;
+            let page = parse_list(&xml);
+            for b in page.blobs.iter().filter(|b| !b.name.ends_with('/')) {
+                bytes += b.size;
+                files += 1;
+            }
+            match page.next {
+                Some(m) if !m.is_empty() && files >= cap => return Ok((bytes, files, true)),
+                Some(m) if !m.is_empty() => marker = m,
+                _ => return Ok((bytes, files, false)),
+            }
+        }
+    }
+
     pub async fn list(&self, container: &str, prefix: &str) -> Result<Vec<Entry>, String> {
         self.list_raw(container, prefix, false).await
     }

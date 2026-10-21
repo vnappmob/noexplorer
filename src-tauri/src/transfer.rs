@@ -706,6 +706,45 @@ mod tests {
         s3.delete_bucket().bucket(&bucket).send().await.unwrap();
     }
 
+    /// Folder sizes against dev S3 (see `s3_roundtrip` for the env vars): a full count, and a capped
+    /// one that stops early and says so (folder markers aren't files).
+    #[tokio::test]
+    async fn s3_folder_size() {
+        let Ok(endpoint) = std::env::var("NOEXPLORER_TEST_ENDPOINT") else {
+            eprintln!("skipping s3_folder_size: NOEXPLORER_TEST_ENDPOINT not set");
+            return;
+        };
+        let cfg = Profile {
+            endpoint,
+            access_key: std::env::var("NOEXPLORER_TEST_KEY").unwrap(),
+            secret_key: std::env::var("NOEXPLORER_TEST_SECRET").unwrap(),
+            ..Default::default()
+        };
+        let c = Remote::new(&cfg);
+        let bucket = format!("nx-size-{}", std::process::id());
+        c.create_container(&bucket).await.unwrap();
+        let s3 = make_client(&cfg);
+        let keys = ["d/", "d/a.bin", "d/sub/b.bin", "d/sub/c.bin", "other.bin"];
+        for k in keys {
+            let body = if k.ends_with('/') { vec![] } else { vec![0u8; 10] };
+            s3.put_object()
+                .bucket(&bucket)
+                .key(k)
+                .body(aws_sdk_s3::primitives::ByteStream::from(body))
+                .send()
+                .await
+                .unwrap();
+        }
+        assert_eq!(c.folder_size(&bucket, "d/", None).await.unwrap(), (30, 3, false));
+        let (_, _, stopped) = c.folder_size(&bucket, "d/", Some(2)).await.unwrap();
+        assert!(stopped, "a capped count says it stopped early");
+        assert_eq!(c.folder_size(&bucket, "d/", Some(1000)).await.unwrap(), (30, 3, false));
+        for k in keys {
+            s3.delete_object().bucket(&bucket).key(k).send().await.unwrap();
+        }
+        s3.delete_bucket().bucket(&bucket).send().await.unwrap();
+    }
+
     /// Resumable transfers against dev S3 (see `s3_roundtrip` for the env vars): a multipart upload
     /// continues from the parts already on the server, and a download continues its `.part`.
     #[tokio::test]

@@ -379,6 +379,27 @@ impl S3 {
         Ok(out)
     }
 
+    /// Bytes and files under `prefix` (folder markers aside), counting at most `cap` objects; the
+    /// flag says the count stopped early (a lower bound). One page = 1000 objects, one request.
+    pub async fn folder_size(&self, bucket: &str, prefix: &str, cap: u64) -> Result<(u64, u64, bool), String> {
+        let c = self.client_for(bucket).await;
+        let (mut bytes, mut files, mut seen) = (0u64, 0u64, 0u64);
+        let mut pages = c.list_objects_v2().bucket(bucket).prefix(prefix).into_paginator().send();
+        while let Some(page) = pages.next().await {
+            for o in page.map_err(err)?.contents() {
+                seen += 1;
+                if o.key().is_some_and(|k| !k.ends_with('/')) {
+                    bytes += o.size().unwrap_or(0).max(0) as u64;
+                    files += 1;
+                }
+            }
+            if seen >= cap {
+                return Ok((bytes, files, true));
+            }
+        }
+        Ok((bytes, files, false))
+    }
+
     /// Presigned GET URL. `inline` forces a browser-friendly Content-Type/Disposition so the
     /// preview can render objects that were uploaded as `application/octet-stream`.
     pub async fn link(&self, bucket: &str, key: &str, secs: u64, inline: bool) -> Result<String, String> {

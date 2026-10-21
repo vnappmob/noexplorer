@@ -129,6 +129,8 @@ pub struct Experimental {
     pub box_beta: bool,
     /// Bucket access policies: view, set (public-read presets or JSON) and remove; public links.
     pub bucket_policy: bool,
+    /// Remote folder sizes counted in the background on S3/Azure (capped per folder).
+    pub remote_sizes: bool,
 }
 
 /// Everything in `config.json`. Mirrors `Settings` in `src/types.ts`.

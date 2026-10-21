@@ -19,6 +19,7 @@ import { setupMenu, showMenu } from "./menu";
 import { copyPath, editPath, setupPalette } from "./palette";
 import { openMenu, setupPopover } from "./popover";
 import { requestSizes, setupSizes } from "./sizes";
+import { remoteListed } from "./remotesizes";
 import { setupCompare } from "./compare";
 import { paneHooks, type Pane } from "./pane";
 import { closeView, local, setActive } from "./panes";
@@ -30,7 +31,7 @@ import { $, fail, store } from "./util";
 
 // Remote files preview on Enter; local files open in their default app.
 paneHooks.openFile = (p, e) => (p.isRemote ? openPreview(p, e) : openItem(p, e));
-paneHooks.listed = (p) => !p.isRemote && requestSizes();
+paneHooks.listed = (p) => (p.isRemote ? remoteListed(p) : requestSizes());
 paneHooks.drawn = fillThumbs;
 paneHooks.visited = (p) => (renderStar(p), visited(p), record(p));
 paneHooks.leaving = leaving;

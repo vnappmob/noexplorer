@@ -16,7 +16,9 @@ After a backup, check that everything arrived. Right-click a folder and choose *
 
 ## Folder sizes
 
-On your computer, folders show their size as you browse, scanned in the background and kept up to date. The bar at the bottom of the left pane shows the folder against your whole disk. For remote folders, select them and click **Σ Size**.
+On your computer, folders show their size as you browse, scanned in the background and kept up to date. The bar at the bottom of the left pane shows the folder against your whole disk. Sizes from earlier scans are remembered, even after you quit: a folder shows them at once, dimmed (and the total with **≈**), until the new scan confirms them.
+
+For remote folders, select them and click **Σ Size** (or click it with nothing selected for the current folder). Counting a remote folder lists every file in it, so it only happens when you ask. What you counted is remembered on this computer and shown dimmed next time, with its age when you hover. **Settings → Experimental → Remote folder sizes** counts the folders you open on S3 and Azure in the background, up to 200,000 files each (bigger folders show **≥** and a lower bound).
 
 ## Grid view
 

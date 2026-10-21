@@ -17,7 +17,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering:
 use std::sync::{Arc, Condvar, Mutex};
 
 /// Size of a folder and everything below it.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Totals {
     pub bytes: u64,
     pub files: u64,

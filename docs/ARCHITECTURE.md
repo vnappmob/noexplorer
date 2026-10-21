@@ -74,7 +74,7 @@ means the active account (ADR-025).
 | `autostart_enabled` | – | `bool` | autostart | Is "Launch at login" registered with the OS |
 | `set_autostart` | `enabled` | – | autostart | macOS: LaunchAgent **with `AssociatedBundleIdentifiers`**; Windows: Run key; Linux: `.desktop` autostart. Starts with `--hidden` |
 | `list_buckets` | – | `BucketInfo[] {name, region}` | config | Buckets of the active account. `region` comes from AWS ListBuckets (null elsewhere) and is shown as a badge in the bucket menu |
-| `remote_size` | `bucket, prefix` | `SizeInfo {bytes, files}` | remote | Recursive. `""` = whole bucket. Lists every object, so it's slow on huge folders |
+| `remote_size` | `bucket, prefix, cap?` | `SizeInfo {bytes, files, partial}` | remote | Recursive. `""` = whole bucket. Lists every object, so it's slow on huge folders. `cap` (automatic sizes, S3/Azure only) stops after that many objects: `partial` = a lower bound |
 | `local_size` | `path` | `SizeInfo` | local | Recursive walk; symlinks are not followed (single folder; the local pane uses `folder_sizes`) |
 | `folder_sizes` | `path, dirs[], auto` | `DirSizes` | sizes | Sets the focus folder, answers `dirs` + `path` from the index, starts a background scan if needed (`auto` = polite rules; false = Σ, scans everything). More arrives as `"dir-sizes"` |
 | `search_local` | `path, query, hidden` | `string` (id) | search | Searches every folder below `path` (parallel walker on `scan::read_dir`, polite folder rules); results stream as `"search"` events |

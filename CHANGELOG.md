@@ -5,6 +5,14 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Folder sizes show at once.** Local sizes from earlier scans are remembered across launches and
+  shown right away (dimmed, the total with ≈) while the background scan refreshes them.
+- **Remote sizes are remembered**: what Σ counted shows (dimmed, with its age) the next time you
+  open the folder.
+- **Remote folder sizes** (experimental): folders you open on S3 and Azure are counted in the
+  background, up to 200,000 files each (bigger ones show “≥”).
+
 ## [0.4.29] - 2026-10-21
 
 ### Added

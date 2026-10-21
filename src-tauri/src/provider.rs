@@ -120,6 +120,27 @@ impl Remote {
         }
     }
 
+    /// Bytes and files under `prefix` and whether the count stopped early. `cap` (automatic sizes)
+    /// bounds the objects listed, and only flat listings (S3, Azure) take it: walking folders
+    /// (WebDAV, SFTP, drives) costs a request per folder, so those are counted only on request (Σ).
+    pub async fn folder_size(
+        &self,
+        container: &str,
+        prefix: &str,
+        cap: Option<u64>,
+    ) -> Result<(u64, u64, bool), String> {
+        match (self, cap) {
+            (Remote::S3(s), _) => s.folder_size(container, prefix, cap.unwrap_or(u64::MAX)).await,
+            (Remote::Azure(a), _) => a.folder_size(container, prefix, cap.unwrap_or(u64::MAX)).await,
+            (_, Some(_)) => Err("Automatic folder sizes need S3 or Azure".into()),
+            (_, None) => {
+                let all = self.list_all(container, prefix).await?;
+                let files = all.iter().filter(|(k, _)| !k.ends_with('/'));
+                Ok((files.clone().map(|(_, s)| s).sum(), files.count() as u64, false))
+            }
+        }
+    }
+
     /// The bucket's access policy (S3 only; None = no policy).
     pub async fn policy(&self, container: &str) -> Result<Option<String>, String> {
         match self {

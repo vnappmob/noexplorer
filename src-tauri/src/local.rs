@@ -146,7 +146,7 @@ pub async fn local_size(path: String) -> Result<SizeInfo, String> {
                 files += 1;
             }
         }
-        SizeInfo { bytes, files }
+        SizeInfo { bytes, files, partial: false }
     })
     .await
     .map_err(|e| e.to_string())

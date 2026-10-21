@@ -10,12 +10,15 @@
 //! - Automatic scans are polite: low-priority threads, never another volume, and on macOS they
 //!   skip folders that would trigger a privacy prompt (Desktop, Documents, Downloads, ~/Library…)
 //!   unless the user has already opened them in NoExplorer. The Σ button scans everything.
+//! - The last totals of folders the pane has shown are kept across launches (`Seen`, in the OS
+//!   cache folder). Opening a folder the index doesn't cover yet (after a restart, or once its root
+//!   was evicted) shows those at once, marked `stale`, while the scan refreshes them.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::{Arc, Condvar, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant, SystemTime};
 
 use notify::{RecursiveMode, Watcher};
 use serde::Serialize;
@@ -28,11 +31,17 @@ const MAX_ROOTS: usize = 6;
 /// Upper bound on indexed folders across roots (≈ 100 bytes each).
 const MAX_DIRS: usize = 1_500_000;
 
+/// Folders whose last totals are remembered across launches (≈ 100 bytes each on disk).
+const MAX_SEEN: usize = 20_000;
+
 #[derive(Serialize, Clone)]
 pub struct DirSize {
     path: String,
     #[serde(flatten)]
     totals: Totals,
+    /// From a previous scan (remembered), not the live index: a refresh may change it.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    stale: bool,
 }
 
 /// Payload of the `"dir-sizes"` event and the `folder_sizes` result. Mirrors `DirSizes` in `src/types.ts`.
@@ -44,6 +53,9 @@ pub struct DirSizes {
     sizes: Vec<DirSize>,
     /// Total of `folder` itself, once known.
     total: Option<Totals>,
+    /// `total` is remembered from a previous scan (see `DirSize::stale`).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    total_stale: bool,
     /// A scan that will report more is running.
     scanning: bool,
     /// Entries of `folder` itself changed on disk (added, removed, renamed): list it again.
@@ -86,6 +98,61 @@ pub struct SizeIndex {
     /// Kept in `<app config dir>/granted.json`.
     granted: Mutex<HashSet<PathBuf>>,
     granted_file: Option<PathBuf>,
+    seen: Mutex<Seen>,
+}
+
+/// Last known totals of folders the local pane has shown, kept in `<OS cache dir>/folder-sizes.json`.
+#[derive(Default)]
+struct Seen {
+    /// Totals and when they were last seen fresh (Unix seconds).
+    map: HashMap<PathBuf, (Totals, u64)>,
+    file: Option<PathBuf>,
+    changed: bool,
+    saved: Option<Instant>,
+}
+
+impl Seen {
+    fn load(file: Option<PathBuf>) -> Seen {
+        let entries: Vec<(PathBuf, Totals, u64)> = file
+            .as_ref()
+            .and_then(|f| std::fs::read(f).ok())
+            .and_then(|b| serde_json::from_slice(&b).ok())
+            .unwrap_or_default();
+        Seen { map: entries.into_iter().map(|(p, t, at)| (p, (t, at))).collect(), file, ..Default::default() }
+    }
+
+    fn remember(&mut self, items: impl IntoIterator<Item = (PathBuf, Totals)>) {
+        let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+        for (p, t) in items {
+            self.map.insert(p, (t, now));
+            self.changed = true;
+        }
+    }
+
+    /// Writes the file (oldest folders dropped beyond [`MAX_SEEN`]), at most every 10 s unless `now`.
+    fn save(&mut self, now: bool) {
+        if !self.changed || (!now && self.saved.is_some_and(|t| t.elapsed() < Duration::from_secs(10))) {
+            return;
+        }
+        if self.map.len() > MAX_SEEN {
+            let mut by_age: Vec<(PathBuf, u64)> = self.map.iter().map(|(p, (_, at))| (p.clone(), *at)).collect();
+            by_age.sort_by_key(|(_, at)| *at);
+            for (p, _) in by_age.into_iter().take(self.map.len() - MAX_SEEN * 9 / 10) {
+                self.map.remove(&p);
+            }
+        }
+        self.changed = false;
+        self.saved = Some(Instant::now());
+        let Some(f) = &self.file else { return };
+        let entries: Vec<(&PathBuf, &Totals, &u64)> = self.map.iter().map(|(p, (t, at))| (p, t, at)).collect();
+        if let Some(dir) = f.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let tmp = f.with_extension("json.tmp");
+        if std::fs::write(&tmp, serde_json::to_vec(&entries).unwrap_or_default()).is_ok() {
+            let _ = std::fs::rename(&tmp, f);
+        }
+    }
 }
 
 impl Sink for SizeIndex {
@@ -178,16 +245,26 @@ impl SizeIndex {
         move |p: &Path| !skip.iter().any(|s| s == p)
     }
 
+    /// What's known about `folder` and its `dirs` right now: the index first, then the totals
+    /// remembered from earlier scans (marked stale).
     fn snapshot(&self, folder: &Path, dirs: &[PathBuf]) -> DirSizes {
         let g = self.inner.lock().unwrap();
+        let mut seen = self.seen.lock().unwrap();
+        seen.remember(dirs.iter().chain([&folder.to_path_buf()]).filter_map(|d| g.map.get(d).map(|t| (d.clone(), *t))));
+        let get = |d: &Path| match g.map.get(d) {
+            Some(t) => Some((*t, false)),
+            None => seen.map.get(d).map(|(t, _)| (*t, true)),
+        };
         let sizes = dirs
             .iter()
-            .filter_map(|d| g.map.get(d).map(|t| DirSize { path: d.to_string_lossy().into(), totals: *t }))
+            .filter_map(|d| get(d).map(|(t, stale)| DirSize { path: d.to_string_lossy().into(), totals: t, stale }))
             .collect();
+        let total = get(folder);
         DirSizes {
             folder: folder.to_string_lossy().into(),
             sizes,
-            total: g.map.get(folder).copied(),
+            total: total.map(|t| t.0),
+            total_stale: total.is_some_and(|t| t.1),
             scanning: g.running.as_ref().is_some_and(|r| folder.starts_with(&r.root)),
             relist: false,
         }
@@ -435,7 +512,8 @@ pub fn setup(app: &AppHandle) {
         .and_then(|f| std::fs::read(f).ok())
         .and_then(|b| serde_json::from_slice(&b).ok())
         .unwrap_or_default();
-    app.manage(SizeIndex { granted: Mutex::new(granted), granted_file, ..Default::default() });
+    let seen = Seen::load(app.path().app_cache_dir().ok().map(|d| d.join("folder-sizes.json")));
+    app.manage(SizeIndex { granted: Mutex::new(granted), granted_file, seen: Mutex::new(seen), ..Default::default() });
     let app = app.clone();
     std::thread::spawn(move || {
         let idx = app.state::<SizeIndex>();
@@ -456,16 +534,26 @@ pub fn setup(app: &AppHandle) {
                 let sizes = dirty
                     .iter()
                     .filter(|p| p.parent() == Some(&f) && seen.insert(*p))
-                    .filter_map(|p| g.map.get(p).map(|t| DirSize { path: p.to_string_lossy().into(), totals: *t }))
+                    .filter_map(|p| {
+                        g.map.get(p).map(|t| DirSize { path: p.to_string_lossy().into(), totals: *t, stale: false })
+                    })
                     .collect();
                 DirSizes {
                     folder: f.to_string_lossy().into(),
                     sizes,
                     total: g.map.get(&f).copied(),
+                    total_stale: false,
                     scanning: g.running.as_ref().is_some_and(|r| f.starts_with(&r.root)),
                     relist,
                 }
             };
+            {
+                // Fresh totals of what the pane shows are remembered for the next launch.
+                let mut seen = idx.seen.lock().unwrap();
+                let fresh = payload.sizes.iter().map(|d| (PathBuf::from(&d.path), d.totals));
+                seen.remember(fresh.chain(payload.total.map(|t| (PathBuf::from(&payload.folder), t))));
+                seen.save(!payload.scanning);
+            }
             let _ = app.emit("dir-sizes", payload);
         }
     });
@@ -519,6 +607,23 @@ pub fn stop_sizes(idx: State<'_, SizeIndex>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn seen_sizes_survive_a_restart_and_stay_bounded() {
+        let dir = std::env::temp_dir().join(format!("nx-seen-{}", uuid::Uuid::new_v4()));
+        let file = dir.join("folder-sizes.json");
+        let t = |b| Totals { bytes: b, files: 1, dirs: 0, skipped: 0 };
+        let mut s = Seen::load(Some(file.clone()));
+        s.remember([(PathBuf::from("/a"), t(10)), (PathBuf::from("/a/b"), t(4))]);
+        s.save(true);
+        let again = Seen::load(Some(file.clone()));
+        assert_eq!(again.map.get(Path::new("/a/b")).map(|e| e.0), Some(t(4)));
+        let mut big = Seen::load(Some(file.clone()));
+        big.remember((0..MAX_SEEN + 5).map(|i| (PathBuf::from(format!("/x/{i}")), t(i as u64))));
+        big.save(true);
+        assert!(Seen::load(Some(file)).map.len() <= MAX_SEEN, "pruned to the limit");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn apply_moves_totals_by_the_difference() {

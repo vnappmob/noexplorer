@@ -24,6 +24,11 @@ export const EXPERIMENTS: { key: keyof Experimental; title: string; desc: string
     desc: "See and change who can read an S3 bucket without a key: private, public read for the whole bucket or some folders, or your own policy JSON. Plus “Copy public link” for files. In the bucket menu, the right-click menu and ⌘K.",
   },
   {
+    key: "remote_sizes",
+    title: "Remote folder sizes",
+    desc: "Count the size of every folder you open on S3 or Azure, in the background (at most 200,000 files per folder; bigger ones show “≥”). Off, sizes come from Σ only, and are remembered either way.",
+  },
+  {
     key: "box_beta",
     title: "Box accounts",
     desc: "Box in the account form, with your own Box app. It works against our test double but hasn't been tried on a real Box account yet.",

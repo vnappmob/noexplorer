@@ -35,16 +35,20 @@ function apply(d: DirSizes) {
     e.size = s.bytes;
     e.calc = true;
     e.partial = s.skipped > 0;
+    e.stale = !!s.stale;
   }
   const out = local.q(".dirsize");
   folderTotal = d.total;
   scanning = d.scanning;
   drawDisk();
   if (d.total) {
-    out.textContent = `${fmtSize(d.total.bytes)} · ${plural(d.total.files, "file")}`;
-    out.title = d.total.skipped
-      ? "Some folders were skipped (other disks, private folders you haven't opened yet, or no permission). Click Σ to scan everything."
-      : "";
+    // A remembered total shows at once ("≈") until the scan confirms or corrects it.
+    out.textContent = `${d.total_stale ? "≈ " : ""}${fmtSize(d.total.bytes)} · ${plural(d.total.files, "file")}`;
+    out.title = d.total_stale
+      ? "From the last scan; updating…"
+      : d.total.skipped
+        ? "Some folders were skipped (other disks, private folders you haven't opened yet, or no permission). Click Σ to scan everything."
+        : "";
   } else if (d.scanning) {
     out.textContent = "Scanning…";
   }

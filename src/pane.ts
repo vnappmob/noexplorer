@@ -456,10 +456,21 @@ export class Pane {
     const e = this.view[i];
     const known = !e.dir || e.calc;
     const skipped = !known && this.sizesSettled;
-    const size = known ? fmtSize(e.size) : skipped ? "—" : "";
+    const size = known ? (e.partial && this.isRemote ? "≥ " : "") + fmtSize(e.size) : skipped ? "—" : "";
+    const title = skipped
+      ? "Not scanned automatically (another disk, or a private folder you haven’t opened yet). Click Σ to scan it."
+      : e.stale
+        ? e.sizeAt
+          ? `Calculated ${ago(e.sizeAt)}. Σ calculates it again.`
+          : "From the last scan; updating…"
+        : e.partial
+          ? this.isRemote
+            ? "Stopped counting at a very large number of files: at least this much. Σ counts everything."
+            : "Some folders inside were skipped. Click Σ to include them."
+          : "";
     return `<div class="row${this.selected.has(e.key) ? " sel" : ""}${this.pending.has(e.key) ? " deleting" : ""}" role="option" aria-selected="${this.selected.has(e.key)}" data-i="${i}"${e.dir ? ` data-dir="${esc(e.key)}"` : ""}>
       <span class="name"><span class="ico${e.dir ? " dir" : ""}">${icon(e.dir ? "folder" : FILE_ICON[kindOf(e.name)])}</span><span>${esc(e.name)}</span>${e.where !== undefined ? `<span class="where" title="${esc(e.where)}">${esc(e.where || "·")}</span>` : ""}</span>
-      <span class="size${e.calc ? " calc" : ""}"${skipped ? ' title="Not scanned automatically (another disk, or a private folder you haven’t opened yet). Click Σ to scan it."' : e.partial ? ' title="Some folders inside were skipped. Click Σ to include them."' : ""}>${size}</span>
+      <span class="size${e.calc ? " calc" : ""}${e.stale ? " stale" : ""}"${title ? ` title="${esc(title)}"` : ""}>${size}</span>
       <span class="date">${fmtDate(e.modified)}</span>
     </div>`;
   }
@@ -594,4 +605,13 @@ export class Pane {
     if (e.dir) this.go(e.key);
     else paneHooks.openFile(this, e);
   }
+}
+
+/** "5 min ago", "3 h ago", "2 days ago". */
+export function ago(ms: number) {
+  const m = Math.max(0, Math.round((Date.now() - ms) / 60000));
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
 }

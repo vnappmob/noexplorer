@@ -1,6 +1,7 @@
 // User actions that talk to the backend: transfer, open, link, delete, mkdir.
 // `paneAction` maps the context-menu / palette action names to these.
 
+import { rememberRemote } from "./remotesizes";
 import { copyPublicLink, openPolicy } from "./policy";
 import { invoke } from "@tauri-apps/api/core";
 import { openCompare } from "./compare";
@@ -172,8 +173,11 @@ export async function calcSize(p: Pane) {
     await Promise.all(
       dirs.map(async (d) => {
         const s = await sizeOf(p, d.key);
+        rememberRemote(p, d.key, s);
         d.size = s.bytes;
         d.calc = true;
+        d.partial = false;
+        d.stale = false;
       }),
     );
     p.render();
@@ -189,7 +193,11 @@ async function calcCurrentDir(p: Pane) {
   out.textContent = "Calculating…";
   try {
     const s = await sizeOf(p, where);
-    if (p.cwd === where) out.textContent = `${fmtSize(s.bytes)} · ${plural(s.files, "file")}`;
+    if (p.isRemote) rememberRemote(p, where, s);
+    if (p.cwd === where) {
+      out.textContent = `${fmtSize(s.bytes)} · ${plural(s.files, "file")}`;
+      out.title = "";
+    }
   } catch (e) {
     out.textContent = "";
     fail(e);

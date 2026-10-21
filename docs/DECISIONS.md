@@ -953,3 +953,25 @@ come back as its errors. A "Copy public link" builds the unsigned address of a f
 enumerated unless a custom policy says so. Checked against SeaweedFS (`s3_bucket_policy`: an
 unsigned GET succeeds in the public folder only, and fails again once the policy is removed). R2,
 GCS and Oracle manage public access in their consoles and will show the server's error.
+
+## ADR-048: Remembered folder sizes; automatic remote sizes are capped and experimental
+
+**Context.** Opening the app or a folder the index didn't cover (after a restart, or once its root
+was evicted) showed "Scanning…" and empty sizes until the scan finished. Remote sizes came only
+from Σ and were forgotten as soon as the folder was left. Counting remote folders automatically
+is risky: one bucket folder can hold millions of objects.
+
+**Decision.** Local: `sizes.rs` keeps the last fresh totals of folders the pane has shown
+(`Seen`, at most 20,000, in `<OS cache dir>/folder-sizes.json`, written at most every 10 s and
+when a scan ends). `folder_sizes` answers from the live index first and from `Seen` otherwise,
+marked `stale`; the scan then sends fresh numbers. Only what the pane showed is kept, not the
+whole index. Remote: `remotesizes.ts` remembers what Σ (or automatic sizes) counted, per device in
+localStorage (3,000 folders), and fills listings from it, dimmed with the age. The experiment
+`remote_sizes` counts a listing's folders in the background, 2 at a time, only on S3 and Azure
+(flat listings: one request per 1,000 objects), at most 200,000 objects per folder
+(`remote_size` `cap`; `partial` = "≥"), and recounts after 15 minutes. Walking providers
+(WebDAV, SFTP, drives) cost a request per folder and stay Σ-only.
+
+**Consequences.** Remembered sizes can be out of date until refreshed, so they're always dimmed
+and say so. A capped folder shows a lower bound. The folder total is the sum of its folders and
+files once every folder is known, so it needs no extra request.
