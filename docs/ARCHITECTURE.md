@@ -94,6 +94,9 @@ means the active account (ADR-025).
 | `list` | `bucket, prefix` | `Entry[]` | remote | One folder level. Folders have `dir: true` and a key ending in `/` |
 | `presign` | `bucket, key, secs, inline` | URL | remote | `secs` is clamped to 60 s–7 d. `inline` forces Content-Type/Disposition for preview |
 | `read_text` | `bucket, key, max` | string | remote | Range GET `0..max`, decoded as lossy UTF-8 |
+| `bucket_policy` | `account, bucket` | `string \| null` | remote | The bucket's policy as pretty JSON, null when it has none (experimental `bucket_policy`) |
+| `set_bucket_policy` | `account, bucket, policy?` | – | remote | Saves the policy JSON (checked first) or removes it (null) |
+| `public_url` | `account, bucket, key` | `string` | remote | A file's unsigned address (AWS virtual-hosted, path-style or the endpoint's host style) |
 | `create_bucket` | `account, name` | – | remote | Creates a bucket (S3-compatible, incl. GCS with its project) or an Azure container; name checked first (experimental `create_buckets`) |
 | `mkdir` | `bucket, prefix, name` | – | remote | Writes an empty `prefix+name/` marker object |
 | `delete` | `account?, bucket, keys[]` | job id | remote | Background job (kind `delete`): folders with everything inside; progress in `files_done/files_total` (S3: per batch of up to 1000, WebDAV/Box: per item); cancellable between steps |

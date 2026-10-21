@@ -80,6 +80,49 @@ pub async fn create_bucket(state: State<'_, AppState>, account: Option<String>, 
     state.remote(account.as_deref())?.create_container(name.trim()).await
 }
 
+/// A bucket's access policy as pretty JSON, or None when it has none (experimental).
+#[tauri::command]
+pub async fn bucket_policy(
+    state: State<'_, AppState>,
+    account: Option<String>,
+    bucket: String,
+) -> Result<Option<String>, String> {
+    let p = state.remote(account.as_deref())?.policy(&bucket).await?;
+    // Servers return it compact (AWS) or as stored: show it the same way everywhere.
+    Ok(p.map(|p| {
+        serde_json::from_str::<serde_json::Value>(&p)
+            .ok()
+            .and_then(|v| serde_json::to_string_pretty(&v).ok())
+            .unwrap_or(p)
+    }))
+}
+
+/// Sets (`policy` = JSON) or removes (`policy` = None) a bucket's access policy (experimental).
+#[tauri::command]
+pub async fn set_bucket_policy(
+    state: State<'_, AppState>,
+    account: Option<String>,
+    bucket: String,
+    policy: Option<String>,
+) -> Result<(), String> {
+    let policy = policy.map(|p| p.trim().to_string()).filter(|p| !p.is_empty());
+    if let Some(p) = &policy {
+        serde_json::from_str::<serde_json::Value>(p).map_err(|e| format!("The policy isn't valid JSON: {e}"))?;
+    }
+    state.remote(account.as_deref())?.set_policy(&bucket, policy.as_deref()).await
+}
+
+/// The public (unsigned) address of `key`, for files a policy makes public (experimental).
+#[tauri::command]
+pub async fn public_url(
+    state: State<'_, AppState>,
+    account: Option<String>,
+    bucket: String,
+    key: String,
+) -> Result<String, String> {
+    state.remote(account.as_deref())?.public_url(&bucket, &key).await
+}
+
 /// Creates folder `name` under `prefix`.
 #[tauri::command]
 pub async fn mkdir(

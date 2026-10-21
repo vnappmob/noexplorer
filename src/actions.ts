@@ -1,6 +1,7 @@
 // User actions that talk to the backend: transfer, open, link, delete, mkdir.
 // `paneAction` maps the context-menu / palette action names to these.
 
+import { copyPublicLink, openPolicy } from "./policy";
 import { invoke } from "@tauri-apps/api/core";
 import { openCompare } from "./compare";
 import { duplicateItems, moveItems, renameItem } from "./fileops";
@@ -207,6 +208,9 @@ export function paneAction(p: Pane, act: string) {
     "show-in-folder": () => one && showInFolder(p, one),
     "end-search": () => p.load(),
     link: () => one && copyLink(p, one),
+    "public-link": () => one && copyPublicLink(p, one),
+    // A selected folder is the one to suggest for "Public read: some folders".
+    policy: () => openPolicy(p, one?.dir ? one.key : p.cwd),
     "copy-path": () =>
       one && navigator.clipboard.writeText(p.isRemote ? `${p.bucket}/${one.key}` : one.key).then(() => toast("Copied")),
     reveal: () => invoke("reveal", { path: one ? one.key : p.cwd }).catch(fail),

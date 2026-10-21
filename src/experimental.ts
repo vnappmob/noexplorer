@@ -19,6 +19,11 @@ export const EXPERIMENTS: { key: keyof Experimental; title: string; desc: string
     desc: "Save “this folder ↔ that remote folder” and back it up in one click: Compare, then upload what's missing.",
   },
   {
+    key: "bucket_policy",
+    title: "Bucket access policies",
+    desc: "See and change who can read an S3 bucket without a key: private, public read for the whole bucket or some folders, or your own policy JSON. Plus “Copy public link” for files. In the bucket menu, the right-click menu and ⌘K.",
+  },
+  {
     key: "box_beta",
     title: "Box accounts",
     desc: "Box in the account form, with your own Box app. It works against our test double but hasn't been tried on a real Box account yet.",

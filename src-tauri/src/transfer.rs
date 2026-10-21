@@ -649,6 +649,63 @@ mod tests {
         make_client(&cfg).delete_bucket().bucket(&name).send().await.unwrap();
     }
 
+    /// Bucket policies against dev S3 (see `s3_roundtrip` for the env vars): a public-read policy on
+    /// one folder lets an unsigned request read it (and only it); removing the policy closes it.
+    #[tokio::test]
+    async fn s3_bucket_policy() {
+        let Ok(endpoint) = std::env::var("NOEXPLORER_TEST_ENDPOINT") else {
+            eprintln!("skipping s3_bucket_policy: NOEXPLORER_TEST_ENDPOINT not set");
+            return;
+        };
+        let cfg = Profile {
+            endpoint,
+            access_key: std::env::var("NOEXPLORER_TEST_KEY").unwrap(),
+            secret_key: std::env::var("NOEXPLORER_TEST_SECRET").unwrap(),
+            path_style: true,
+            ..Default::default()
+        };
+        let c = Remote::new(&cfg);
+        let bucket = format!("nx-policy-{}", std::process::id());
+        c.create_container(&bucket).await.unwrap();
+        let s3 = make_client(&cfg);
+        for k in ["pub/a b.txt", "private/x.txt"] {
+            s3.put_object()
+                .bucket(&bucket)
+                .key(k)
+                .body(aws_sdk_s3::primitives::ByteStream::from_static(b"hi"))
+                .send()
+                .await
+                .unwrap();
+        }
+        let http = crate::webdav::http();
+        let anon = |url: String| {
+            let h = http.clone();
+            async move { h.get(url).send().await.unwrap().status().as_u16() }
+        };
+        let pub_url = c.public_url(&bucket, "pub/a b.txt").await.unwrap();
+        assert!(pub_url.ends_with(&format!("/{bucket}/pub/a%20b.txt")), "{pub_url}");
+        let priv_url = c.public_url(&bucket, "private/x.txt").await.unwrap();
+
+        assert_eq!(c.policy(&bucket).await.unwrap(), None, "a new bucket has no policy");
+        assert_eq!(anon(pub_url.clone()).await, 403);
+        let policy = format!(
+            r#"{{"Version":"2012-10-17","Statement":[{{"Effect":"Allow","Principal":"*","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::{bucket}/pub/*"]}}]}}"#
+        );
+        c.set_policy(&bucket, Some(&policy)).await.unwrap();
+        let got = c.policy(&bucket).await.unwrap().expect("policy saved");
+        assert!(got.contains("s3:GetObject") && got.contains("/pub/*"), "{got}");
+        assert_eq!(anon(pub_url.clone()).await, 200, "the public folder is readable");
+        assert_eq!(anon(priv_url).await, 403, "the rest stays private");
+        c.set_policy(&bucket, None).await.unwrap();
+        assert_eq!(c.policy(&bucket).await.unwrap(), None);
+        assert_eq!(anon(pub_url).await, 403, "removing the policy closes it");
+
+        for k in ["pub/a b.txt", "private/x.txt"] {
+            s3.delete_object().bucket(&bucket).key(k).send().await.unwrap();
+        }
+        s3.delete_bucket().bucket(&bucket).send().await.unwrap();
+    }
+
     /// Resumable transfers against dev S3 (see `s3_roundtrip` for the env vars): a multipart upload
     /// continues from the parts already on the server, and a download continues its `.part`.
     #[tokio::test]

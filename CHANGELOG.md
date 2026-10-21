@@ -5,6 +5,11 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Bucket access policies** (experimental, Settings → Experimental): see and change who can read an
+  S3 bucket without a key. Private, public read for the whole bucket or for some folders, or your
+  own policy JSON. **Copy public link** copies a file's plain, non-expiring address.
+
 ## [0.4.28] - 2026-10-20
 
 ### Fixed

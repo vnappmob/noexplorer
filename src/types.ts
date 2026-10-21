@@ -41,6 +41,7 @@ export type Experimental = {
   self_signed: boolean;
   backup_pairs: boolean;
   box_beta: boolean;
+  bucket_policy: boolean;
 };
 
 /** `config::Settings` — everything in config.json. */

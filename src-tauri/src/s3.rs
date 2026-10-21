@@ -217,6 +217,59 @@ impl S3 {
         Ok(())
     }
 
+    /// The bucket's access policy (JSON), or None when it has none.
+    pub async fn policy(&self, bucket: &str) -> Result<Option<String>, String> {
+        use aws_sdk_s3::error::ProvideErrorMetadata;
+        let c = self.client_for(bucket).await;
+        match c.get_bucket_policy().bucket(bucket).send().await {
+            Ok(r) => Ok(r.policy().map(String::from).filter(|p| !p.trim().is_empty())),
+            // No policy isn't an error (MinIO, AWS: NoSuchBucketPolicy; some servers answer 404 bare).
+            Err(e)
+                if e.code() == Some("NoSuchBucketPolicy")
+                    || e.raw_response().is_some_and(|r| r.status().as_u16() == 404)
+                        && e.code() != Some("NoSuchBucket") =>
+            {
+                Ok(None)
+            }
+            Err(e) => Err(err(e)),
+        }
+    }
+
+    /// Replaces the bucket's policy (`Some`) or removes it (`None`).
+    pub async fn set_policy(&self, bucket: &str, policy: Option<&str>) -> Result<(), String> {
+        let c = self.client_for(bucket).await;
+        match policy {
+            Some(p) => c.put_bucket_policy().bucket(bucket).policy(p).send().await.map(|_| ()).map_err(err),
+            None => c.delete_bucket_policy().bucket(bucket).send().await.map(|_| ()).map_err(err),
+        }
+    }
+
+    /// The unsigned address of `key`: what a browser fetches once a policy makes it public.
+    pub async fn public_url(&self, bucket: &str, key: &str) -> String {
+        let p = &self.profile;
+        let key: Vec<String> = key
+            .split('/')
+            .map(|s| percent_encoding::utf8_percent_encode(s, crate::onedrive::SEGMENT).to_string())
+            .collect();
+        let key = key.join("/");
+        if is_aws(p) {
+            self.client_for(bucket).await; // learns the bucket's region
+            let region = self.regions.lock().unwrap().get(bucket).cloned().unwrap_or_else(|| effective_region(p));
+            // Dotted names break the wildcard certificate of virtual-hosted addresses.
+            return if bucket.contains('.') {
+                format!("https://s3.{region}.amazonaws.com/{bucket}/{key}")
+            } else {
+                format!("https://{bucket}.s3.{region}.amazonaws.com/{key}")
+            };
+        }
+        let e = normalize_endpoint(&p.endpoint);
+        if p.path_style {
+            return format!("{e}/{bucket}/{key}");
+        }
+        let (scheme, host) = e.split_once("://").unwrap_or(("https", &e));
+        format!("{scheme}://{bucket}.{host}/{key}")
+    }
+
     /// Buckets visible to these credentials (+ region when the server reports it, as AWS does).
     /// Falls back to the profile's bucket when the key may not ListAllMyBuckets.
     pub async fn containers(&self) -> Result<Vec<BucketInfo>, String> {

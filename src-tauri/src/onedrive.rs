@@ -48,8 +48,8 @@ const PARALLEL_MIN: u64 = 32 * 1024 * 1024;
 const RANGE: u64 = 16 * 1024 * 1024;
 const DOWNLOAD_STREAMS: usize = 4;
 const WALK_CONCURRENCY: usize = 4;
-/// Path segments keep these as they are; everything else is percent-encoded.
-const SEGMENT: &AsciiSet = &NON_ALPHANUMERIC.remove(b'-').remove(b'.').remove(b'_').remove(b'~');
+/// URL path segments keep these as they are; everything else is percent-encoded (also S3 public links).
+pub(crate) const SEGMENT: &AsciiSet = &NON_ALPHANUMERIC.remove(b'-').remove(b'.').remove(b'_').remove(b'~');
 
 /// Keychain account for a profile's OneDrive refresh token.
 pub fn refresh_key(profile_id: &str) -> String {

@@ -932,3 +932,24 @@ the `.part`; a server that ignores Range falls back to one stream.
 removes its `.part` instead of keeping it for resume (it has gaps); resumed downloads and files
 under 32 MiB keep the single-stream path. Not measured against real OneDrive yet: the mock only
 proves the ranges and chunk order.
+
+## ADR-047: Bucket access policies as presets over a standard policy (experimental)
+
+**Context.** The maintainer asked to manage S3 bucket permissions from the app. Most people want
+one of a few things: keep a bucket private, publish it, or publish one folder (a website's assets,
+shared photos). Bucket policies are the S3-standard way and work on AWS, MinIO, Wasabi, Ceph and
+SeaweedFS. ACLs are disabled by default on new AWS buckets, and each provider's IAM/user policies
+differ, so neither is used.
+
+**Decision.** `policy.ts` offers Private (no policy), Public read for the whole bucket, Public read
+for listed folders (one `s3:GetObject` statement for everyone, Sid `NoExplorerPublicRead`), and
+Custom (raw JSON). An existing policy opens as the preset it matches, otherwise as Custom, so a
+policy written elsewhere is never rewritten silently. The backend only fetches, validates as JSON,
+stores and deletes (`GetBucketPolicy` / `PutBucketPolicy` / `DeleteBucketPolicy` on the bucket's
+regional client); the server's own rules (AWS Block Public Access, providers without policies)
+come back as its errors. A "Copy public link" builds the unsigned address of a file.
+
+**Consequences.** Presets never grant listing (`s3:ListBucket`), so public buckets can't be
+enumerated unless a custom policy says so. Checked against SeaweedFS (`s3_bucket_policy`: an
+unsigned GET succeeds in the public folder only, and fails again once the policy is removed). R2,
+GCS and Oracle manage public access in their consoles and will show the server's error.

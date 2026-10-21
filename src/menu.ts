@@ -1,6 +1,7 @@
 // Right-click / "⋯" menu. Items are action names handled by `paneAction` (actions.ts).
 
 import { paneAction, remoteName, TRASH_LABEL } from "./actions";
+import { canManagePolicy } from "./policy";
 import { icon } from "./icons";
 import type { Pane } from "./pane";
 import { local, MAX_VIEWS, remote, remotes } from "./panes";
@@ -28,6 +29,7 @@ export function showMenu(p: Pane, x: number, y: number, above = false) {
   if (one && !one.dir) items.push(["preview", "Quick look", "eye"], ["open", "Open with default app", "external"]);
   if (!p.isRemote) items.push(["reveal", "Show in Finder / Explorer", "search"]);
   if (one && p.isRemote && !one.dir) items.push(["link", "Copy 7-day link", "link"]);
+  if (one && !one.dir && canManagePolicy(p)) items.push(["public-link", "Copy public link", "link"]);
   if (one) items.push(["copy-path", "Copy path", "copy"]);
   // Search results come from many folders: folder-level actions belong to a folder view.
   if (sel.length && !p.search) {
@@ -43,6 +45,7 @@ export function showMenu(p: Pane, x: number, y: number, above = false) {
   if (p.search) items.push("-", ["end-search", "Back to the folder", "x"]);
   else items.push("-", ["mkdir", "New folder", "folderPlus"], ["refresh", "Refresh", "refresh"]);
   if (!p.isRemote) items.push(["hidden", app.showHidden ? "Hide hidden files" : "Show hidden files", "eye"]);
+  if (canManagePolicy(p) && !p.search) items.push("-", ["policy", "Access policy…", "key"]);
   if (p.isRemote) {
     items.push("-");
     if (remotes.length < MAX_VIEWS) items.push(["split", "Split view: another account below", "split"]);

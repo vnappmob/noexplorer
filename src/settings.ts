@@ -1,6 +1,7 @@
 // Settings dialog (Accounts / General / Appearance / About tabs), the account picker and the
 // bucket picker in the remote pane header.
 
+import { canManagePolicy, openPolicy } from "./policy";
 import { favoritesMenuItems, openFavorite } from "./favorites";
 import { getVersion } from "@tauri-apps/api/app";
 import { homeDir, join } from "@tauri-apps/api/path";
@@ -751,6 +752,8 @@ export function openBucketMenu(v: Pane, anchor = v.q(".bucket-chip")) {
       { label: azure ? "New container…" : "New bucket…", icon: "plus", run: () => newBucket(v) },
     );
   }
+  if (canManagePolicy(v))
+    items.push({ label: `Access policy for “${v.bucket}”…`, icon: "key", run: () => openPolicy(v) });
   openMenu(anchor, items, { width: 300, search: v.buckets.length > 6 ? "Find bucket…" : undefined });
 }
 

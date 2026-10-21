@@ -45,6 +45,8 @@ pub struct BucketInfo {
     pub region: Option<String>,
 }
 
+const NO_POLICIES: &str = "Only S3 buckets have access policies";
+
 pub enum Remote {
     S3(S3),
     /// Nextcloud and plain WebDAV (`webdav.rs`).
@@ -115,6 +117,29 @@ impl Remote {
                 a.create_container(name).await
             }
             _ => Err("This storage has no buckets to create".into()),
+        }
+    }
+
+    /// The bucket's access policy (S3 only; None = no policy).
+    pub async fn policy(&self, container: &str) -> Result<Option<String>, String> {
+        match self {
+            Remote::S3(s) => s.policy(container).await,
+            _ => Err(NO_POLICIES.into()),
+        }
+    }
+
+    pub async fn set_policy(&self, container: &str, policy: Option<&str>) -> Result<(), String> {
+        match self {
+            Remote::S3(s) => s.set_policy(container, policy).await,
+            _ => Err(NO_POLICIES.into()),
+        }
+    }
+
+    /// A file's public (unsigned) address. S3 only.
+    pub async fn public_url(&self, container: &str, key: &str) -> Result<String, String> {
+        match self {
+            Remote::S3(s) => Ok(s.public_url(container, key).await),
+            _ => Err(NO_POLICIES.into()),
         }
     }
 

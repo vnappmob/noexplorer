@@ -1787,6 +1787,94 @@ dialog::backdrop {
   gap: 10px;
 }
 
+/* Access policy dialog (policy.ts, experimental) */
+#policy {
+  width: min(560px, 94vw);
+}
+.pol-form {
+  padding: 18px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 86vh;
+  overflow: auto;
+}
+.pol-form header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.pol-form header small {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+.pol-intro,
+.pol-msg {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--fg2);
+}
+.pol-msg:empty {
+  display: none;
+}
+.pol-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pol-opt {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.pol-opt:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.pol-opt input {
+  margin-top: 3px;
+}
+.pol-opt span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pol-opt small {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+.pol-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font:
+    var(--fs-sm) / 1.45 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  resize: vertical;
+}
+.pol-form textarea[readonly] {
+  color: var(--muted);
+}
+#pol-folders {
+  margin: -2px 0 2px 30px;
+  width: calc(100% - 30px);
+}
+#pol-json-box summary {
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  color: var(--fg2);
+  margin-bottom: 6px;
+}
+#pol-public code {
+  overflow-wrap: anywhere;
+}
+
 /* Compare dialog (compare.ts) */
 #compare {
   width: min(760px, 94vw);
