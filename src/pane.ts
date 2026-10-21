@@ -235,7 +235,10 @@ export class Pane {
       if (this.isRemote) return this.showError(e);
       this.entries = [];
       if (this.cwd) {
-        // Folder may have vanished (an unplugged disk): fall back to the parent.
+        // Folder may have vanished (an unplugged disk): fall back to the parent. When the system
+        // refused it (privacy settings, a cloud folder whose access was revoked), say so.
+        const denied = /not permitted|permission denied|access is denied|os error (1|5|13)\)/i.test(String(e));
+        if (denied) fail(deniedMessage(this.cwd, e));
         this.cwd = this.parent ?? "";
         return this.load();
       }
@@ -455,21 +458,29 @@ export class Pane {
   private rowHtml(i: number) {
     const e = this.view[i];
     const known = !e.dir || e.calc;
-    const skipped = !known && this.sizesSettled;
-    const size = known ? (e.partial && this.isRemote ? "≥ " : "") + fmtSize(e.size) : skipped ? "—" : "";
-    const title = skipped
-      ? "Not scanned automatically (another disk, or a private folder you haven’t opened yet). Click Σ to scan it."
-      : e.stale
-        ? e.sizeAt
-          ? `Calculated ${ago(e.sizeAt)}. Σ calculates it again.`
-          : "From the last scan; updating…"
-        : e.partial
-          ? this.isRemote
-            ? "Stopped counting at a very large number of files: at least this much. Σ counts everything."
-            : "Some folders inside were skipped. Click Σ to include them."
+    const skipped = !known && !e.cloud && this.sizesSettled;
+    const size = e.cloud
+      ? "☁"
+      : known
+        ? (e.partial && this.isRemote ? "≥ " : "") + fmtSize(e.size)
+        : skipped
+          ? "—"
           : "";
+    const title = e.cloud
+      ? `Synced by ${e.cloud}: not counted (its files live in the cloud, and scanning can download them or need permission). Open it and press Σ to count it.`
+      : skipped
+        ? "Not scanned automatically (another disk, or a private folder you haven’t opened yet). Click Σ to scan it."
+        : e.stale
+          ? e.sizeAt
+            ? `Calculated ${ago(e.sizeAt)}. Σ calculates it again.`
+            : "From the last scan; updating…"
+          : e.partial
+            ? this.isRemote
+              ? "Stopped counting at a very large number of files: at least this much. Σ counts everything."
+              : "Some folders inside were skipped. Click Σ to include them."
+            : "";
     return `<div class="row${this.selected.has(e.key) ? " sel" : ""}${this.pending.has(e.key) ? " deleting" : ""}" role="option" aria-selected="${this.selected.has(e.key)}" data-i="${i}"${e.dir ? ` data-dir="${esc(e.key)}"` : ""}>
-      <span class="name"><span class="ico${e.dir ? " dir" : ""}">${icon(e.dir ? "folder" : FILE_ICON[kindOf(e.name)])}</span><span>${esc(e.name)}</span>${e.where !== undefined ? `<span class="where" title="${esc(e.where)}">${esc(e.where || "·")}</span>` : ""}</span>
+      <span class="name"><span class="ico${e.dir ? " dir" : ""}">${icon(e.dir ? "folder" : FILE_ICON[kindOf(e.name)])}</span><span>${esc(e.name)}</span>${e.cloud ? `<span class="cloud-tag">☁ ${esc(e.cloud)}</span>` : ""}${e.where !== undefined ? `<span class="where" title="${esc(e.where)}">${esc(e.where || "·")}</span>` : ""}</span>
       <span class="size${e.calc ? " calc" : ""}${e.stale ? " stale" : ""}"${title ? ` title="${esc(title)}"` : ""}>${size}</span>
       <span class="date">${fmtDate(e.modified)}</span>
     </div>`;
@@ -614,4 +625,13 @@ export function ago(ms: number) {
   if (m < 60) return `${m} min ago`;
   const h = Math.round(m / 60);
   return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
+}
+
+/** Why the system refused a local folder, and where to allow it. */
+function deniedMessage(path: string, e: unknown) {
+  const name = path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+  const where = navigator.userAgent.includes("Mac")
+    ? "System Settings → Privacy & Security → Files & Folders (or Full Disk Access) → NoExplorer. Cloud folders (Google Drive, OneDrive, Dropbox…) also ask once in their own prompt"
+    : "the folder's permissions";
+  return `Can't open “${name}”: the system didn't allow it. Check ${where}. (${String(e)})`;
 }

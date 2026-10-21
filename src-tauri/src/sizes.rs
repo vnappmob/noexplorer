@@ -10,6 +10,9 @@
 //! - Automatic scans are polite: low-priority threads, never another volume, and on macOS they
 //!   skip folders that would trigger a privacy prompt (Desktop, Documents, Downloads, ~/Library…)
 //!   unless the user has already opened them in NoExplorer. The Σ button scans everything.
+//! - Cloud-synced folders (cloud.rs: iCloud Drive, Google Drive, OneDrive, Dropbox, Nextcloud…)
+//!   aren't entered: they're reported with their service (`DirSize::cloud`). Inside one, sizes
+//!   come only from Σ, which then counts it (ADR-049).
 //! - The last totals of folders the pane has shown are kept across launches (`Seen`, in the OS
 //!   cache folder). Opening a folder the index doesn't cover yet (after a restart, or once its root
 //!   was evicted) shows those at once, marked `stale`, while the scan refreshes them.
@@ -42,6 +45,9 @@ pub struct DirSize {
     /// From a previous scan (remembered), not the live index: a refresh may change it.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     stale: bool,
+    /// A cloud-synced folder, not counted: the service that syncs it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cloud: Option<&'static str>,
 }
 
 /// Payload of the `"dir-sizes"` event and the `folder_sizes` result. Mirrors `DirSizes` in `src/types.ts`.
@@ -60,18 +66,24 @@ pub struct DirSizes {
     scanning: bool,
     /// Entries of `folder` itself changed on disk (added, removed, renamed): list it again.
     relist: bool,
+    /// `folder` is inside a cloud-synced folder (this service): no automatic sizes, Σ counts it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cloud: Option<&'static str>,
 }
 
 struct Root {
     path: PathBuf,
     /// Automatic scans skip protected folders; manual (Σ) ones don't.
     auto: bool,
+    /// Cloud folders below aren't entered (false only for Σ inside a cloud folder).
+    skip_cloud: bool,
     _watcher: Option<notify::RecommendedWatcher>,
 }
 
 struct Running {
     root: PathBuf,
     auto: bool,
+    skip_cloud: bool,
     cancel: Arc<AtomicBool>,
 }
 
@@ -88,6 +100,8 @@ struct Inner {
     dirty: Vec<PathBuf>,
     /// The focus folder's own entries changed since the last event.
     relist: bool,
+    /// Cloud-synced folders the scans found (not entered), and their service.
+    cloud: HashMap<PathBuf, &'static str>,
 }
 
 #[derive(Default)]
@@ -164,6 +178,28 @@ impl Sink for SizeIndex {
             self.wake.notify_one();
         }
     }
+
+    fn cloud(&self, path: &Path, service: &'static str) {
+        let mut g = self.inner.lock().unwrap();
+        g.cloud.insert(path.to_path_buf(), service);
+        if g.focus.as_deref().is_some_and(|f| path.parent() == Some(f)) {
+            g.dirty.push(path.to_path_buf());
+            self.wake.notify_one();
+        }
+    }
+}
+
+/// A child of the shown folder as reported to the UI: a cloud folder, live totals, or remembered ones.
+fn dir_size(g: &Inner, seen: Option<&Seen>, d: &Path) -> Option<DirSize> {
+    let path = d.to_string_lossy().into();
+    if let Some(s) = g.cloud.get(d) {
+        let totals = Totals { skipped: 1, ..Default::default() };
+        return Some(DirSize { path, totals, stale: false, cloud: Some(s) });
+    }
+    if let Some(t) = g.map.get(d) {
+        return Some(DirSize { path, totals: *t, stale: false, cloud: None });
+    }
+    seen?.map.get(d).map(|(t, _)| DirSize { path, totals: *t, stale: true, cloud: None })
 }
 
 // ---------- policy ----------
@@ -179,7 +215,7 @@ fn protected() -> Vec<PathBuf> {
         .iter()
         .map(|p| home.join(p))
         .chain(
-            ["Containers", "Group Containers", "Mobile Documents", "CloudStorage", "Mail", "Messages", "Safari"]
+            ["Containers", "Group Containers", "Mail", "Messages", "Safari"]
                 .iter()
                 .map(|p| home.join("Library").join(p)),
         )
@@ -247,19 +283,16 @@ impl SizeIndex {
 
     /// What's known about `folder` and its `dirs` right now: the index first, then the totals
     /// remembered from earlier scans (marked stale).
-    fn snapshot(&self, folder: &Path, dirs: &[PathBuf]) -> DirSizes {
+    fn snapshot(&self, folder: &Path, dirs: &[PathBuf], cloud: Option<&'static str>) -> DirSizes {
         let g = self.inner.lock().unwrap();
         let mut seen = self.seen.lock().unwrap();
         seen.remember(dirs.iter().chain([&folder.to_path_buf()]).filter_map(|d| g.map.get(d).map(|t| (d.clone(), *t))));
-        let get = |d: &Path| match g.map.get(d) {
+        let sizes = dirs.iter().filter_map(|d| dir_size(&g, Some(&seen), d)).collect();
+        let total = match g.map.get(folder) {
             Some(t) => Some((*t, false)),
-            None => seen.map.get(d).map(|(t, _)| (*t, true)),
+            None if cloud.is_none() => seen.map.get(folder).map(|(t, _)| (*t, true)),
+            None => None,
         };
-        let sizes = dirs
-            .iter()
-            .filter_map(|d| get(d).map(|(t, stale)| DirSize { path: d.to_string_lossy().into(), totals: t, stale }))
-            .collect();
-        let total = get(folder);
         DirSizes {
             folder: folder.to_string_lossy().into(),
             sizes,
@@ -267,6 +300,7 @@ impl SizeIndex {
             total_stale: total.is_some_and(|t| t.1),
             scanning: g.running.as_ref().is_some_and(|r| folder.starts_with(&r.root)),
             relist: false,
+            cloud,
         }
     }
 
@@ -284,19 +318,20 @@ impl SizeIndex {
 }
 
 /// Starts a background scan of `root` (cancelling one that doesn't cover it).
-fn start_scan(app: &AppHandle, root: PathBuf, auto: bool) {
+fn start_scan(app: &AppHandle, root: PathBuf, auto: bool, skip_cloud: bool) {
     let idx = app.state::<SizeIndex>();
     let cancel = Arc::new(AtomicBool::new(false));
     {
         let mut g = idx.inner.lock().unwrap();
         if let Some(r) = &g.running {
             // Already part of a bigger scan (a polite one doesn't cover a Σ request).
-            if root.starts_with(&r.root) && (auto || !r.auto) {
+            // Nor does one that skips cloud folders cover Σ inside a cloud folder.
+            if root.starts_with(&r.root) && (auto || !r.auto) && (skip_cloud || !r.skip_cloud) {
                 return;
             }
             r.cancel.store(true, Relaxed);
         }
-        g.running = Some(Running { root: root.clone(), auto, cancel: cancel.clone() });
+        g.running = Some(Running { root: root.clone(), auto, skip_cloud, cancel: cancel.clone() });
     }
     let app = app.clone();
     std::thread::spawn(move || {
@@ -313,7 +348,7 @@ fn start_scan(app: &AppHandle, root: PathBuf, auto: bool) {
                 .collect()
         };
         let known = |p: &Path| known_roots.get(p).copied();
-        let opts = Options { enter: &enter, known: &known, cancel: &cancel, threads: threads() };
+        let opts = Options { enter: &enter, known: &known, cancel: &cancel, threads: threads(), skip_cloud };
         let result = scan::scan(&root, &opts, &*idx);
         let mut g = idx.inner.lock().unwrap();
         if g.running.as_ref().is_some_and(|r| Arc::ptr_eq(&r.cancel, &cancel)) {
@@ -323,7 +358,7 @@ fn start_scan(app: &AppHandle, root: PathBuf, auto: bool) {
             // Roots inside this one are now covered by its watcher.
             g.roots.retain(|r| !r.path.starts_with(&root));
             let watcher = watch(&app, &root);
-            g.roots.push(Root { path: root.clone(), auto, _watcher: watcher });
+            g.roots.push(Root { path: root.clone(), auto, skip_cloud, _watcher: watcher });
             evict(&mut g);
         }
         if g.focus.as_deref().is_some_and(|f| f.starts_with(&root)) {
@@ -393,12 +428,12 @@ fn refresh_dirs(app: &AppHandle, changed: HashSet<PathBuf>) {
     for d in dirs {
         let auto = {
             let g = idx.inner.lock().unwrap();
-            g.roots.iter().find(|r| d.starts_with(&r.path)).map(|r| r.auto)
+            g.roots.iter().find(|r| d.starts_with(&r.path)).map(|r| (r.auto, r.skip_cloud))
         };
-        let Some(auto) = auto else { continue };
+        let Some((auto, skip_cloud)) = auto else { continue };
         let root_hint = d.clone();
         let enter = idx.enter_policy(&root_hint, auto);
-        let Some(new) = reread(&idx, &d, &enter) else {
+        let Some(new) = reread(&idx, &d, &enter, skip_cloud) else {
             // The folder is gone: its parent's update removes it.
             continue;
         };
@@ -430,7 +465,7 @@ fn refresh_dirs(app: &AppHandle, changed: HashSet<PathBuf>) {
 }
 
 /// New totals of `d`: its own files re-read, subfolders from the index (new ones are scanned).
-fn reread(idx: &SizeIndex, d: &Path, enter: &(dyn Fn(&Path) -> bool + Sync)) -> Option<Totals> {
+fn reread(idx: &SizeIndex, d: &Path, enter: &(dyn Fn(&Path) -> bool + Sync), skip_cloud: bool) -> Option<Totals> {
     let cancel = AtomicBool::new(false);
     let mut buf = vec![0u8; 64 * 1024];
     let mut own = Totals::default();
@@ -460,7 +495,7 @@ fn reread(idx: &SizeIndex, d: &Path, enter: &(dyn Fn(&Path) -> bool + Sync)) -> 
     }
     for s in &subdirs {
         own.dirs += 1;
-        if !enter(s) {
+        if !enter(s) || (skip_cloud && idx.inner.lock().unwrap().cloud.contains_key(s)) {
             own.skipped += 1;
             continue;
         }
@@ -468,7 +503,7 @@ fn reread(idx: &SizeIndex, d: &Path, enter: &(dyn Fn(&Path) -> bool + Sync)) -> 
         let t = match known {
             Some(t) => t,
             None => {
-                let o = Options { enter, known: &|_| None, cancel: &cancel, threads: 2 };
+                let o = Options { enter, known: &|_| None, cancel: &cancel, threads: 2, skip_cloud };
                 scan::scan(s, &o, idx).unwrap_or(Totals { skipped: 1, ..Default::default() })
             }
         };
@@ -534,9 +569,7 @@ pub fn setup(app: &AppHandle) {
                 let sizes = dirty
                     .iter()
                     .filter(|p| p.parent() == Some(&f) && seen.insert(*p))
-                    .filter_map(|p| {
-                        g.map.get(p).map(|t| DirSize { path: p.to_string_lossy().into(), totals: *t, stale: false })
-                    })
+                    .filter_map(|p| dir_size(&g, None, p))
                     .collect();
                 DirSizes {
                     folder: f.to_string_lossy().into(),
@@ -545,12 +578,14 @@ pub fn setup(app: &AppHandle) {
                     total_stale: false,
                     scanning: g.running.as_ref().is_some_and(|r| f.starts_with(&r.root)),
                     relist,
+                    cloud: None,
                 }
             };
             {
                 // Fresh totals of what the pane shows are remembered for the next launch.
                 let mut seen = idx.seen.lock().unwrap();
-                let fresh = payload.sizes.iter().map(|d| (PathBuf::from(&d.path), d.totals));
+                let fresh =
+                    payload.sizes.iter().filter(|d| d.cloud.is_none()).map(|d| (PathBuf::from(&d.path), d.totals));
                 seen.remember(fresh.chain(payload.total.map(|t| (PathBuf::from(&payload.folder), t))));
                 seen.save(!payload.scanning);
             }
@@ -574,6 +609,14 @@ pub fn folder_sizes(
 ) -> DirSizes {
     let folder = PathBuf::from(&path);
     let dirs: Vec<PathBuf> = dirs.into_iter().map(PathBuf::from).collect();
+    // Inside a cloud-synced folder: no automatic scan; Σ counts it (cloud folders included).
+    let cloud = {
+        let known = {
+            let g = idx.inner.lock().unwrap();
+            g.cloud.iter().find(|(p, _)| folder.starts_with(p)).map(|(_, s)| *s)
+        };
+        known.or_else(|| crate::cloud::Places::new().root_of(&folder).map(|r| r.1))
+    };
     let need = {
         let mut g = idx.inner.lock().unwrap();
         g.focus = Some(folder.clone());
@@ -583,15 +626,18 @@ pub fn folder_sizes(
         let partial = g.map.get(&folder).is_some_and(|t| t.skipped > 0);
         !SizeIndex::indexed(&g, &folder) || (!auto && partial)
     };
-    if need && (!auto || auto_allowed(&folder)) {
+    if need && (!auto || (auto_allowed(&folder) && cloud.is_none())) {
         if !auto {
             // Σ: forget the polite totals of this subtree so it's rescanned in full.
             let mut g = idx.inner.lock().unwrap();
             g.roots.retain(|r| !r.path.starts_with(&folder));
+            if cloud.is_some() {
+                g.cloud.retain(|p, _| !p.starts_with(&folder));
+            }
         }
-        start_scan(&app, folder.clone(), auto);
+        start_scan(&app, folder.clone(), auto, cloud.is_none());
     }
-    idx.snapshot(&folder, &dirs)
+    idx.snapshot(&folder, &dirs, cloud.filter(|_| auto))
 }
 
 /// Drops the focus (the local pane left this folder, or auto sizes were turned off).
@@ -639,7 +685,7 @@ mod tests {
             let p = PathBuf::from(format!("/r{i}"));
             g.map.insert(p.join("sub"), Totals::default());
             g.map.insert(p.clone(), Totals::default());
-            g.roots.push(Root { path: p, auto: true, _watcher: None });
+            g.roots.push(Root { path: p, auto: true, skip_cloud: true, _watcher: None });
         }
         evict(&mut g);
         assert_eq!(g.roots.len(), MAX_ROOTS);

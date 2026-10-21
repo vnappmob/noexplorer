@@ -71,6 +71,8 @@ export type Item = {
   stale?: boolean;
   /** UI-only: when a remembered remote `size` was calculated (ms). */
   sizeAt?: number;
+  /** UI-only, local: a cloud-synced folder (the service that syncs it); not counted (cloud.rs). */
+  cloud?: string;
 };
 
 /** `compare::Diff` — result of `compare` (Compare dialog). */
@@ -96,10 +98,12 @@ export type Totals = { bytes: number; files: number; dirs: number; skipped: numb
 /** `sizes::DirSizes` — `folder_sizes` result and the `"dir-sizes"` event. */
 export type DirSizes = {
   folder: string;
-  sizes: (Totals & { path: string; stale?: boolean })[];
+  sizes: (Totals & { path: string; stale?: boolean; cloud?: string })[];
   total: Totals | null;
   /** `total` is remembered from an earlier scan (shown until the scan refreshes it). */
   total_stale?: boolean;
+  /** The folder is inside a cloud-synced folder (this service): no automatic sizes. */
+  cloud?: string;
   scanning: boolean;
   /** The folder's own entries changed on disk: list it again. */
   relist: boolean;

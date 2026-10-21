@@ -753,6 +753,16 @@ body.resizing * {
 .row .size.calc {
   color: var(--accent);
 }
+/* Cloud-synced folder (cloud.rs): named, not counted. */
+.row .cloud-tag {
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--bg2);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
 /* Remembered size (earlier scan / calculation): dimmer until it's refreshed (sizes.ts). */
 .row .size.calc.stale {
   opacity: 0.55;

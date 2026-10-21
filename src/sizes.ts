@@ -32,8 +32,9 @@ function apply(d: DirSizes) {
   for (const s of d.sizes) {
     const e = byKey.get(s.path);
     if (!e) continue;
+    e.cloud = s.cloud;
     e.size = s.bytes;
-    e.calc = true;
+    e.calc = !s.cloud;
     e.partial = s.skipped > 0;
     e.stale = !!s.stale;
   }
@@ -49,6 +50,9 @@ function apply(d: DirSizes) {
       : d.total.skipped
         ? "Some folders were skipped (other disks, private folders you haven't opened yet, or no permission). Click Σ to scan everything."
         : "";
+  } else if (d.cloud) {
+    out.textContent = `☁ ${d.cloud}`;
+    out.title = `This folder is synced by ${d.cloud}: sizes aren't counted automatically here (it can download files or need permission). Σ counts it.`;
   } else if (d.scanning) {
     out.textContent = "Scanning…";
   }

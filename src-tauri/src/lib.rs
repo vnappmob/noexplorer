@@ -22,6 +22,7 @@ mod askpass;
 mod autostart;
 mod azure;
 mod box_api;
+mod cloud;
 mod compare;
 mod config;
 mod diag;

@@ -5,6 +5,12 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Cloud-synced folders aren't scanned for sizes** (iCloud Drive, Google Drive, OneDrive, Dropbox,
+  Box, Nextcloud, Synology Drive, MEGA). They show a ☁ tag with the service; Σ inside one counts it.
+- A local folder the system won't open (privacy settings, a cloud folder whose access was turned
+  off) now says why, instead of silently going back to the parent folder.
+
 ## [0.4.30] - 2026-10-21
 
 ### Added

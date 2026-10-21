@@ -975,3 +975,25 @@ localStorage (3,000 folders), and fills listings from it, dimmed with the age. T
 **Consequences.** Remembered sizes can be out of date until refreshed, so they're always dimmed
 and say so. A capped folder shows a lower bound. The folder total is the sum of its folders and
 files once every folder is known, so it needs no extra request.
+
+## ADR-049: Cloud-synced folders are recognized and left out of size scans
+
+**Context.** Automatic size scans went into folders kept by cloud sync clients. On macOS most are
+File Provider folders (Google Drive, OneDrive, Dropbox, Box, iCloud Drive): listing one can fetch
+it from the server, and access is a separate permission that can be revoked, after which opening
+the folder bounced back to the parent with no explanation. Classic clients (Nextcloud, Synology
+Drive, MEGA) keep real files, but they're a copy of a cloud, not this disk's own data.
+
+**Decision.** `cloud.rs` recognizes them for free during a scan: by location
+(`~/Library/CloudStorage/*`, `~/Library/Mobile Documents`, Windows OneDrive/iCloudDrive) and by
+the marker file a sync client keeps in its folder's top level (Nextcloud `.sync_*.db`, `.dropbox`,
+OneDrive's GUID file, `.SynologyWorkingDirectory`, Google Drive's `.tmp.drive*`, MEGA `.debris`),
+which the scanner reads with the listing anyway. Scans don't enter them and report them
+(`DirSize::cloud`), so the row shows ☁ and the service. Inside one, no automatic scan runs; Σ
+counts it. CloudStorage and Mobile Documents left the "protected" list: they're never scanned
+automatically, whatever the user opened. A local folder the system refuses now gets an
+explanation (privacy settings, cloud access) before the pane goes back to the parent.
+
+**Consequences.** Totals of folders containing a cloud folder are lower bounds (counted as
+skipped, as before for protected folders). Cloud folders aren't added to Places: the maintainer
+wants cloud services as remote accounts (OneDrive, Nextcloud), and here only recognized.
