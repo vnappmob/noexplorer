@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.29] - 2026-10-21
+
 ### Added
 - **Bucket access policies** (experimental, Settings → Experimental): see and change who can read an
   S3 bucket without a key. Private, public read for the whole bucket or for some folders, or your
