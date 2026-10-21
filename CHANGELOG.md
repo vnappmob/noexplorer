@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.31] - 2026-10-21
+
 ### Changed
 - **Cloud-synced folders aren't scanned for sizes** (iCloud Drive, Google Drive, OneDrive, Dropbox,
   Box, Nextcloud, Synology Drive, MEGA). They show a ☁ tag with the service; Σ inside one counts it.
