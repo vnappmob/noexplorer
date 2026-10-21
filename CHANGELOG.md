@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.33] - 2026-10-21
+
 ### Changed
 - **Speed test redesigned**: Run and History tabs; you choose the account, bucket and folder for
   each side (it no longer picks a bucket for you); each run in History expands to its numbers and
