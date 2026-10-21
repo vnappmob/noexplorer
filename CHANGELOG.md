@@ -5,6 +5,17 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Speed test redesigned**: Run and History tabs; you choose the account, bucket and folder for
+  each side (it no longer picks a bucket for you); each run in History expands to its numbers and
+  cleanup, with Run again.
+
+### Fixed
+- **Speed test cleanup**: the deletion is checked and retried, and test folders an interrupted run
+  left behind are removed before the next run there.
+- **Google Cloud Storage: deleting a folder** stopped at the first missing object (GCS answers 404
+  where AWS answers 204), leaving the rest. A missing object now counts as deleted.
+
 ## [0.4.32] - 2026-10-21
 
 ### Added

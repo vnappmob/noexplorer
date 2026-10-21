@@ -13,13 +13,13 @@ Save “this folder ↔ that remote folder” once, then back it up in one click
 
 ## Speed test
 
-Compare how fast your storage services really are, the way NoExplorer moves files. Open it with <kbd>⌘ K</kbd> → **Speed test…** or the right-click menu of a remote view, pick **From** and **To** (this computer, an open view, or any account), a size, and **Run**:
+Compare how fast your storage services really are, the way NoExplorer moves files. Open it with <kbd>⌘ K</kbd> → **Speed test…** or the right-click menu of a remote view, pick **From** and **To**: this computer or an account, then the bucket and (optionally) the folder to test in. Choose a size and **Run**:
 
 - **One large file** shows throughput (multipart and chunked uploads, as in real transfers).
 - **Many small files** shows the cost of each file (files per second): what a folder of photos or documents feels like.
 - **Response time** is how long one listing takes on each remote.
 
-**Both directions** measures the way back too. Between two remotes the data goes the way a copy between them goes: on the server within one account when the provider can, otherwise through this computer. Test data is random, goes in a temporary `.noexplorer-speedtest-…` folder, and is deleted afterwards (also when you cancel). Results stay on this computer; ★ marks the fastest large-file route so far.
+**Both directions** measures the way back too. Between two remotes the data goes the way a copy between them goes: on the server within one account when the provider can, otherwise through this computer. Test data is random, goes in a temporary `.noexplorer-speedtest-…` folder in the place you picked, and is deleted afterwards (also when you cancel); the deletion is checked, and test folders an interrupted run left behind are removed before the next run there. **History** keeps your runs on this computer: one line each with the speeds, ★ for the fastest so far, and a ✓ or ! for the cleanup. Click one for every number, what was cleaned up, and **Run again**.
 
 ## Bucket access policies
 

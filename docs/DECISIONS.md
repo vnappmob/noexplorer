@@ -1019,3 +1019,12 @@ top). A remote → remote relay counts what the user would wait for, not the raw
 two servers. Writing it surfaced a real Nextcloud bug: parallel uploads into a new folder raced
 on MKCOL (423 / 403); `Dav::ensure_parents` now creates one folder at a time per account and
 retries a 423.
+
+**Update 2026-10-21.** The first version picked an account's first bucket by itself and could
+leave test data behind. Each end is now an explicit account + bucket + optional folder (an open
+view's folder by default); the dialog says where test data goes. Cleanup is checked (`remove`
+lists the test folder again, retries what's left, and reports failures as notes), and `sweep`
+removes `.noexplorer-speedtest-*` folders an interrupted run left in the same place. One cause
+was a general bug: S3's one-by-one delete fallback (used on GCS, which has no bulk delete) stopped
+at the folder's missing marker, because GCS answers 404 for a missing object. Results moved to a
+History tab: one line per run, expandable to the numbers, notes and Run again.

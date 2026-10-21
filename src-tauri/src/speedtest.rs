@@ -7,7 +7,9 @@
 //!   response time of a listing on each remote.
 //! - Data is random (incompressible), written to the OS temp folder, and to
 //!   `<folder>/.noexplorer-speedtest-<id>/` on each remote; everything is deleted at the end, also
-//!   after a failure or Cancel.
+//!   after a failure or Cancel, and the deletion is checked. Test folders an earlier run left
+//!   behind (the app quit mid-run) are removed before the next run in the same folder. What
+//!   happened goes into `notes`.
 //! - A remote → remote run goes the way a copy between them goes: server-side within one account
 //!   when the provider can, otherwise relayed through this computer (download, then upload).
 //! - Progress and results stream as `"speedtest"` events; `cancel(id)` stops it.
@@ -73,6 +75,8 @@ struct SpeedEvent {
     done: u64,
     total: u64,
     results: Vec<Measure>,
+    /// Cleanup and other remarks for the user ("Removed 2 old test folders from …").
+    notes: Vec<String>,
     finished: bool,
     error: Option<String>,
 }
@@ -97,6 +101,7 @@ struct Run {
     phase: Mutex<String>,
     total: std::sync::atomic::AtomicU64,
     results: Mutex<Vec<Measure>>,
+    notes: Mutex<Vec<String>>,
     tmp: PathBuf,
 }
 
@@ -108,6 +113,7 @@ impl Run {
             done: self.job.bytes_done.load(Ordering::Relaxed),
             total: self.total.load(Ordering::Relaxed),
             results: self.results.lock().unwrap().clone(),
+            notes: self.notes.lock().unwrap().clone(),
             finished,
             error,
         });
@@ -230,7 +236,7 @@ async fn copy(run: &Run, a: &End, from: &str, b: &End, to: &str, files: &[File])
 
 /// Median time of three listings of the folder the test runs in.
 async fn latency(run: &Run, end: &End) -> Result<(), String> {
-    let parent = end.dir.trim_end_matches('/').rsplit_once('/').map(|(p, _)| format!("{p}/")).unwrap_or_default();
+    let parent = parent_of(&end.dir);
     let mut t = vec![];
     for _ in 0..3 {
         run.check()?;
@@ -325,6 +331,57 @@ async fn run_test(
     Ok(())
 }
 
+impl End {
+    fn bucket_label(&self) -> String {
+        if self.bucket.is_empty() { String::new() } else { format!("{}/", self.bucket) }
+    }
+}
+
+/// The folder test folders are made in (`dir` without its last component).
+fn parent_of(dir: &str) -> String {
+    dir.trim_end_matches('/').rsplit_once('/').map(|(p, _)| format!("{p}/")).unwrap_or_default()
+}
+
+/// Deletes the test folder and checks it's gone (one more try for what's left).
+async fn remove(e: &End) -> Result<(), String> {
+    let first = e.remote.delete(&e.bucket, vec![e.dir.clone()], None).await;
+    let left = |all: Vec<(String, u64)>| {
+        all.into_iter().filter(|(k, _)| !k.ends_with('/')).map(|(k, _)| k).collect::<Vec<_>>()
+    };
+    let rest = match e.remote.list_all(&e.bucket, &e.dir).await {
+        Ok(all) => left(all),
+        Err(_) => return first.map(|_| ()), // gone (listing a missing folder fails on some servers)
+    };
+    if rest.is_empty() {
+        return Ok(());
+    }
+    e.remote.delete(&e.bucket, rest, None).await?;
+    let rest = e.remote.list_all(&e.bucket, &e.dir).await.map(left).unwrap_or_default();
+    if rest.is_empty() {
+        let _ = e.remote.delete(&e.bucket, vec![e.dir.clone()], None).await; // the folder itself
+        Ok(())
+    } else {
+        Err(first.err().unwrap_or_else(|| format!("{} files remain", rest.len())))
+    }
+}
+
+/// Removes test folders earlier runs left in this folder (the app quit before cleaning up).
+async fn sweep(run: &Run, e: &End) {
+    let Ok(list) = e.remote.list(&e.bucket, &parent_of(&e.dir)).await else { return };
+    let mut gone = 0;
+    for old in list.iter().filter(|x| x.dir && x.name.starts_with(".noexplorer-speedtest-") && x.key != e.dir) {
+        let old =
+            End { name: e.name.clone(), remote: e.remote.clone(), bucket: e.bucket.clone(), dir: old.key.clone() };
+        if remove(&old).await.is_ok() {
+            gone += 1;
+        }
+    }
+    if gone > 0 {
+        let s = if gone == 1 { "" } else { "s" };
+        run.notes.lock().unwrap().push(format!("Removed {gone} test folder{s} an earlier run left in {}", e.name));
+    }
+}
+
 /// Starts a speed test between `a` and `b` (at least one remote). Returns at once; progress and
 /// results come as `"speedtest"` events with this `id`, and `cancel(id)` stops it.
 #[tauri::command]
@@ -372,6 +429,7 @@ pub async fn speed_test(
         phase: Mutex::new(String::new()),
         total: Default::default(),
         results: Mutex::new(vec![]),
+        notes: Mutex::new(vec![]),
         tmp,
     });
     tauri::async_runtime::spawn(async move {
@@ -401,12 +459,24 @@ async fn execute(
             }
         })
     };
+    for e in [ea, eb].into_iter().flatten() {
+        *run.phase.lock().unwrap() = format!("Checking {} for old test data…", e.name);
+        run.event(false, None);
+        sweep(run, e).await;
+    }
     let res = run_test(run, a, b, ea, eb, plan).await;
     ticker.abort();
     *run.phase.lock().unwrap() = "Cleaning up…".into();
     run.event(false, None);
     for e in [ea, eb].into_iter().flatten() {
-        let _ = e.remote.delete(&e.bucket, vec![e.dir.clone()], None).await;
+        if let Err(left) = remove(e).await {
+            run.notes.lock().unwrap().push(format!(
+                "Couldn't remove all test data from {} ({}{}): {left}",
+                e.name,
+                e.bucket_label(),
+                e.dir
+            ));
+        }
     }
     let _ = tokio::fs::remove_dir_all(&run.tmp).await;
     *run.phase.lock().unwrap() = String::new();
@@ -425,6 +495,7 @@ mod tests {
             phase: Mutex::new(String::new()),
             total: Default::default(),
             results: Mutex::new(vec![]),
+            notes: Mutex::new(vec![]),
             tmp,
         })
     }
@@ -477,8 +548,19 @@ mod tests {
         let plan = Plan { big_mb: 6, small_count: 5, small_kb: 8, both: true };
         let tmp = std::env::temp_dir().join(format!("nx-speedrun-{}", uuid::Uuid::new_v4()));
 
+        // A test folder an earlier run left behind (the app quit mid-run) is removed first.
+        crate::s3::make_client(&s3p)
+            .put_object()
+            .bucket(&bucket)
+            .key(".noexplorer-speedtest-old/large.bin")
+            .body(aws_sdk_s3::primitives::ByteStream::from_static(b"x"))
+            .send()
+            .await
+            .unwrap();
         let r = run(tmp.clone());
         execute(&r, &local, &node("S3"), None, Some(&e_s3), &plan).await.unwrap();
+        let notes = r.notes.lock().unwrap().clone();
+        assert_eq!(notes, ["Removed 1 test folder an earlier run left in S3"]);
         let res = r.results.lock().unwrap().clone();
         let routes: Vec<(String, &str)> = res.iter().map(|m| (m.route.clone(), m.test)).collect();
         assert_eq!(

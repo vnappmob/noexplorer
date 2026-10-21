@@ -623,9 +623,15 @@ impl S3 {
             let del = Delete::builder().set_objects(Some(objs)).quiet(true).build().map_err(err)?;
             let bulk = c.delete_objects().bucket(bucket).delete(del).send().await;
             if !matches!(&bulk, Ok(r) if r.errors().is_empty()) {
-                // Some S3-compatible servers reject bulk delete (or fail some keys); retry one-by-one.
+                // Some S3-compatible servers reject bulk delete (Google Cloud Storage) or fail some
+                // keys: retry one by one. A key that isn't there is already gone: GCS answers 404
+                // for a folder's missing marker, where AWS answers 204.
                 for k in chunk {
-                    c.delete_object().bucket(bucket).key(k).send().await.map_err(err)?;
+                    match c.delete_object().bucket(bucket).key(k).send().await {
+                        Ok(_) => {}
+                        Err(e) if e.raw_response().is_some_and(|r| r.status().as_u16() == 404) => {}
+                        Err(e) => return Err(err(e)),
+                    }
                 }
             }
             if let Some(j) = job {
