@@ -5,6 +5,15 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Speed test** (experimental, Settings → Experimental): measure this computer ↔ a remote, or two
+  remotes, with one large file, many small files and response time, the way NoExplorer moves
+  files. Results are kept to compare services; test data is deleted afterwards.
+
+### Fixed
+- **Nextcloud / WebDAV:** uploading many files into a new folder could fail with "locked" (HTTP 423)
+  or "Could not create directory" (403) when parallel uploads created the folder at once.
+
 ## [0.4.31] - 2026-10-21
 
 ### Changed

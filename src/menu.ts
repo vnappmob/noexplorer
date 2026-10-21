@@ -2,6 +2,7 @@
 
 import { paneAction, remoteName, TRASH_LABEL } from "./actions";
 import { canManagePolicy } from "./policy";
+import { canSpeedTest } from "./speedtest";
 import { icon } from "./icons";
 import type { Pane } from "./pane";
 import { local, MAX_VIEWS, remote, remotes } from "./panes";
@@ -50,6 +51,7 @@ export function showMenu(p: Pane, x: number, y: number, above = false) {
     items.push("-");
     if (remotes.length < MAX_VIEWS) items.push(["split", "Split view: another account below", "split"]);
     if (remotes.length > 1) items.push(["close-view", "Close this view", "x"]);
+    if (canSpeedTest() && p.bucket) items.push(["speed-test", "Speed test…", "gauge"]);
   }
 
   const m = $("ctx");

@@ -43,6 +43,7 @@ export type Experimental = {
   box_beta: boolean;
   bucket_policy: boolean;
   remote_sizes: boolean;
+  speed_test: boolean;
 };
 
 /** `config::Settings` — everything in config.json. */

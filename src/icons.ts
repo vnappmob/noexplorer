@@ -20,6 +20,7 @@ export const ICONS: Record<string, string> = {
   arrowDown: svg('<path d="M12 5v14M6 13l6 6 6-6"/>'),
   copy: svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>'),
   sigma: svg('<path d="M18 5H6l6 7-6 7h12"/>'),
+  gauge: svg('<path d="M4 18a8 8 0 1 1 16 0"/><path d="m12 14 4-5"/>'),
   compare: svg('<path d="M4 8h13l-3-3M20 16H7l3 3"/>'),
   split: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/>'),
   sliders: svg(

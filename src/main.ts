@@ -20,6 +20,7 @@ import { copyPath, editPath, setupPalette } from "./palette";
 import { openMenu, setupPopover } from "./popover";
 import { requestSizes, setupSizes } from "./sizes";
 import { remoteListed } from "./remotesizes";
+import { setupSpeedTest } from "./speedtest";
 import { setupCompare } from "./compare";
 import { paneHooks, type Pane } from "./pane";
 import { closeView, local, setActive } from "./panes";
@@ -185,6 +186,7 @@ async function main() {
   setupSettings();
   setupExperimental();
   setupSearch();
+  setupSpeedTest();
   setupFileOps();
   setupBackups();
   setupKeyboard();

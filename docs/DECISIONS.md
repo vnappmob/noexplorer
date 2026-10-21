@@ -997,3 +997,25 @@ explanation (privacy settings, cloud access) before the pane goes back to the pa
 **Consequences.** Totals of folders containing a cloud folder are lower bounds (counted as
 skipped, as before for protected folders). Cloud folders aren't added to Places: the maintainer
 wants cloud services as remote accounts (OneDrive, Nextcloud), and here only recognized.
+
+## ADR-050: A speed test that moves data the way transfers do (experimental)
+
+**Context.** The maintainer wants users to see which service (and which route: this computer ↔
+remote, remote ↔ remote) is fastest for them. Generic speed tests measure the internet line, not
+an S3 multipart upload, a Nextcloud chunked upload or a OneDrive session, nor the per-file cost
+that dominates folders of small files.
+
+**Decision.** `speedtest.rs` runs the real provider code (`upload_file` / `download_file`,
+`copy_within` or a relay for remote → remote) with each provider's file concurrency, on random
+(incompressible) data: one large file and many small files, plus the median of three listings as
+response time. A probe job is cancellable but unthrottled and outside the activity card. Test
+data lives in the OS temp folder and `<folder>/.noexplorer-speedtest-<id>/` on each remote, and
+is deleted after every run, including failures and Cancel. Results stream as `"speedtest"`
+events; the dialog (`speedtest.ts`) keeps the last 20 runs per device and stars the fastest
+large-file route.
+
+**Consequences.** Needs write access where it runs (the open view's folder, else the bucket's
+top). A remote → remote relay counts what the user would wait for, not the raw line between the
+two servers. Writing it surfaced a real Nextcloud bug: parallel uploads into a new folder raced
+on MKCOL (423 / 403); `Dav::ensure_parents` now creates one folder at a time per account and
+retries a 423.

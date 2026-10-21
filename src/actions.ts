@@ -1,6 +1,7 @@
 // User actions that talk to the backend: transfer, open, link, delete, mkdir.
 // `paneAction` maps the context-menu / palette action names to these.
 
+import { openSpeedTest } from "./speedtest";
 import { rememberRemote } from "./remotesizes";
 import { copyPublicLink, openPolicy } from "./policy";
 import { invoke } from "@tauri-apps/api/core";
@@ -219,6 +220,7 @@ export function paneAction(p: Pane, act: string) {
     "public-link": () => one && copyPublicLink(p, one),
     // A selected folder is the one to suggest for "Public read: some folders".
     policy: () => openPolicy(p, one?.dir ? one.key : p.cwd),
+    "speed-test": () => openSpeedTest({ account: p.account, bucket: p.bucket, cwd: p.cwd }),
     "copy-path": () =>
       one && navigator.clipboard.writeText(p.isRemote ? `${p.bucket}/${one.key}` : one.key).then(() => toast("Copied")),
     reveal: () => invoke("reveal", { path: one ? one.key : p.cwd }).catch(fail),

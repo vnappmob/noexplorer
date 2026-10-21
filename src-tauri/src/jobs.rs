@@ -135,6 +135,15 @@ impl Job {
         }
     }
 
+    /// A job the UI can cancel by `id` (the `cancel` command) but that stays out of the activity
+    /// card and moves data unthrottled, without retries: the speed test (speedtest.rs).
+    pub fn probe(app: &AppHandle, id: &str, account: &str, bucket: &str) -> Arc<Job> {
+        let mut job = Job::untracked("probe", "Speed test".into(), account, bucket, "");
+        job.id = id.to_string();
+        app.state::<AppState>().cancels.lock().unwrap().insert(job.id.clone(), job.cancel.clone());
+        Arc::new(job)
+    }
+
     /// A job registered in [`AppState::cancels`] so the UI can cancel it by id.
     pub fn new(
         app: &AppHandle,

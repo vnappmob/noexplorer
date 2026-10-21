@@ -125,6 +125,9 @@ pub struct Dav {
     nextcloud: bool,
     /// Collections known to exist (so uploads don't MKCOL the same parents again).
     made: Mutex<HashSet<String>>,
+    /// Held while creating a folder: parallel uploads into a new folder would otherwise MKCOL it at
+    /// once, and Nextcloud answers the losers 423 Locked or 403 "Could not create directory".
+    making: tokio::sync::Mutex<()>,
     /// Session cookies from the server (name, value), sent back on every request. With basic auth
     /// alone, Nextcloud checks the app password on each request (~100 ms of server time); its
     /// session cookie skips that (115 → 13 ms per PROPFIND on the dev server). Writes keep working
@@ -148,6 +151,7 @@ impl Dav {
             root_path,
             nextcloud,
             made: Mutex::new(HashSet::new()),
+            making: tokio::sync::Mutex::new(()),
             jar: Mutex::new(vec![]),
         }
     }
@@ -338,10 +342,22 @@ impl Dav {
             if self.made.lock().unwrap().contains(&path) {
                 continue;
             }
-            let r = self.send(self.req(method("MKCOL"), &self.url(&path))).await.map_err(net_err)?;
-            // 405 = it already exists.
-            if !(r.status().is_success() || r.status() == StatusCode::METHOD_NOT_ALLOWED) {
-                return ok(r).await.map(|_| ());
+            let _one_at_a_time = self.making.lock().await;
+            if self.made.lock().unwrap().contains(&path) {
+                continue; // made by the upload we waited for
+            }
+            // 405 = it already exists. 423 = a parallel upload is creating it right now (Nextcloud
+            // locks the path meanwhile): wait a moment and ask again, then it's a 405.
+            for attempt in 1..=8u64 {
+                let r = self.send(self.req(method("MKCOL"), &self.url(&path))).await.map_err(net_err)?;
+                if r.status() == StatusCode::LOCKED && attempt < 8 {
+                    tokio::time::sleep(std::time::Duration::from_millis(150 * attempt)).await;
+                    continue;
+                }
+                if !(r.status().is_success() || r.status() == StatusCode::METHOD_NOT_ALLOWED) {
+                    return ok(r).await.map(|_| ());
+                }
+                break;
             }
             self.made.lock().unwrap().insert(path.clone());
         }

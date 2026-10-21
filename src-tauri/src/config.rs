@@ -131,6 +131,8 @@ pub struct Experimental {
     pub bucket_policy: bool,
     /// Remote folder sizes counted in the background on S3/Azure (capped per folder).
     pub remote_sizes: bool,
+    /// Speed test between this computer and remotes, or two remotes.
+    pub speed_test: bool,
 }
 
 /// Everything in `config.json`. Mirrors `Settings` in `src/types.ts`.

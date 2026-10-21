@@ -2,6 +2,7 @@
 // both panes' current folders. Entries are built fresh each time it opens, so they always reflect
 // the current state; actions reuse the same functions as buttons and shortcuts.
 
+import { canSpeedTest, openSpeedTest } from "./speedtest";
 import { canManagePolicy, openPolicy } from "./policy";
 import { favorites, openFavorite } from "./favorites";
 import { pairs, runPair, savePairFromPanes } from "./backups";
@@ -51,6 +52,10 @@ function build(): Entry[] {
   if (canCreateBuckets(remote))
     cmd(remote.profile()?.kind === "azure" ? "New container…" : "New bucket…", "plus", () => newBucket(remote));
   if (canManagePolicy(remote)) cmd(`Access policy for “${remote.bucket}”…`, "key", () => openPolicy(remote));
+  if (canSpeedTest())
+    cmd("Speed test…", "gauge", () =>
+      openSpeedTest(remote.bucket ? { account: remote.account, bucket: remote.bucket, cwd: remote.cwd } : undefined),
+    );
   cmd("Refresh", "refresh", () => active.load(true), "⌘R");
   cmd("Folder size (Σ)", "sigma", () => calcSize(active));
   if (remote.bucket) cmd("Compare this computer ⇄ remote (find differences, checksums)", "compare", openCompare);

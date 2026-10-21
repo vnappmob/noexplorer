@@ -40,6 +40,7 @@ mod search;
 mod secrets;
 mod sftp;
 mod sizes;
+mod speedtest;
 mod state;
 mod thumbs;
 mod tls;
@@ -140,6 +141,7 @@ pub fn run() {
             webdav::cancel_login,
             box_api::box_login,
             onedrive::onedrive_login,
+            speedtest::speed_test,
             compare::compare,
             transfer::upload_rel,
             transfer::download_rel,

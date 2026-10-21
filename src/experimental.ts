@@ -29,6 +29,11 @@ export const EXPERIMENTS: { key: keyof Experimental; title: string; desc: string
     desc: "Count the size of every folder you open on S3 or Azure, in the background (at most 200,000 files per folder; bigger ones show “≥”). Off, sizes come from Σ only, and are remembered either way.",
   },
   {
+    key: "speed_test",
+    title: "Speed test",
+    desc: "Measure transfers between this computer and a remote, or two remotes: one large file, many small files, response time. Results are kept on this computer to compare services. In ⌘K and the right-click menu of a remote view.",
+  },
+  {
     key: "box_beta",
     title: "Box accounts",
     desc: "Box in the account form, with your own Box app. It works against our test double but hasn't been tried on a real Box account yet.",

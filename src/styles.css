@@ -1889,6 +1889,102 @@ dialog::backdrop {
   overflow-wrap: anywhere;
 }
 
+/* Speed test dialog (speedtest.ts, experimental) */
+#speedtest {
+  width: min(680px, 94vw);
+}
+.st-form {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 86vh;
+  overflow: auto;
+}
+.st-form header {
+  display: flex;
+  align-items: center;
+}
+.st-intro,
+.st-msg,
+.st-lat,
+.st-when,
+.st-empty {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--fg2);
+}
+.st-msg:empty {
+  display: none;
+}
+.st-route,
+.st-opts {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.st-route label,
+.st-opts > label:not(.check) {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 180px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.st-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--fs-sm);
+}
+.st-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg2);
+  overflow: hidden;
+}
+.st-track i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.25s;
+}
+.st-results h4 {
+  margin: 8px 0 6px;
+  font-size: var(--fs-sm);
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.st-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  margin-bottom: 6px;
+}
+.st-table th,
+.st-table td {
+  text-align: left;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--line);
+}
+.st-table th {
+  color: var(--muted);
+  font-weight: 500;
+}
+.st-table .num {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.st-table .best {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 /* Compare dialog (compare.ts) */
 #compare {
   width: min(760px, 94vw);

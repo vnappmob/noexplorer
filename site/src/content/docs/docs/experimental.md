@@ -11,6 +11,16 @@ New features arrive in **Settings → Experimental** first. They're off until yo
 
 Save “this folder ↔ that remote folder” once, then back it up in one click from the **Backups** button at the top right (or <kbd>⌘ K</kbd>). It compares the two folders and uploads only what's missing or changed.
 
+## Speed test
+
+Compare how fast your storage services really are, the way NoExplorer moves files. Open it with <kbd>⌘ K</kbd> → **Speed test…** or the right-click menu of a remote view, pick **From** and **To** (this computer, an open view, or any account), a size, and **Run**:
+
+- **One large file** shows throughput (multipart and chunked uploads, as in real transfers).
+- **Many small files** shows the cost of each file (files per second): what a folder of photos or documents feels like.
+- **Response time** is how long one listing takes on each remote.
+
+**Both directions** measures the way back too. Between two remotes the data goes the way a copy between them goes: on the server within one account when the provider can, otherwise through this computer. Test data is random, goes in a temporary `.noexplorer-speedtest-…` folder, and is deleted afterwards (also when you cancel). Results stay on this computer; ★ marks the fastest large-file route so far.
+
 ## Bucket access policies
 
 Decide who can read an S3 bucket's files **without a key**. Open it from the bucket menu (**Access policy for “…”**), the right-click menu or <kbd>⌘ K</kbd>:
