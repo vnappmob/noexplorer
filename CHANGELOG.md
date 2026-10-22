@@ -5,6 +5,11 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Moving or copying a folder within a bucket is much faster** on S3 and Azure: objects are copied
+  16 at a time instead of one by one (500 small files: 0.3 s instead of 1.4 s on a local server,
+  and the gain grows with the distance to the server).
+
 ## [0.4.33] - 2026-10-21
 
 ### Changed

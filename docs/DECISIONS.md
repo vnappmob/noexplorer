@@ -88,6 +88,12 @@ once; Graph throttles a user's concurrent requests with 429/503 + Retry-After, s
 files mostly add waiting. Copies between accounts use the smaller of the two. Throttling is
 logged (`diag.rs`, path only) so slow runs can be told apart from throttled ones.
 
+**Update 2026-10-22 (moves within a bucket).** S3 and Azure have no rename: moving a folder copies
+every object on the server, then deletes the originals. That ran one object at a time, so a folder
+of small files waited one round trip per object (500 objects on a local server: 0.9–1.4 s; over the
+internet at ~50 ms a request, ~25 s). Copies now run `COPY_CONCURRENCY` = 16 at once (0.27 s on the
+same server); the originals are still deleted only after every copy succeeded.
+
 ## ADR-006: The app never deletes or overwrites local files
 Accepted · 2026-10-15 · amended by [ADR-023](#adr-023) (Move to Trash, never a permanent delete)
 

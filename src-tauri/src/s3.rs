@@ -38,6 +38,8 @@ pub const MIN_PART_SIZE: u64 = 8 * 1024 * 1024;
 /// S3 allows 10 000 parts; stay well below so huge files still fit.
 pub(crate) const MAX_PARTS: u64 = 9_000;
 pub const PART_CONCURRENCY: usize = 4;
+/// Server-side copies in flight when moving or copying a folder within a bucket (ADR-005).
+pub const COPY_CONCURRENCY: usize = 16;
 
 pub fn make_client(p: &Profile) -> Client {
     make_client_in(p, &effective_region(p))
@@ -494,20 +496,31 @@ impl S3 {
         if let Some(j) = job {
             j.files_total.store(objs.len() as u64, Ordering::Relaxed);
         }
-        for (k, size) in &objs {
-            if job.is_some_and(|j| j.cancelled()) {
-                return Err("cancelled".into());
-            }
-            let dst = format!("{to}{}", &k[from.len()..]);
-            if *size > 5 * 1024 * 1024 * 1024 {
-                self.copy_large(&c, bucket, k, &dst, *size).await?;
-            } else {
-                self.copy_within(bucket, k, bucket, &dst).await?;
-            }
-            if let Some(j) = job {
-                j.files_done.fetch_add(1, Ordering::Relaxed);
-            }
-        }
+        // S3 has no rename: every object is copied, then the originals deleted. Copies run on the
+        // server, so many at once (one at a time left a folder of small files crawling at a
+        // round trip per object). The originals go only once every copy succeeded.
+        stream::iter(objs)
+            .map(|(k, size)| {
+                let c = c.clone();
+                async move {
+                    if job.is_some_and(|j| j.cancelled()) {
+                        return Err("cancelled".to_string());
+                    }
+                    let dst = format!("{to}{}", &k[from.len()..]);
+                    if size > 5 * 1024 * 1024 * 1024 {
+                        self.copy_large(&c, bucket, &k, &dst, size).await?;
+                    } else {
+                        self.copy_within(bucket, &k, bucket, &dst).await?;
+                    }
+                    if let Some(j) = job {
+                        j.files_done.fetch_add(1, Ordering::Relaxed);
+                    }
+                    Ok(())
+                }
+            })
+            .buffer_unordered(COPY_CONCURRENCY)
+            .try_collect::<Vec<()>>()
+            .await?;
         if !keep {
             self.delete(bucket, vec![from.to_string()], None).await?;
         }

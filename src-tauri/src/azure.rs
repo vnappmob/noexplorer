@@ -369,15 +369,21 @@ impl Azure {
         if let Some(j) = job {
             j.files_total.store(keys.len() as u64, Ordering::Relaxed);
         }
-        for k in &keys {
-            if job.is_some_and(|j| j.cancelled()) {
-                return Err("cancelled".into());
-            }
-            self.copy_blob(container, k, &format!("{to}{}", &k[from.len()..])).await?;
-            if let Some(j) = job {
-                j.files_done.fetch_add(1, Ordering::Relaxed);
-            }
-        }
+        // Like S3: no rename, so blob by blob, many at once; originals deleted after every copy.
+        stream::iter(keys)
+            .map(|k| async move {
+                if job.is_some_and(|j| j.cancelled()) {
+                    return Err("cancelled".to_string());
+                }
+                self.copy_blob(container, &k, &format!("{to}{}", &k[from.len()..])).await?;
+                if let Some(j) = job {
+                    j.files_done.fetch_add(1, Ordering::Relaxed);
+                }
+                Ok(())
+            })
+            .buffer_unordered(crate::s3::COPY_CONCURRENCY)
+            .try_collect::<Vec<()>>()
+            .await?;
         if !keep {
             self.delete(container, vec![from.to_string()], None).await?;
         }
