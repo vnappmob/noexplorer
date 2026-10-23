@@ -1004,6 +1004,15 @@ explanation (privacy settings, cloud access) before the pane goes back to the pa
 skipped, as before for protected folders). Cloud folders aren't added to Places: the maintainer
 wants cloud services as remote accounts (OneDrive, Nextcloud), and here only recognized.
 
+**Update 2026-10-23.** Marker files are gone: they caught sync clients that keep real copies on
+disk (the maintainer's Nextcloud folder), which should count like any folder, and missed what
+matters. Only online-only folders are cloud now, found by where the OS puts them: macOS File
+Provider domains in `~/Library/CloudStorage` (OneDrive, Google Drive, Dropbox, Box, Nextcloud with
+virtual files), iCloud Drive, Drive File Stream's `/Volumes/GoogleDrive`, and on Windows the
+OneDrive / iCloudDrive folders and Google Drive's virtual drive (a drive with `My Drive` on top).
+The Places menu lists them in a Cloud group (`local_roots` adds them before disks, so a Google
+Drive volume isn't also a plain disk), at the maintainer's request.
+
 ## ADR-050: A speed test that moves data the way transfers do (experimental)
 
 **Context.** The maintainer wants users to see which service (and which route: this computer ↔

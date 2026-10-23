@@ -31,7 +31,9 @@ fn crumb_name(p: &Path) -> String {
     p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| p.to_string_lossy().to_string())
 }
 
-/// Home, common folders, filesystem roots and mounted volumes for the "Places" picker.
+/// Home, common folders, online-only cloud folders ("☁ …", cloud.rs), filesystem roots and mounted
+/// volumes for the "Places" picker. Cloud places come before disks, so Google Drive's virtual volume
+/// or drive letter is listed once, as cloud.
 fn local_roots() -> Vec<Crumb> {
     let mut out: Vec<Crumb> = vec![];
     let mut push = |p: PathBuf, name: String| {
@@ -49,6 +51,9 @@ fn local_roots() -> Vec<Crumb> {
         if let Some(d) = d {
             push(d, n.into());
         }
+    }
+    for c in crate::cloud::Places::new().list() {
+        push(c.path, format!("☁ {}", c.name));
     }
     #[cfg(windows)]
     for l in b'A'..=b'Z' {

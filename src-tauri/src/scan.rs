@@ -40,8 +40,10 @@ pub struct Options<'a> {
     pub known: &'a (dyn Fn(&Path) -> Option<Totals> + Sync),
     pub cancel: &'a AtomicBool,
     pub threads: usize,
-    /// Don't enter cloud-synced folders (cloud.rs); they're reported to `Sink::cloud` instead.
+    /// Don't enter online-only cloud folders (cloud.rs); they're reported to `Sink::cloud` instead.
     pub skip_cloud: bool,
+    /// Where cloud folders live (None = this computer's; tests pass their own).
+    pub places: Option<&'a crate::cloud::Places>,
 }
 
 struct Node {
@@ -105,7 +107,7 @@ struct Shared<'a> {
     root_dev: u64,
     opts: &'a Options<'a>,
     sink: &'a dyn Sink,
-    places: crate::cloud::Places,
+    places: std::borrow::Cow<'a, crate::cloud::Places>,
 }
 
 struct Queue {
@@ -126,7 +128,10 @@ pub fn scan(root: &Path, opts: &Options, sink: &dyn Sink) -> Option<Totals> {
         root_dev,
         opts,
         sink,
-        places: crate::cloud::Places::new(),
+        places: match opts.places {
+            Some(p) => std::borrow::Cow::Borrowed(p),
+            None => std::borrow::Cow::Owned(crate::cloud::Places::new()),
+        },
     };
     std::thread::scope(|s| {
         for _ in 0..opts.threads.max(1) {
@@ -191,11 +196,7 @@ fn worker(sh: &Shared) {
 fn visit(sh: &Shared, node: &Arc<Node>, buf: &mut [u8], stack: &mut Vec<Arc<Node>>) {
     let mut own = Totals::default();
     let mut kids: Vec<PathBuf> = vec![];
-    let mut cloud = None;
     let res = read_dir(&node.path, buf, &mut |e: Ent| {
-        if sh.opts.skip_cloud && cloud.is_none() {
-            cloud = crate::cloud::marker(e.name);
-        }
         if e.dir {
             if e.dev != 0 && sh.root_dev != 0 && e.dev != sh.root_dev {
                 return; // a mount point: another filesystem
@@ -211,12 +212,6 @@ fn visit(sh: &Shared, node: &Arc<Node>, buf: &mut [u8], stack: &mut Vec<Arc<Node
     });
     if res.is_err() {
         own.skipped += 1;
-    }
-    // A sync client's folder (never the scan's own root, which was asked for): not counted.
-    if let Some(s) = cloud.filter(|_| node.parent.is_some()) {
-        sh.sink.cloud(&node.path, s);
-        node.add(Totals { skipped: 1, ..Default::default() });
-        return release(sh, node);
     }
     let special = sh.opts.skip_cloud && sh.places.special(&node.path);
     let mut queued = 0u32;
@@ -456,7 +451,7 @@ mod tests {
     }
 
     fn opts<'a>(cancel: &'a AtomicBool, enter: &'a (dyn Fn(&Path) -> bool + Sync)) -> Options<'a> {
-        Options { enter, known: &|_| None, cancel, threads: 4, skip_cloud: false }
+        Options { enter, known: &|_| None, cancel, threads: 4, skip_cloud: false, places: None }
     }
 
     fn tree() -> PathBuf {
@@ -477,7 +472,8 @@ mod tests {
         d
     }
 
-    /// A folder a sync client keeps (marker file) isn't entered: reported as cloud, counted as skipped.
+    /// An online-only cloud folder (by location) isn't entered: reported as cloud, counted as skipped.
+    /// A sync client's folder of real files (Nextcloud's marker, no virtual files) is counted.
     #[test]
     fn cloud_folders_are_reported_not_counted() {
         struct Clouds(Mutex<Vec<(PathBuf, &'static str)>>);
@@ -488,19 +484,21 @@ mod tests {
             }
         }
         let d = tree();
-        std::fs::create_dir_all(d.join("nc.example.com/photos")).unwrap();
+        let od = d.join("Library/CloudStorage/OneDrive-Personal");
+        std::fs::create_dir_all(&od).unwrap();
+        std::fs::write(od.join("doc.bin"), vec![0u8; 9000]).unwrap();
+        std::fs::create_dir_all(d.join("nc.example.com")).unwrap();
         std::fs::write(d.join("nc.example.com/.sync_abc123.db"), vec![0u8; 50]).unwrap();
-        std::fs::write(d.join("nc.example.com/photos/p.jpg"), vec![0u8; 9000]).unwrap();
+        let places = crate::cloud::Places::rooted(&d);
         let cancel = AtomicBool::new(false);
         let enter = |p: &Path| !p.ends_with("skip");
         let sink = Clouds(Mutex::new(vec![]));
-        let o = Options { skip_cloud: true, ..opts(&cancel, &enter) };
+        let o = Options { skip_cloud: true, places: Some(&places), ..opts(&cancel, &enter) };
         let t = scan(&d, &o, &sink).unwrap();
-        assert_eq!((t.bytes, t.skipped), (1123, 2), "the Nextcloud folder adds nothing");
-        assert_eq!(*sink.0.lock().unwrap(), [(d.join("nc.example.com"), "Nextcloud")]);
+        assert_eq!((t.bytes, t.skipped), (1123 + 50, 2), "OneDrive adds nothing; the Nextcloud folder counts");
+        assert_eq!(*sink.0.lock().unwrap(), [(od.clone(), "OneDrive")]);
         // Σ inside it (the scan's own root) counts it.
-        let inside = scan(&d.join("nc.example.com"), &o, &sink).unwrap();
-        assert_eq!(inside.bytes, 9050);
+        assert_eq!(scan(&od, &o, &sink).unwrap().bytes, 9000);
         std::fs::remove_dir_all(d).unwrap();
     }
 
@@ -531,7 +529,8 @@ mod tests {
         let cancel = AtomicBool::new(false);
         let a = d.join("a");
         let known = move |p: &Path| (p == a).then_some(Totals { bytes: 7, files: 1, dirs: 0, skipped: 0 });
-        let o = Options { enter: &|_| true, known: &known, cancel: &cancel, threads: 2, skip_cloud: false };
+        let o =
+            Options { enter: &|_| true, known: &known, cancel: &cancel, threads: 2, skip_cloud: false, places: None };
         let t = scan(&d, &o, &Collect(Mutex::new(HashMap::new()))).unwrap();
         assert_eq!(t.bytes, 1000 + 7 + 5000);
         std::fs::remove_dir_all(&d).unwrap();
@@ -566,7 +565,14 @@ mod tests {
         let dir = PathBuf::from(std::env::var("NOEXPLORER_BENCH_DIR").expect("set NOEXPLORER_BENCH_DIR"));
         for threads in [4, 1, 1, 2, 2, 4, 4, 6, 6, 8, 8, 12, 12] {
             let cancel = AtomicBool::new(false);
-            let o = Options { enter: &|_| true, known: &|_| None, cancel: &cancel, threads, skip_cloud: false };
+            let o = Options {
+                enter: &|_| true,
+                known: &|_| None,
+                cancel: &cancel,
+                threads,
+                skip_cloud: false,
+                places: None,
+            };
             let sink = Collect(Mutex::new(HashMap::new()));
             let t0 = Instant::now();
             let t = scan(&dir, &o, &sink).unwrap();

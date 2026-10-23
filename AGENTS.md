@@ -80,7 +80,7 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   local.rs           Local filesystem commands for the left pane (+ volume_info for the storage bar)
   scan.rs            Parallel folder-size scanner (macOS getattrlistbulk fast path)
   speedtest.rs       Speed test (experimental): real provider transfers on random data, latency, cleanup
-  cloud.rs           Cloud-synced folders (iCloud, CloudStorage, sync-client markers): never scanned, shown with ☁
+  cloud.rs           Online-only cloud folders by location (CloudStorage, iCloud, OneDrive, Google Drive volume): never scanned, ☁, Places Cloud group
   search.rs          Name search: query matcher (words, globs, ext:), parallel local walker streaming "search" events, remote via list_files
   sizes.rs           Live size index: background scans, watchers, "dir-sizes" events, remembered totals (folder-sizes.json)
   trash.rs           Move to Trash (macOS / Windows / freedesktop), no extra crates

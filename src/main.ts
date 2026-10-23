@@ -17,7 +17,7 @@ import { checkInterrupted, setupJobs, watchView } from "./jobs";
 import { setupKeyboard } from "./keyboard";
 import { setupMenu, showMenu } from "./menu";
 import { copyPath, editPath, setupPalette } from "./palette";
-import { openMenu, setupPopover } from "./popover";
+import { openMenu, setupPopover, type MenuItem } from "./popover";
 import { requestSizes, setupSizes } from "./sizes";
 import { remoteListed } from "./remotesizes";
 import { setupSpeedTest } from "./speedtest";
@@ -140,25 +140,40 @@ function bindPane(p: Pane) {
   p.q(".calc-size").onclick = () => calcSize(p);
 }
 
-/** "This computer ▾": Home, common folders, disks and volumes. */
+/** "This computer ▾": Home, common folders, disks and volumes, then the Cloud group (cloud.rs). */
 function openPlacesMenu() {
-  const items = local.roots.map((r) => {
-    const name = r.name.replace(/^\p{Extended_Pictographic}\s*/u, "");
-    const ic = /Home$/.test(r.name)
-      ? "home"
-      : /Downloads$/.test(r.name)
-        ? "download"
-        : /Desktop$/.test(r.name)
-          ? "desktop"
-          : /^💽/u.test(r.name)
-            ? "drive"
-            : "folder";
-    return { label: name, sub: r.path, icon: ic, checked: local.cwd === r.path, run: () => local.go(r.path) };
-  });
+  // Online-only cloud folders (OneDrive, Google Drive, iCloud Drive…) get a group of their own.
+  const cloud = local.roots
+    .filter((r) => r.name.startsWith("☁"))
+    .map((r) => ({
+      label: r.name.replace(/^☁\s*/u, ""),
+      sub: r.path,
+      icon: "cloud",
+      checked: local.cwd === r.path,
+      run: () => local.go(r.path),
+    }));
+  const items = local.roots
+    .filter((r) => !r.name.startsWith("☁"))
+    .map((r) => {
+      const name = r.name.replace(/^\p{Extended_Pictographic}\s*/u, "");
+      const ic = /Home$/.test(r.name)
+        ? "home"
+        : /Downloads$/.test(r.name)
+          ? "download"
+          : /Desktop$/.test(r.name)
+            ? "desktop"
+            : /^💽/u.test(r.name)
+              ? "drive"
+              : "folder";
+      return { label: name, sub: r.path, icon: ic, checked: local.cwd === r.path, run: () => local.go(r.path) };
+    });
   const favs = favoritesMenuItems("local", (f) => local.go(f.path));
-  openMenu($("places-chip"), favs.length ? [{ header: "Favorites" }, ...favs, { sep: true }, ...items] : items, {
-    width: 260,
-  });
+  const all: MenuItem[] = [
+    ...(favs.length ? [{ header: "Favorites" }, ...favs, { sep: true as const }] : []),
+    ...items,
+    ...(cloud.length ? [{ sep: true as const }, { header: "Cloud" }, ...cloud] : []),
+  ];
+  openMenu($("places-chip"), all, { width: 280 });
 }
 
 function bindPreview() {

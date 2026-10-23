@@ -348,7 +348,8 @@ fn start_scan(app: &AppHandle, root: PathBuf, auto: bool, skip_cloud: bool) {
                 .collect()
         };
         let known = |p: &Path| known_roots.get(p).copied();
-        let opts = Options { enter: &enter, known: &known, cancel: &cancel, threads: threads(), skip_cloud };
+        let opts =
+            Options { enter: &enter, known: &known, cancel: &cancel, threads: threads(), skip_cloud, places: None };
         let result = scan::scan(&root, &opts, &*idx);
         let mut g = idx.inner.lock().unwrap();
         if g.running.as_ref().is_some_and(|r| Arc::ptr_eq(&r.cancel, &cancel)) {
@@ -503,7 +504,7 @@ fn reread(idx: &SizeIndex, d: &Path, enter: &(dyn Fn(&Path) -> bool + Sync), ski
         let t = match known {
             Some(t) => t,
             None => {
-                let o = Options { enter, known: &|_| None, cancel: &cancel, threads: 2, skip_cloud };
+                let o = Options { enter, known: &|_| None, cancel: &cancel, threads: 2, skip_cloud, places: None };
                 scan::scan(s, &o, idx).unwrap_or(Totals { skipped: 1, ..Default::default() })
             }
         };

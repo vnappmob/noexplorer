@@ -5,6 +5,13 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Cloud folders in their own group**: OneDrive, Google Drive, iCloud Drive, Dropbox and Box (as
+  macOS or Windows shows them, online-only) appear under **Cloud** in the This computer menu, not
+  as plain disks, and keep the ☁ tag and no automatic scans.
+- **Sync folders with real files are ordinary folders again**: Nextcloud (or Synology) without
+  virtual files is no longer tagged ☁ and its size is counted.
+
 ## [0.4.34] - 2026-10-22
 
 ### Changed
