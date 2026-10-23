@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.35] - 2026-10-23
+
 ### Changed
 - **Cloud folders in their own group**: OneDrive, Google Drive, iCloud Drive, Dropbox and Box (as
   macOS or Windows shows them, online-only) appear under **Cloud** in the This computer menu, not
