@@ -753,6 +753,29 @@ body.resizing * {
 .row .size.calc {
   color: var(--accent);
 }
+/* Online-only cloud items (local.rs): a cloud icon for mount points, a small cloud on placeholders. */
+.ico.cloud {
+  color: var(--accent);
+}
+.ico.online {
+  position: relative;
+  opacity: 0.75;
+}
+.ico-online {
+  position: absolute;
+  right: -4px;
+  bottom: -3px;
+  display: flex;
+  padding: 1px;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--accent);
+}
+.row .ico .ico-online .i {
+  width: 10px;
+  height: 10px;
+  stroke-width: 2.6;
+}
 /* Cloud-synced folder (cloud.rs): named, not counted. */
 .row .cloud-tag {
   margin-left: 8px;
@@ -2953,6 +2976,12 @@ details.set-group[open] > summary {
 }
 .ep-link:hover {
   text-decoration: underline;
+}
+.set-note {
+  margin: 0;
+  padding: 0 14px 12px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
 }
 .acct-foot {
   border-top: 1px solid var(--line);

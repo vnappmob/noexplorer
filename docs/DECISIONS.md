@@ -1043,3 +1043,23 @@ removes `.noexplorer-speedtest-*` folders an interrupted run left in the same pl
 was a general bug: S3's one-by-one delete fallback (used on GCS, which has no bulk delete) stopped
 at the folder's missing marker, because GCS answers 404 for a missing object. Results moved to a
 History tab: one line per run, expandable to the numbers, notes and Run again.
+
+## ADR-051: Sizes in the system's units; online-only items marked in the local list
+
+**Context.** The maintainer saw different totals in NoExplorer and macOS System Settings →
+Storage. The bytes were the same (both read `NSURLVolume…CapacityKey`, available space includes
+purgeable space); the units weren't: macOS has counted 1 KB = 1000 bytes since 10.6, NoExplorer
+divided by 1024 and still wrote "GB". The maintainer also wanted cloud items to look different from
+files really on disk.
+
+**Decision.** `fmtSize` follows a per-device setting (Appearance → File sizes, localStorage):
+"Like this system" (decimal on macOS and Linux, 1024 on Windows, matching Finder, Files and
+Explorer), or either base explicitly. Labels stay KB/MB/GB, as each OS writes them. `list_local`
+returns `cloud` (mount points of online-only cloud folders, cloud.rs, also through a symlink) and
+`online` (placeholders: macOS `SF_DATALESS`, Windows `RECALL_ON_DATA_ACCESS` / `RECALL_ON_OPEN` /
+`OFFLINE`), from the metadata it already reads. Mount points get a cloud icon; placeholders keep
+their type icon with a small cloud.
+
+**Consequences.** Numbers change for existing users on macOS and Linux (larger by ~7% at GB),
+now matching their system. The placeholder flags couldn't be seen on the maintainer's Mac (no
+online-only files there); they're the documented OS flags.

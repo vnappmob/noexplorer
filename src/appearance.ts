@@ -2,7 +2,7 @@
 // Theme/size are applied as `data-theme` and `--fs` on <html>; styles.css does the rest.
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { $, store } from "./util";
+import { $, setSizeUnits, store, type SizeUnits } from "./util";
 
 export type Theme = "system" | "light" | "dark";
 const SIZES = ["13", "14", "16", "18"];
@@ -16,7 +16,18 @@ export const appearance = {
     const s = store.get("textSize") ?? "";
     return SIZES.includes(s) ? s : "14";
   },
+  get units(): SizeUnits {
+    const u = store.get("sizeUnits");
+    return u === "decimal" || u === "binary" ? u : "system";
+  },
 };
+
+/** File sizes in 1000s or 1024s; panes redraw with the new numbers. */
+export function setUnits(u: SizeUnits) {
+  store.set("sizeUnits", u);
+  setSizeUnits(u);
+  window.dispatchEvent(new Event("sizeunits"));
+}
 
 export function applyAppearance() {
   const root = document.documentElement;

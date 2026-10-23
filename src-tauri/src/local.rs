@@ -25,6 +25,33 @@ pub struct LocalListing {
     crumbs: Vec<Crumb>,
     roots: Vec<Crumb>,
     entries: Vec<Entry>,
+    /// Entries that are an online-only cloud folder's mount point (cloud.rs): key → service.
+    cloud: std::collections::HashMap<String, String>,
+    /// Entries that are online-only placeholders: listed, but their content isn't on this disk
+    /// (macOS "dataless", Windows "recall on access"). Opening one downloads it.
+    online: Vec<String>,
+}
+
+/// An online-only placeholder: the OS keeps its name and size, the content stays in the cloud.
+#[cfg(target_os = "macos")]
+fn online_only(md: &std::fs::Metadata) -> bool {
+    use std::os::macos::fs::MetadataExt;
+    const SF_DATALESS: u32 = 0x4000_0000;
+    md.st_flags() & SF_DATALESS != 0
+}
+
+#[cfg(windows)]
+fn online_only(md: &std::fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    const OFFLINE: u32 = 0x1000;
+    const RECALL_ON_OPEN: u32 = 0x4_0000;
+    const RECALL_ON_DATA_ACCESS: u32 = 0x40_0000;
+    md.file_attributes() & (OFFLINE | RECALL_ON_OPEN | RECALL_ON_DATA_ACCESS) != 0
+}
+
+#[cfg(not(any(target_os = "macos", windows)))]
+fn online_only(_md: &std::fs::Metadata) -> bool {
+    false
 }
 
 fn crumb_name(p: &Path) -> String {
@@ -107,6 +134,9 @@ fn read_listing(path: Option<String>, hidden: bool) -> Result<LocalListing, Stri
     };
     let rd = std::fs::read_dir(&p).map_err(|e| format!("{}: {e}", p.display()))?;
     let mut entries = vec![];
+    let places = crate::cloud::Places::new();
+    let mut cloud = std::collections::HashMap::new();
+    let mut online = vec![];
     for e in rd.flatten() {
         let name = e.file_name().to_string_lossy().to_string();
         if !hidden && is_hidden(&name) {
@@ -115,6 +145,23 @@ fn read_listing(path: Option<String>, hidden: bool) -> Result<LocalListing, Stri
         let path = e.path();
         // Follow symlinks; fall back to the link itself if it's broken.
         let Ok(md) = std::fs::metadata(&path).or_else(|_| e.metadata()) else { continue };
+        if md.is_dir() {
+            // A cloud mount point here, or a link to one (e.g. ~/Google Drive → CloudStorage).
+            let service = places.at(&p, &e.file_name()).or_else(|| {
+                let link = e.file_type().is_ok_and(|t| t.is_symlink());
+                link.then(|| {
+                    places.root_of(&path).filter(|(root, _)| std::fs::canonicalize(&path).ok().as_ref() == Some(root))
+                })
+                .flatten()
+                .map(|r| r.1)
+            });
+            if let Some(s) = service {
+                cloud.insert(path.to_string_lossy().to_string(), s.to_string());
+            }
+        }
+        if online_only(&md) {
+            online.push(path.to_string_lossy().to_string());
+        }
         entries.push(Entry {
             key: path.to_string_lossy().to_string(),
             name,
@@ -137,6 +184,8 @@ fn read_listing(path: Option<String>, hidden: bool) -> Result<LocalListing, Stri
         crumbs,
         roots: local_roots(),
         entries,
+        cloud,
+        online,
     })
 }
 

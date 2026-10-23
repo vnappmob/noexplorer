@@ -143,6 +143,8 @@ export class Pane {
     new ResizeObserver(redraw).observe(this.list);
     // Text size changes the row height.
     window.addEventListener("textsize", () => ((this.rowH = 0), this.drawRows(true)));
+    // KB = 1000 or 1024 bytes changed: redraw sizes (the local pane re-lists for its totals too).
+    window.addEventListener("sizeunits", () => (this.isRemote ? this.repaintRows() : this.load(true)));
     this.list.addEventListener("click", (ev) => {
       const b = (ev.target as HTMLElement).closest<HTMLElement>("[data-notice]");
       if (b?.dataset.notice === "retry") paneHooks.retry(this);
@@ -298,6 +300,11 @@ export class Pane {
     this.parent = l.parent;
     this.crumbs = l.crumbs;
     this.entries = l.entries;
+    const online = new Set(l.online);
+    for (const e of this.entries) {
+      if (l.cloud[e.key]) e.cloud = l.cloud[e.key];
+      if (online.has(e.key)) e.online = true;
+    }
     store.set("localPath", this.cwd);
     this.roots = l.roots;
     // Chip subtitle: the place we're in (longest matching root), e.g. "Home", "Downloads", "T7 Shield".
@@ -455,6 +462,17 @@ export class Pane {
     this.updateStatus();
   }
 
+  /** A row's icon. Cloud mount points (OneDrive, Google Drive, iCloud Drive…) get a cloud; online-only
+   * files and folders keep their own icon with a small cloud: they aren't on this disk yet. */
+  private iconHtml(e: Item, name: string) {
+    if (e.cloud && e.dir)
+      return `<span class="ico dir cloud" title="${esc(`${e.cloud}: online-only cloud folder`)}">${icon("cloud")}</span>`;
+    const badge = e.online
+      ? `<i class="ico-online" title="Online only: downloads when you open it">${icon("cloud")}</i>`
+      : "";
+    return `<span class="ico${e.dir ? " dir" : ""}${e.online ? " online" : ""}">${icon(name)}${badge}</span>`;
+  }
+
   private rowHtml(i: number) {
     const e = this.view[i];
     const known = !e.dir || e.calc;
@@ -480,7 +498,7 @@ export class Pane {
               : "Some folders inside were skipped. Click Σ to include them."
             : "";
     return `<div class="row${this.selected.has(e.key) ? " sel" : ""}${this.pending.has(e.key) ? " deleting" : ""}" role="option" aria-selected="${this.selected.has(e.key)}" data-i="${i}"${e.dir ? ` data-dir="${esc(e.key)}"` : ""}>
-      <span class="name"><span class="ico${e.dir ? " dir" : ""}">${icon(e.dir ? "folder" : FILE_ICON[kindOf(e.name)])}</span><span>${esc(e.name)}</span>${e.cloud ? `<span class="cloud-tag">☁ ${esc(e.cloud)}</span>` : ""}${e.where !== undefined ? `<span class="where" title="${esc(e.where)}">${esc(e.where || "·")}</span>` : ""}</span>
+      <span class="name">${this.iconHtml(e, e.dir ? "folder" : FILE_ICON[kindOf(e.name)])}<span>${esc(e.name)}</span>${e.cloud ? `<span class="cloud-tag">☁ ${esc(e.cloud)}</span>` : ""}${e.where !== undefined ? `<span class="where" title="${esc(e.where)}">${esc(e.where || "·")}</span>` : ""}</span>
       <span class="size${e.calc ? " calc" : ""}${e.stale ? " stale" : ""}"${title ? ` title="${esc(title)}"` : ""}>${size}</span>
       <span class="date">${fmtDate(e.modified)}</span>
     </div>`;
@@ -492,7 +510,7 @@ export class Pane {
     const k = e.dir ? "" : kindOf(e.name);
     const thumb = k === "image" || k === "video" ? ` data-thumb="${k}"` : "";
     return `<div class="row cell${this.selected.has(e.key) ? " sel" : ""}${this.pending.has(e.key) ? " deleting" : ""}" role="option" aria-selected="${this.selected.has(e.key)}" data-i="${i}"${e.dir ? ` data-dir="${esc(e.key)}"` : ""}${thumb}>
-      <span class="tile"><span class="ico${e.dir ? " dir" : ""}">${icon(e.dir ? "folder" : FILE_ICON[k])}</span></span>
+      <span class="tile">${this.iconHtml(e, e.dir ? "folder" : FILE_ICON[k])}</span>
       <span class="cname" title="${esc(e.name)}">${esc(e.name)}</span>
       <span class="csize">${e.dir ? (e.calc ? fmtSize(e.size) : "") : fmtSize(e.size)}</span>
     </div>`;

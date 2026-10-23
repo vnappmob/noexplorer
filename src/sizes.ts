@@ -32,7 +32,7 @@ function apply(d: DirSizes) {
   for (const s of d.sizes) {
     const e = byKey.get(s.path);
     if (!e) continue;
-    e.cloud = s.cloud;
+    e.cloud = s.cloud ?? e.cloud;
     e.size = s.bytes;
     e.calc = !s.cloud;
     e.partial = s.skipped > 0;

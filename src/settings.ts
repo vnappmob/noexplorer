@@ -9,7 +9,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { ask, open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { appearance, setTextSize, setTheme, type Theme } from "./appearance";
+import { appearance, setTextSize, setTheme, setUnits, type Theme } from "./appearance";
 import { addView, MAX_VIEWS, remote, remotes, savedViews, saveViews, switchTo } from "./panes";
 import { type Pane, paneHooks } from "./pane";
 import {
@@ -642,6 +642,7 @@ function syncAppearanceControls() {
       .forEach((i) => (i.checked = i.value === value));
   check("theme", appearance.theme);
   check("size", appearance.size);
+  check("units", appearance.units);
 }
 
 // ---------- account + bucket pickers (each remote view's header) ----------
@@ -918,6 +919,9 @@ export function setupSettings() {
     .forEach((b) => (b.onclick = () => showTab(b.dataset.tab!)));
   $("ap-theme").addEventListener("change", (ev) => setTheme((ev.target as HTMLInputElement).value as Theme));
   $("ap-size").addEventListener("change", (ev) => setTextSize((ev.target as HTMLInputElement).value));
+  $("ap-units").addEventListener("change", (ev) =>
+    setUnits((ev.target as HTMLInputElement).value as "system" | "decimal" | "binary"),
+  );
 
   $("btn-settings").onclick = () => openSettings();
 }

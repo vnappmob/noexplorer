@@ -72,8 +72,10 @@ export type Item = {
   stale?: boolean;
   /** UI-only: when a remembered remote `size` was calculated (ms). */
   sizeAt?: number;
-  /** UI-only, local: a cloud-synced folder (the service that syncs it); not counted (cloud.rs). */
+  /** UI-only, local: an online-only cloud folder's mount point (the service); not counted (cloud.rs). */
   cloud?: string;
+  /** UI-only, local: an online-only placeholder (its content downloads when opened). */
+  online?: boolean;
 };
 
 /** `compare::Diff` — result of `compare` (Compare dialog). */
@@ -114,7 +116,17 @@ export type DirSizes = {
 export type Crumb = { name: string; path: string };
 
 /** `local::LocalListing` */
-export type LocalListing = { path: string; parent: string | null; crumbs: Crumb[]; roots: Crumb[]; entries: Item[] };
+export type LocalListing = {
+  path: string;
+  parent: string | null;
+  crumbs: Crumb[];
+  roots: Crumb[];
+  entries: Item[];
+  /** Online-only cloud folders' mount points here: key → service ("OneDrive"). */
+  cloud: Record<string, string>;
+  /** Online-only placeholders here (content not on this disk). */
+  online: string[];
+};
 
 /** `jobs::JobEvent` — payload of the `"job"` event. */
 export type JobEvent = {

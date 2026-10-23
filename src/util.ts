@@ -25,14 +25,26 @@ export const esc = (s: string) =>
 
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
+/** Size units: "decimal" = 1 KB is 1000 bytes (macOS Finder and Storage, most Linux file
+ * managers), "binary" = 1024 (Windows Explorer); "system" = whatever this OS shows. Set in
+ * Settings → Appearance (appearance.ts), kept on this computer. */
+export type SizeUnits = "system" | "decimal" | "binary";
+let unitBase = 1024;
+
+export function setSizeUnits(u: SizeUnits) {
+  const decimal = u === "decimal" || (u === "system" && !navigator.userAgent.includes("Windows"));
+  unitBase = decimal ? 1000 : 1024;
+}
+setSizeUnits((store.get("sizeUnits") as SizeUnits | null) ?? "system");
+
 export function fmtSize(n: number) {
-  if (n < 1024) return `${n} B`;
-  const u = ["KB", "MB", "GB", "TB"];
+  if (n < unitBase) return `${n} B`;
+  const u = ["KB", "MB", "GB", "TB", "PB"];
   let i = -1;
   do {
-    n /= 1024;
+    n /= unitBase;
     i++;
-  } while (n >= 1024 && i < u.length - 1);
+  } while (n >= unitBase && i < u.length - 1);
   return `${n.toFixed(n < 10 ? 1 : 0)} ${u[i]}`;
 }
 

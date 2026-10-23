@@ -5,6 +5,14 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Cloud icons in the local list**: an online-only cloud folder (OneDrive, Google Drive, iCloud
+  Drive, Dropbox, Box…) shows a cloud instead of a folder, and online-only files (not downloaded
+  yet) get a small cloud on their icon, so they stand apart from files really on this disk.
+- **File sizes like your system** (Settings → Appearance → File sizes): macOS and Linux count
+  1 KB = 1000 bytes, Windows 1024. NoExplorer now matches Finder and System Settings → Storage on a
+  Mac by default; you can pick either.
+
 ## [0.4.35] - 2026-10-23
 
 ### Changed

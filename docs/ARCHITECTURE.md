@@ -114,7 +114,7 @@ means the active account (ADR-025).
 | `download` | `bucket, prefix, items[{key,size}], dest?` | job id | transfer | Writes to `dest` (the left pane's folder), else to the configured or OS Downloads folder |
 | `open_object` | `bucket, key` | – | transfer | Downloads to `$TMP/noexplorer/<uuid>/` and opens with the default app |
 | `cancel` | `id` | – | jobs | Sets the job's cancel flag. In-flight multipart uploads are aborted |
-| `list_local` | `path?, hidden` | `LocalListing` | local | No `path` means the home folder. Includes `crumbs` and `roots` (Places) |
+| `list_local` | `path?, hidden` | `LocalListing` | local | No `path` means the home folder. Includes `crumbs`, `roots` (Places, with "☁ " cloud places), `cloud` (mount points of online-only cloud folders → service) and `online` (online-only placeholders) |
 | `read_local_text` | `path, max` | string | local | |
 | `mkdir_local` | `path, name` | – | local | Rejects `/`, `\`, `.`, `..` |
 | `open_local` | `path` | – | local | Opens with the OS default app |
