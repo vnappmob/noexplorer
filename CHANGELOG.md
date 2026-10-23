@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.36] - 2026-10-23
+
 ### Added
 - **Cloud icons in the local list**: an online-only cloud folder (OneDrive, Google Drive, iCloud
   Drive, Dropbox, Box…) shows a cloud instead of a folder, and online-only files (not downloaded
