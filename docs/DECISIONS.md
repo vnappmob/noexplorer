@@ -417,6 +417,14 @@ Settings shows). Lower bounds no longer get a "≥" prefix (a tooltip explains t
 
 <a id="adr-023"></a>
 
+**Update 2026-11-02 (idle CPU).** The maintainer measured 15–18% CPU after 5 days in the
+background. `sample` showed the watcher's refresh thread: for every changed folder `reread` looked
+for removed subfolders by walking the entire index (`map.keys()`, up to 1.5M entries: 122 ms per
+folder in release), and a home folder with builds, caches and Docker changes several folders per
+400 ms batch. Removed subfolders are now looked for only among the paths the events named (18 µs per
+folder); the full walk is kept for FSEvents' rescan flag, and a removed folder's subtree is dropped
+in one pass. `reread_is_cheap_with_a_large_index` guards it.
+
 ## ADR-023: Move to Trash for local files
 Accepted · 2026-10-16 · amends [ADR-006](#adr-006)
 

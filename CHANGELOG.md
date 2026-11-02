@@ -5,6 +5,12 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- **NoExplorer used 15–20% CPU while idle in the background.** Keeping folder sizes up to date
+  walked the whole size index (up to 1.5 million folders) for every folder that changed on disk, and
+  builds, caches and downloads change folders all day. Now it only looks at what changed: a changed
+  folder costs 18 µs instead of 122 ms.
+
 ## [0.4.36] - 2026-10-23
 
 ### Added

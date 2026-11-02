@@ -396,13 +396,17 @@ fn watch(app: &AppHandle, root: &Path) -> Option<notify::RecommendedWatcher> {
         background_priority();
         // Coalesce bursts (a download writes many times) into one update per folder.
         while let Ok(first) = rx.recv() {
-            let mut changed: HashSet<PathBuf> = HashSet::new();
+            let mut batch = Changes::default();
             let mut add = |ev: notify::Result<notify::Event>| {
                 if let Ok(ev) = ev {
+                    let rescan = ev.attrs.flag() == Some(notify::event::Flag::Rescan);
                     for p in ev.paths {
-                        let rescan = ev.attrs.flag() == Some(notify::event::Flag::Rescan);
-                        if let Some(d) = if rescan { Some(p.clone()) } else { p.parent().map(Path::to_path_buf) } {
-                            changed.insert(d);
+                        if rescan {
+                            batch.dirs.insert(p.clone());
+                            batch.rescan.insert(p);
+                        } else if let Some(d) = p.parent() {
+                            batch.dirs.insert(d.to_path_buf());
+                            batch.paths.insert(p);
                         }
                     }
                 }
@@ -412,18 +416,29 @@ fn watch(app: &AppHandle, root: &Path) -> Option<notify::RecommendedWatcher> {
             while let Ok(ev) = rx.try_recv() {
                 add(ev);
             }
-            refresh_dirs(&app, changed);
+            refresh_dirs(&app, batch);
         }
     });
     Some(w)
 }
 
+/// What a burst of file-system events changed.
+#[derive(Default)]
+struct Changes {
+    /// Folders whose entries changed (the parents of `paths`, and `rescan`).
+    dirs: HashSet<PathBuf>,
+    /// The paths the events named: the only candidates for a removed subfolder.
+    paths: HashSet<PathBuf>,
+    /// Folders the OS asks to re-read in full (FSEvents dropped the details).
+    rescan: HashSet<PathBuf>,
+}
+
 /// Re-reads changed folders (deepest first) and applies the difference up the tree.
-fn refresh_dirs(app: &AppHandle, changed: HashSet<PathBuf>) {
+fn refresh_dirs(app: &AppHandle, changes: Changes) {
     let idx = app.state::<SizeIndex>();
     let mut dirs: Vec<PathBuf> = {
         let g = idx.inner.lock().unwrap();
-        changed.into_iter().filter(|d| g.map.contains_key(d)).collect()
+        changes.dirs.iter().filter(|d| g.map.contains_key(*d)).cloned().collect()
     };
     dirs.sort_by_key(|d| std::cmp::Reverse(d.components().count()));
     for d in dirs {
@@ -434,7 +449,10 @@ fn refresh_dirs(app: &AppHandle, changed: HashSet<PathBuf>) {
         let Some((auto, skip_cloud)) = auto else { continue };
         let root_hint = d.clone();
         let enter = idx.enter_policy(&root_hint, auto);
-        let Some(new) = reread(&idx, &d, &enter, skip_cloud) else {
+        // Removed subfolders are among the paths the events named, unless the OS asked for a rescan.
+        let candidates = (!changes.rescan.contains(&d))
+            .then(|| changes.paths.iter().filter(|p| p.parent() == Some(d.as_path())).cloned().collect::<Vec<_>>());
+        let Some(new) = reread(&idx, &d, &enter, skip_cloud, candidates.as_deref()) else {
             // The folder is gone: its parent's update removes it.
             continue;
         };
@@ -466,7 +484,16 @@ fn refresh_dirs(app: &AppHandle, changed: HashSet<PathBuf>) {
 }
 
 /// New totals of `d`: its own files re-read, subfolders from the index (new ones are scanned).
-fn reread(idx: &SizeIndex, d: &Path, enter: &(dyn Fn(&Path) -> bool + Sync), skip_cloud: bool) -> Option<Totals> {
+/// `gone` = the only paths that may be removed subfolders (from the events). None = check every
+/// indexed child, which walks the whole index: only for a rescan. Walking it for every changed
+/// folder kept a core ~15% busy on a home folder whose builds and caches change all day.
+fn reread(
+    idx: &SizeIndex,
+    d: &Path,
+    enter: &(dyn Fn(&Path) -> bool + Sync),
+    skip_cloud: bool,
+    gone: Option<&[PathBuf]>,
+) -> Option<Totals> {
     let cancel = AtomicBool::new(false);
     let mut buf = vec![0u8; 64 * 1024];
     let mut own = Totals::default();
@@ -485,13 +512,13 @@ fn reread(idx: &SizeIndex, d: &Path, enter: &(dyn Fn(&Path) -> bool + Sync), ski
     {
         // Forget subfolders that disappeared.
         let mut g = idx.inner.lock().unwrap();
-        let gone: Vec<PathBuf> =
-            g.map.keys().filter(|p| p.parent() == Some(d) && !present.contains(p)).cloned().collect();
-        for p in gone {
-            let under: Vec<PathBuf> = g.map.keys().filter(|k| k.starts_with(&p)).cloned().collect();
-            for k in under {
-                g.map.remove(&k);
-            }
+        let gone: Vec<PathBuf> = match gone {
+            Some(paths) => paths.iter().filter(|p| !present.contains(p) && g.map.contains_key(*p)).cloned().collect(),
+            None => g.map.keys().filter(|p| p.parent() == Some(d) && !present.contains(p)).cloned().collect(),
+        };
+        // Their whole subtrees go too: one pass over the index for all of them (rare: a folder deleted).
+        if !gone.is_empty() {
+            g.map.retain(|k, _| !gone.iter().any(|p| k.starts_with(p)));
         }
     }
     for s in &subdirs {
@@ -654,6 +681,41 @@ pub fn stop_sizes(idx: State<'_, SizeIndex>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A changed folder is re-read without walking the whole index (that kept a core busy all day on
+    /// a large home folder), and a removed subfolder named by the events still drops out.
+    #[test]
+    fn reread_is_cheap_with_a_large_index() {
+        let d = std::env::temp_dir().join(format!("nx-reread-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(d.join("keep")).unwrap();
+        std::fs::write(d.join("f.bin"), vec![0u8; 100]).unwrap();
+        let idx = SizeIndex::default();
+        {
+            let mut g = idx.inner.lock().unwrap();
+            for i in 0..1_000_000 {
+                g.map.insert(PathBuf::from(format!("/elsewhere/{}/{}", i % 1000, i)), Totals::default());
+            }
+            let t = Totals { bytes: 5, files: 1, dirs: 0, skipped: 0 };
+            g.map.insert(d.join("keep"), t);
+            g.map.insert(d.join("old"), t);
+            g.map.insert(d.join("old/inner"), t);
+        }
+        let enter = |_: &Path| true;
+        let start = std::time::Instant::now();
+        for _ in 0..100 {
+            reread(&idx, &d, &enter, true, Some(&[d.join("f.bin")])).unwrap();
+        }
+        let per = start.elapsed() / 100;
+        assert!(per < std::time::Duration::from_millis(5), "reread took {per:?} with a 1M-folder index");
+        assert!(idx.inner.lock().unwrap().map.contains_key(&d.join("old")), "not named by an event: kept");
+        // The event names the removed folder: it and its subtree drop out.
+        let t = reread(&idx, &d, &enter, true, Some(&[d.join("old")])).unwrap();
+        let g = idx.inner.lock().unwrap();
+        assert!(!g.map.contains_key(&d.join("old")) && !g.map.contains_key(&d.join("old/inner")));
+        assert_eq!((t.bytes, t.files, t.dirs), (105, 2, 1));
+        drop(g);
+        std::fs::remove_dir_all(d).unwrap();
+    }
 
     #[test]
     fn seen_sizes_survive_a_restart_and_stay_bounded() {
