@@ -64,6 +64,23 @@ pub async fn presign(
     state.remote(account.as_deref())?.link(&bucket, &key, secs, inline).await
 }
 
+/// A URL the webview's player streams video or audio from: the provider's presigned link, or the
+/// app's loopback stream for providers without one (stream.rs, ADR-052).
+#[tauri::command]
+pub async fn media_url(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    account: Option<String>,
+    bucket: String,
+    key: String,
+) -> Result<String, String> {
+    let link = state.remote(account.as_deref())?.link(&bucket, &key, 3600, true).await?;
+    if !link.starts_with(crate::proxy::base()) {
+        return Ok(link);
+    }
+    crate::stream::url(&app, &link).await
+}
+
 /// First `max` bytes of a file as (lossy) UTF-8, for the text preview.
 #[tauri::command]
 pub async fn read_text(

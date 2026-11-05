@@ -62,6 +62,7 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   provider.rs        `enum Remote`: one interface for all providers (ADR-025); Entry/BucketInfo
   s3.rs              S3 provider: client (path-style, checksums, per-bucket region), list, multipart, downloads
   webdav.rs          Nextcloud/WebDAV provider: own small client, chunked upload v2, shares, Login Flow v2
+  stream.rs          Loopback HTTP stream (127.0.0.1, token in the path) for video/audio previews without presigned URLs (ADR-052)
   proxy.rs           nxr:// scheme: local files, remote previews without presigned URLs (Range, CORS), grid thumbnails; answers on the main thread
   thumbs.rs          Grid thumbnails: 256 px JPEG/PNG, LRU caches in memory (16 MB) and on disk (48 MB, OS cache folder); trims WebKit's cache at launch
   azure.rs           Azure Blob provider: Shared Key signing, block uploads, SAS links

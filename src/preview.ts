@@ -1,5 +1,6 @@
-// Quick-look modal. Remote media is streamed via a presigned URL; local media via the
-// nxr:// scheme (`localSrc`, proxy.rs); text is read (first 512 KB) through a backend command.
+// Quick-look modal. Remote media is streamed via a presigned URL (or, for video and audio from
+// providers without one, the app's loopback stream, stream.rs); local media via the nxr:// scheme
+// (`localSrc`, proxy.rs); text is read (first 512 KB) through a backend command.
 
 import { invoke } from "@tauri-apps/api/core";
 import { ext, ICON, kindOf, localSrc } from "./files";
@@ -34,9 +35,15 @@ export async function openPreview(p: Pane, e: Item) {
       return;
     }
     if (k === "image" || k === "video" || k === "audio" || k === "pdf") {
-      const url = p.isRemote
-        ? await invoke<string>("presign", { ...p.where(), key: e.key, secs: 3600, inline: true })
-        : localSrc(e.key);
+      // Video and audio stream from the provider's own link, or the app's loopback stream where
+      // there is none (stream.rs); images and PDFs come in whole anyway.
+      const media = k === "video" || k === "audio";
+      const presign = () => invoke<string>("presign", { ...p.where(), key: e.key, secs: 3600, inline: true });
+      const url = !p.isRemote
+        ? localSrc(e.key)
+        : media
+          ? await invoke<string>("media_url", { ...p.where(), key: e.key })
+          : await presign();
       if (!same()) return;
       const u = esc(url);
       body.innerHTML =
@@ -47,7 +54,19 @@ export async function openPreview(p: Pane, e: Item) {
             : k === "audio"
               ? `<audio src="${u}" controls autoplay></audio>`
               : `<iframe src="${u}"></iframe>`;
-      body.querySelector("img,video,audio")?.addEventListener("error", () => {
+      const el = body.querySelector<HTMLMediaElement | HTMLImageElement>("img,video,audio");
+      let retried = false;
+      el?.addEventListener("error", async () => {
+        if (!same()) return;
+        // If the webview won't play the loopback stream, fall back to nxr:// pieces.
+        if (media && !retried && url.startsWith("http://127.0.0.1:")) {
+          retried = true;
+          const fallback = await presign().catch(() => "");
+          if (fallback && same()) {
+            el.src = fallback;
+            return;
+          }
+        }
         if (same()) body.innerHTML = noPreview(e, "This format can't be shown in the app.");
       });
       return;

@@ -5,6 +5,11 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Videos from WebDAV (a NAS, Nextcloud), OneDrive, Box and SFTP start playing at once in quick
+  look**, like S3. The player now streams through a small server inside NoExplorer that only this
+  computer can reach, instead of waiting for each piece of the file to download.
+
 ## [0.4.38] - 2026-11-05
 
 ### Fixed

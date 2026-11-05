@@ -306,12 +306,16 @@ impl Dav {
         cap: u64,
     ) -> Result<(Vec<u8>, Option<u64>), String> {
         let last = end.unwrap_or(start + cap - 1).min(start + cap - 1);
-        let r = self
-            .send(self.req(Method::GET, &self.url(key)).header("Range", format!("bytes={start}-{last}")))
-            .await
-            .map_err(net_err)?;
-        let r = ok(r).await?;
+        let r = self.get_range(key, start, Some(last)).await?;
         crate::provider::ranged_body(r, start, cap).await.map_err(net_err)
+    }
+
+    /// An open GET from `start` (to `last`, or to the end), for streaming (stream.rs). The answer
+    /// is 206 or, from a server that ignores `Range`, 200 with the whole file.
+    pub async fn get_range(&self, key: &str, start: u64, last: Option<u64>) -> Result<Response, String> {
+        let range = crate::provider::range_header(start, last);
+        let r = self.send(self.req(Method::GET, &self.url(key)).header("Range", range)).await.map_err(net_err)?;
+        ok(r).await
     }
 
     pub async fn read_head(&self, _container: &str, key: &str, max: u64) -> Result<Vec<u8>, String> {

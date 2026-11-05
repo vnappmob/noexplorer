@@ -55,16 +55,21 @@ pub fn respond(app: &AppHandle, responder: tauri::UriSchemeResponder, res: Respo
     let _ = app.run_on_main_thread(move || responder.respond(res));
 }
 
+/// Where `nxr://` URLs start (WebView2 serves custom schemes over http).
+pub fn base() -> &'static str {
+    if cfg!(windows) { "http://nxr.localhost" } else { "nxr://localhost" }
+}
+
 /// The preview URL for a remote file.
 pub fn url(account: &str, container: &str, key: &str) -> String {
-    let base = if cfg!(windows) { "http://nxr.localhost" } else { "nxr://localhost" };
+    let base = base();
     let enc = crate::webdav::enc;
     let key = key.split('/').map(enc).collect::<Vec<_>>().join("/");
     format!("{base}/{}/{}/{key}", enc(account), enc(container))
 }
 
 /// `bytes=a-b` / `bytes=a-` → (a, Some(b) / None).
-fn parse_range(v: &str) -> Option<(u64, Option<u64>)> {
+pub(crate) fn parse_range(v: &str) -> Option<(u64, Option<u64>)> {
     let (a, b) = v.strip_prefix("bytes=")?.split_once('-')?;
     Some((a.trim().parse().ok()?, b.trim().parse().ok()))
 }

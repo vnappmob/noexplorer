@@ -42,6 +42,7 @@ mod sftp;
 mod sizes;
 mod speedtest;
 mod state;
+mod stream;
 mod thumbs;
 mod tls;
 mod transfer;
@@ -122,6 +123,7 @@ pub fn run() {
             remote::list,
             remote::remote_size,
             remote::presign,
+            remote::media_url,
             remote::read_text,
             remote::create_bucket,
             remote::bucket_policy,

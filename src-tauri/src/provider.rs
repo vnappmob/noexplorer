@@ -220,6 +220,22 @@ impl Remote {
         }
     }
 
+    /// An open ranged GET for streaming a preview (stream.rs), on providers that read over HTTP
+    /// with a login the player can't send. None: read it in pieces with [`Remote::read_range`].
+    pub async fn get_range(
+        &self,
+        key: &str,
+        start: u64,
+        last: Option<u64>,
+    ) -> Result<Option<reqwest::Response>, String> {
+        Ok(Some(match self {
+            Remote::Dav(d) => d.get_range(key, start, last).await?,
+            Remote::Box(b) => b.get_range(key, start, last).await?,
+            Remote::OneDrive(o) => o.get_range(key, start, last).await?,
+            Remote::S3(_) | Remote::Azure(_) | Remote::Sftp(_) => return Ok(None),
+        }))
+    }
+
     /// The first `max` bytes of a file.
     pub async fn read_head(&self, container: &str, key: &str, max: u64) -> Result<Vec<u8>, String> {
         match self {
@@ -401,6 +417,11 @@ pub(crate) async fn drop_part(tmp: &Path, job: &Job, err: &str) {
     if !(job.resume && !job.cancelled() && crate::resume::transient(err)) {
         let _ = tokio::fs::remove_file(tmp).await;
     }
+}
+
+/// `Range` header value for bytes `start..=last` (to the end when `last` is None).
+pub(crate) fn range_header(start: u64, last: Option<u64>) -> String {
+    format!("bytes={start}-{}", last.map(|l| l.to_string()).unwrap_or_default())
 }
 
 /// The body of a ranged GET (`Range: bytes=start-…`) for a preview: at most `cap` bytes from

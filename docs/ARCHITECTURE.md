@@ -45,7 +45,8 @@ This is the deep reference. For orientation, read [AGENTS.md](../AGENTS.md) firs
 | `compare.rs` | Compare folders | `compare` / `diff`: local walk (junk, symlinks), `Remote::list_files` with hashes, pairing, parallel hash checks (MD5 / multipart ETag / SHA-1), `"compare-progress"` (ADR-028) |
 | `state.rs` | Shared state | `AppState { settings, remotes, cancels }`. **`remote(account)`** returns the cached `Arc<Remote>` for a profile id (active when `None`); `set_settings()` drops the clients of changed accounts only |
 | `jobs.rs` | Background jobs | `Job` (atomic counters, errors, cancel flag), `Job::spawn` (250 ms ticker + final event), `cancel` |
-| `remote.rs` | Browsing commands | Thin wrappers over `Remote`: `list_buckets`, `list`, `remote_size`, `presign`, `read_text`, `mkdir`, `delete` |
+| `remote.rs` | Browsing commands | Thin wrappers over `Remote`: `list_buckets`, `list`, `remote_size`, `presign`, `media_url`, `read_text`, `mkdir`, `delete` |
+| `stream.rs` | Media stream | Loopback HTTP server on 127.0.0.1 (random port, secret token in the path) that relays a provider's ranged GET to the webview's player as bytes arrive, for video/audio previews without presigned URLs (ADR-052) |
 | `transfer.rs` | Transfer jobs | `upload`, `download`, `open_object`: expand files, schedule `FILE_CONCURRENCY` at a time, call `Remote::upload_file` / `download_file` |
 | `local.rs` | Local disk (left pane) | `list_local` (+ crumbs and Places roots; tells `sizes` which private folders were opened), `local_size`, `read_local_text`, `mkdir_local`, `open_local`, `reveal` |
 | `scan.rs` | Folder-size engine | Parallel scanner (`scan`, `Totals`, `Sink`), macOS `getattrlistbulk` fast path, generic `read_dir` (ADR-022) |
@@ -93,6 +94,7 @@ means the active account (ADR-025).
 | `trash_local` | `paths[]` | count | trash | Moves local items to the OS Trash / Recycle Bin. Refuses `/`, home and its parents |
 | `list` | `bucket, prefix` | `Entry[]` | remote | One folder level. Folders have `dir: true` and a key ending in `/` |
 | `presign` | `bucket, key, secs, inline` | URL | remote | `secs` is clamped to 60 s–7 d. `inline` forces Content-Type/Disposition for preview |
+| `media_url` | `bucket, key` | URL | remote | Video/audio preview: the presigned link, or the loopback stream (`stream.rs`) for providers without one |
 | `read_text` | `bucket, key, max` | string | remote | Range GET `0..max`, decoded as lossy UTF-8 |
 | `speed_test` | `id, a, b, plan {bigMb, smallCount, smallKb, both}` | – | speedtest | Starts a speed test between two nodes (`{name, account?, bucket, prefix}`, account null = this computer); `"speedtest"` events carry progress and results; `cancel(id)` stops it (experimental `speed_test`) |
 | `bucket_policy` | `account, bucket` | `string \| null` | remote | The bucket's policy as pretty JSON, null when it has none (experimental `bucket_policy`) |

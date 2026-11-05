@@ -1080,3 +1080,28 @@ their type icon with a small cloud.
 **Consequences.** Numbers change for existing users on macOS and Linux (larger by ~7% at GB),
 now matching their system. The placeholder flags couldn't be seen on the maintainer's Mac (no
 online-only files there); they're the documented OS flags.
+
+## ADR-052: Video previews stream through a loopback server
+
+**Context.** Quick look of a video from WebDAV (a NAS) took seconds to start where the same file
+on S3 played at once, over the same connection. S3 previews are presigned links the player reads
+itself. WebDAV, OneDrive, Box and SFTP need a login the player can't send, so their previews went
+through `nxr://`, and a custom scheme in Tauri answers with a whole body: every piece the player
+asked for (4 MB after the ADR-026 update) had to download before the player saw a byte, and a
+video whose index sits at the end of the file (DJI `.mov`) costs several of those.
+
+**Decision.** Video and audio previews of those providers get a plain HTTP URL from a small server
+in the app (`stream.rs`, command `media_url`): bound to 127.0.0.1 on a random port, started with
+the first media preview, with a random token in every path so other programs on the computer
+can't read through it. It opens the provider's ranged GET (`Remote::get_range`) with the
+account's login and passes bytes on as they arrive, as 206 with `Content-Range`; a server that
+ignores `Range` is skipped and cut to the asked span. SFTP, which has no HTTP GET, is relayed in
+1 MiB pieces. No new dependency: requests are parsed by hand (GET/HEAD, `Range`, one request per
+connection). Images and PDFs keep `nxr://`, and the preview falls back to it if the webview
+refuses the loopback URL.
+
+**Consequences.** Measured with AVFoundation (WebKit's player) against a WebDAV server throttled
+to 5 MB/s, 40 s 12 Mbps H.264 with its index at the end: first frame in 0.17 s through the stream
+versus 0.24 s from a direct link (the S3 case), and a seek to 30 s in 1.5 s for both. Not yet seen
+in the real app window. The token lives only in memory and changes every launch; a local program
+that could read the app's memory could already read its keychain items.

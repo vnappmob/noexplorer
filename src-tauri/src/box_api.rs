@@ -349,11 +349,17 @@ impl BoxCom {
         end: Option<u64>,
         cap: u64,
     ) -> Result<(Vec<u8>, Option<u64>), String> {
-        let it = self.resolve(key).await?;
         let last = end.unwrap_or(start + cap - 1).min(start + cap - 1);
-        let url = self.api(&format!("files/{}/content", it.id));
-        let r = ok(self.send(|h| h.get(&url).header("Range", format!("bytes={start}-{last}"))).await?).await?;
+        let r = self.get_range(key, start, Some(last)).await?;
         crate::provider::ranged_body(r, start, cap).await.map_err(net_err)
+    }
+
+    /// An open GET from `start` (to `last`, or to the end), for streaming (stream.rs).
+    pub async fn get_range(&self, key: &str, start: u64, last: Option<u64>) -> Result<Response, String> {
+        let it = self.resolve(key).await?;
+        let url = self.api(&format!("files/{}/content", it.id));
+        let range = crate::provider::range_header(start, last);
+        ok(self.send(|h| h.get(&url).header("Range", range.clone())).await?).await
     }
 
     pub async fn read_head(&self, _container: &str, key: &str, max: u64) -> Result<Vec<u8>, String> {
