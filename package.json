@@ -18,17 +18,17 @@
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-dialog": "^2.8.3",
+    "@tauri-apps/plugin-dialog": "^2.8.4",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-process": "^2.4.0",
-    "@tauri-apps/plugin-updater": "^2.14.0"
+    "@tauri-apps/plugin-updater": "^2.14.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
     "prettier": "^3.9.10",
     "typescript": "~7.0.2",
-    "vite": "^8.0.16",
-    "wrangler": "^4.151.0"
+    "vite": "^8.3.5",
+    "wrangler": "^4.156.1"
   },
   "description": "Dual-pane drag & drop file manager for S3-compatible storage (MinIO, SeaweedFS, AWS S3…)",
   "license": "MIT",
