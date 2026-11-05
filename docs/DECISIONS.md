@@ -523,6 +523,15 @@ need an auth header.
 byte-exact download, ranged reads, shares, mkdir, delete, and in-app previews (image, video seek,
 PDF). Plain WebDAV can't make share links. Listing a very large tree is one PROPFIND per folder.
 
+**Update 2026-11-05 (video previews).** Video quick look from a WebDAV NAS stalled where S3 played
+smoothly: S3 previews stream from a presigned link, but `nxr://` answers whole pieces, and each piece
+was downloaded in full (8 MB) before the player got any of it, with nothing fetched while it played.
+Pieces are now 4 MB, and the next piece of a remote file is fetched while the player is on the
+current one (`proxy::Ahead`, one slot). Reading a piece streams the body and stops at the cap
+(`provider::ranged_body`), so a server that ignores `Range` no longer sends the whole file for
+every request the player makes. Opening a WebDAV file in its default app still downloads the
+whole file first: the app can't hand another program a link that needs our login.
+
 <a id="adr-027"></a>
 
 ## ADR-027: Box through the user's own OAuth app (beta)

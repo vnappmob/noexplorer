@@ -3,11 +3,14 @@
 //!
 //! URL: `nxr://localhost/<account>/<container>/<key>` (`http://nxr.localhost/…` on Windows, where
 //! WebView2 serves custom schemes over http). Honors `Range` so video can seek: ranged answers are
-//! capped at [`RANGE_CAP`] (the player asks for the rest), whole-file answers at [`WHOLE_CAP`].
+//! capped at [`RANGE_CAP`] (the player asks for the rest, and the next piece of a remote file is
+//! already on its way: [`Ahead`]), whole-file answers at [`WHOLE_CAP`].
 //!
 //! Local files come through here too (`nxr://localhost/~local/f/<path>`, built in `files.ts`),
 //! instead of Tauri's asset protocol: that one answers from a worker thread, see [`respond`].
 //! Grid thumbnails are `nxr://localhost/~thumb/…` (thumbs.rs).
+
+use std::sync::Mutex;
 
 use percent_encoding::percent_decode_str;
 use tauri::http::{Request, Response, StatusCode, header};
@@ -15,8 +18,31 @@ use tauri::{AppHandle, Manager};
 
 use crate::state::AppState;
 
-const RANGE_CAP: u64 = 8 * 1024 * 1024;
+const RANGE_CAP: u64 = 4 * 1024 * 1024;
 const WHOLE_CAP: u64 = 512 * 1024 * 1024;
+/// The next piece of the remote file a player is streaming, fetched while it plays this one. Without
+/// it each piece waits for a whole round of downloading, so a slower server (a NAS at home) stalls
+/// the video where a presigned S3 link streams. One preview plays at a time, so one slot is enough.
+/// A read of up to `RANGE_CAP` bytes and the file's size, running in the background.
+type Piece = tauri::async_runtime::JoinHandle<Result<(Vec<u8>, Option<u64>), String>>;
+
+struct Ahead {
+    file: String,
+    start: u64,
+    task: Piece,
+}
+static AHEAD: Mutex<Option<Ahead>> = Mutex::new(None);
+
+/// The read-ahead for `file` from `start`, if that's what is waiting; anything else is stopped.
+fn ahead(file: &str, start: u64) -> Option<Piece> {
+    let a = AHEAD.lock().unwrap().take()?;
+    if a.file == file && a.start == start {
+        return Some(a.task);
+    }
+    a.task.abort();
+    None
+}
+
 /// The account segment of local-file URLs (account ids are UUIDs, so it can't collide).
 pub const LOCAL: &str = "~local";
 
@@ -90,7 +116,29 @@ async fn serve(app: &AppHandle, req: &Request<Vec<u8>>) -> Result<Response<Vec<u
     let (bytes, total) = if account == LOCAL {
         read_local(&key, start, end, cap).await?
     } else {
-        app.state::<AppState>().remote(Some(&account))?.read_range(&container, &key, start, end, cap).await?
+        let remote = app.state::<AppState>().remote(Some(&account))?;
+        let file = format!("{account}/{container}/{key}");
+        let early = match ahead(&file, start) {
+            Some(t) => t.await.ok().and_then(Result::ok), // a failed read-ahead is simply read again
+            None => None,
+        };
+        let (mut bytes, total) = match early {
+            Some(got) => got,
+            None => remote.read_range(&container, &key, start, end, cap).await?,
+        };
+        if let Some(e) = end {
+            bytes.truncate((e + 1).saturating_sub(start) as usize); // read ahead as a full piece
+        }
+        let next = start + bytes.len() as u64;
+        if range.is_some() && bytes.len() as u64 == cap && total.is_none_or(|t| next < t) {
+            let (container, key) = (container.clone(), key.clone());
+            let task =
+                tauri::async_runtime::spawn(async move { remote.read_range(&container, &key, next, None, cap).await });
+            if let Some(old) = AHEAD.lock().unwrap().replace(Ahead { file, start: next, task }) {
+                old.task.abort();
+            }
+        }
+        (bytes, total)
     };
     let mime = mime_guess::from_path(&key).first_or_octet_stream().to_string();
     let mime = if mime.starts_with("text/") || crate::util::is_text_like(&key) {

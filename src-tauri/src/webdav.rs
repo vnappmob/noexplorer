@@ -311,16 +311,7 @@ impl Dav {
             .await
             .map_err(net_err)?;
         let r = ok(r).await?;
-        let total = r
-            .headers()
-            .get("content-range")
-            .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.rsplit('/').next())
-            .and_then(|n| n.parse().ok())
-            .or_else(|| (r.status() == StatusCode::OK).then(|| r.content_length()).flatten());
-        let mut bytes = r.bytes().await.map_err(net_err)?.to_vec();
-        bytes.truncate(cap as usize); // a server that ignored Range sent everything
-        Ok((bytes, total))
+        crate::provider::ranged_body(r, start, cap).await.map_err(net_err)
     }
 
     pub async fn read_head(&self, _container: &str, key: &str, max: u64) -> Result<Vec<u8>, String> {

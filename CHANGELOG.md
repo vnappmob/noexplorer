@@ -5,6 +5,12 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- **Video quick look from WebDAV (a NAS, Nextcloud), OneDrive, Box and SFTP stalled.** The player
+  waited for each 8 MB piece to download in full, with nothing fetched while it played. Pieces are
+  now 4 MB, and the next one downloads while the current one plays. A server that ignores ranged
+  requests no longer sends the whole file again for every piece.
+
 ## [0.4.37] - 2026-11-02
 
 ### Fixed

@@ -402,3 +402,75 @@ pub(crate) async fn drop_part(tmp: &Path, job: &Job, err: &str) {
         let _ = tokio::fs::remove_file(tmp).await;
     }
 }
+
+/// The body of a ranged GET (`Range: bytes=start-…`) for a preview: at most `cap` bytes from
+/// `start`, and the file's size when the answer says it. Reads only what it keeps, so a server
+/// that ignores `Range` (200 with the whole file) is cut off after `start + cap` bytes instead of
+/// being downloaded in full for every request the player makes.
+pub(crate) async fn ranged_body(
+    mut r: reqwest::Response,
+    start: u64,
+    cap: u64,
+) -> Result<(Vec<u8>, Option<u64>), reqwest::Error> {
+    let whole = r.status() == reqwest::StatusCode::OK;
+    let total = r
+        .headers()
+        .get(reqwest::header::CONTENT_RANGE)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.rsplit('/').next())
+        .and_then(|n| n.parse().ok())
+        .or_else(|| whole.then(|| r.content_length()).flatten());
+    let mut skip = if whole { start } else { 0 };
+    let mut out = Vec::with_capacity(cap.min(16 << 20) as usize);
+    while (out.len() as u64) < cap {
+        let Some(chunk) = r.chunk().await? else { break };
+        let from = skip.min(chunk.len() as u64) as usize;
+        skip -= from as u64;
+        let take = (chunk.len() - from).min((cap - out.len() as u64) as usize);
+        out.extend_from_slice(&chunk[from..from + take]);
+    }
+    Ok((out, total))
+}
+
+#[cfg(test)]
+mod tests {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    /// A server that ignores `Range` and sends a 64 MiB file: a preview piece reads only what it
+    /// keeps, from the right offset, and stops.
+    #[tokio::test]
+    async fn ranged_body_stops_when_range_is_ignored() {
+        const SIZE: usize = 64 << 20;
+        let byte = |i: usize| (i % 251) as u8;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let (mut sock, _) = listener.accept().await.unwrap();
+            let mut req = [0u8; 1024];
+            let _ = sock.read(&mut req).await;
+            let head = format!("HTTP/1.1 200 OK\r\nContent-Length: {SIZE}\r\n\r\n");
+            sock.write_all(head.as_bytes()).await.unwrap();
+            let mut sent = 0;
+            while sent < SIZE {
+                let chunk: Vec<u8> = (sent..sent + (1 << 16)).map(byte).collect();
+                if sock.write_all(&chunk).await.is_err() {
+                    break; // the client hung up, as it should
+                }
+                sent += chunk.len();
+            }
+            sent
+        });
+        let r = crate::webdav::http()
+            .get(format!("http://{addr}/video.mov"))
+            .header("Range", "bytes=3000000-")
+            .send()
+            .await
+            .unwrap();
+        let (bytes, total) = super::ranged_body(r, 3_000_000, 1 << 20).await.unwrap();
+        assert_eq!(total, Some(SIZE as u64));
+        assert_eq!(bytes.len(), 1 << 20);
+        assert!(bytes.iter().enumerate().all(|(i, b)| *b == byte(3_000_000 + i)));
+        let sent = server.await.unwrap();
+        assert!(sent < SIZE, "the whole file was sent ({sent} bytes)");
+    }
+}
