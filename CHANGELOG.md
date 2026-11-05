@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.38] - 2026-11-05
+
 ### Fixed
 - **Video quick look from WebDAV (a NAS, Nextcloud), OneDrive, Box and SFTP stalled.** The player
   waited for each 8 MB piece to download in full, with nothing fetched while it played. Pieces are
