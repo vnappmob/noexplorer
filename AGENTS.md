@@ -95,7 +95,7 @@ assets/icon.svg      Icon source → icon.png (render 1024px), then `npx tauri i
 scripts/dev-s3.sh    Local S3 server in Docker for dev and tests
 scripts/dev-nextcloud.sh  Local Nextcloud in Docker (user dev) for the WebDAV provider
 scripts/bump-version.sh   Sets the version in every place it lives
-scripts/clean-build.sh    Keeps src-tauri/target ≤ 12 GB and ≥ 60 GB free, tiered cleaning (CLAUDE.md storage policy)
+scripts/clean-build.sh    Keeps src-tauri/target ≤ 12 GB and ≥ 60 GB free, tiered cleaning (storage policy below)
 .github/workflows/   ci.yml · release.yml (signed builds → draft release) (website deploys via Cloudflare Workers Builds, not Actions)
 docs/                ARCHITECTURE · DECISIONS (ADRs) · DEVELOPMENT · RELEASING · ROADMAP
 ```
@@ -115,12 +115,40 @@ docs/                ARCHITECTURE · DECISIONS (ADRs) · DEVELOPMENT · RELEASIN
 | Rust tests (unit) | `cd src-tauri && cargo test` |
 | Rust tests (including the S3 round-trip) | `NOEXPLORER_TEST_ENDPOINT=http://localhost:8333 NOEXPLORER_TEST_KEY=devkey NOEXPLORER_TEST_SECRET=devsecret123 cargo test` |
 | Release build | `npm run tauri build` |
-| Keep build output within limits | `npm run clean:build` (tiered; deps are kept). Agents: see the storage policy in `CLAUDE.md` |
+| Keep build output within limits | `npm run clean:build` (tiered; deps are kept). Agents: see [Storage policy](#storage-policy-maintainers-rules-for-agents-2026-10-16) |
 | Preview / deploy the website | `npm run site` (local, wrangler dev) · Cloudflare deploys automatically on push to `main` |
 | Cut a release | `./scripts/bump-version.sh X.Y.Z`, then follow [docs/RELEASING.md](docs/RELEASING.md) |
 
 Before you say a change is done, CI must pass locally: `npm run check`, `cargo fmt --check`,
 `cargo clippy --all-targets -- -D warnings`, and `cargo test`.
+
+## Storage policy (maintainer's rules for agents, 2026-10-16)
+
+`src-tauri/target` once grew to 22 GB, and several more GB every day. These rules keep it bounded.
+
+**Hard limits:** `src-tauri/target` ≤ **12 GB**, and the disk keeps **> 60 GB free**.
+`scripts/clean-build.sh` (`npm run clean:build`) measures both and cleans in tiers. Tier 0
+always removes leftovers of the old crate name `noback`. Tier 1 removes incremental caches.
+Tier 2 removes this crate's own artifacts (the `noexplorer` binary, `libnoexplorer_lib*`, test
+binaries, fingerprints, build-script output). Dependencies stay, so the next build only
+recompiles the app crate. It exits 1 when it can't get under the limits.
+
+1. **Run `scripts/clean-build.sh` at the start of every session and after every release build**,
+   without being asked. If it exits 1 (still over the limits), **stop and tell the maintainer
+   before building anything else.**
+2. **Never run a full `cargo clean`** (or delete `target/` or `deps/`) unless the maintainer asks.
+3. **Prefix every cargo command you run with `CARGO_INCREMENTAL=0`.** Agents build once and move
+   on, so incremental caches are pure waste. Don't change the maintainer's own setup: their
+   `npm run tauri dev` keeps incremental builds.
+4. **Verify with `cargo check` and `cargo clippy`.** Use `cargo build` / `cargo test` only when
+   something has to actually run. **Never build a release "to try it"**; release builds happen
+   only when the maintainer approves a release.
+5. **No test files or fixtures over 100 MB** in the scratchpad or the repo. Generate them inside
+   the test and delete them right after.
+6. **Remove worktrees when their work is done**: the worktree and its branch, once the branch is
+   merged or the maintainer says it's no longer needed.
+7. Changes to build profiles in `src-tauri/Cargo.toml` are **proposed with before/after
+   measurements** (target size, build time) and applied only after the maintainer approves.
 
 ## How it works (30 seconds)
 
@@ -228,7 +256,7 @@ from `experimental.md` into the regular pages (as ADR-038 did).
 - **There is no global account or bucket any more** ([ADR-029](docs/DECISIONS.md#adr-029)). Each remote view has its own; pass `view.where()` to every remote command. `remote` from `panes.ts` is a *live* binding to the last-focused view: read it at call time, never cache it in a module-level const.
 - **Never take the same `Mutex` twice in one expression or struct literal.** The first guard lives until the end of the statement, so the second `lock()` deadlocks (std mutexes aren't reentrant). This shipped in 0.4.4 inside `Job::event` and hung every transfer; `jobs::tests` guards it.
 - **Dev builds keep their secrets under the `com.vnappmob.noexplorer.dev` keychain service.** macOS may ask for keychain access after a rebuild (ad-hoc signature); release builds don't.
-- **Tauri drop positions are physical pixels.** Divide by `devicePixelRatio` before calling `elementFromPoint`.
+- **Tauri drop positions are typed as physical pixels but only Windows sends physical ones.** macOS and Linux (wry 0.57) send logical points = CSS pixels. `dnd.ts` `DROP_SCALE` divides by `devicePixelRatio` on Windows only; dividing on macOS halved the position and drops on the right landed on the left pane.
 - **The website deploys from Cloudflare, not GitHub Actions.** Workers Builds watches the repo. Build logs live in the Cloudflare dashboard (Workers & Pages → `noexplorer-site` → Deployments), not under Actions.
 - **"A timestamp was expected but was not found" in the macOS release job** is Apple's timestamp server failing, not our code. Re-run only that job (`gh run rerun <id> --failed`); it uploads into the same draft and tauri-action merges its entries into `latest.json`.
 - **The home page stays short on purpose** (maintainer, 2026-10-17): one message (local ↔ remote transfer), the mockup, download, three points, measured benchmarks (only numbers we measured: ADR-022 scanner vs du/ncdu, Nextcloud session reuse). Feature detail goes into the docs pages, not `site/src/pages/index.astro`. Emoji and the app mockup keep it lively without more text.

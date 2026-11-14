@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Keeps NoExplorer's build output within the storage policy (CLAUDE.md → "Storage policy").
+# Keeps NoExplorer's build output within the storage policy (AGENTS.md → "Storage policy").
 #
 # Limits: src-tauri/target ≤ 12 GB, and ≥ 60 GB free on its disk.
 # Cleans in tiers, cheapest rebuild first, and never touches dependency artifacts

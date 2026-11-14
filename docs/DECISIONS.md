@@ -444,7 +444,7 @@ Transfers never trash anything.
 <a id="adr-024"></a>
 
 ## ADR-024: Lean dev builds (desktop-only crate type, no dependency debug info)
-Accepted · 2026-10-16 · see the storage policy in `CLAUDE.md`
+Accepted · 2026-10-16 · see the storage policy in `AGENTS.md`
 
 **Context.** `src-tauri/target` had reached 22 GB and grew by GB a day. With the template
 profile, one clean dev build plus clippy left 5.1 GB, 3.7 GB of it dependency objects with full
