@@ -51,7 +51,7 @@ percent-encoding = "2"
 sha1 = "0.11"
 # Compare (compare.rs): S3 ETags are MD5s; already built for aws-smithy-checksums.
 md-5 = "0.11"
-base64 = "0.22"
+base64 = "0.23"
 keyring = "4.2.0"
 # Self-signed HTTPS (tls.rs): certificate pinning on rustls, and reqwest as the S3 SDK's HTTP client
 # for pinned accounts. All already built for reqwest / the AWS SDK.
