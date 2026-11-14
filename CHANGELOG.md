@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.40] - 2026-11-14
+
 ### Changed
 - **Files dropped from Finder / Explorer onto a remote view** now also open their folder in the left
   pane, with them selected, so you see where the upload comes from.
