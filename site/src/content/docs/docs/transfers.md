@@ -10,7 +10,11 @@ sidebar:
 - Drag from the left pane to the right one to **upload**, and the other way to **download**.
 - Drop on a folder row or a part of the path bar to put the files there. Anywhere else, they go to the folder you're in.
 - Or select files and press <kbd>F5</kbd> (or <kbd>⌘ ↵</kbd>, <kbd>Ctrl ↵</kbd> on Windows and Linux).
-- You can also drop files from Finder or Explorer straight onto the right pane.
+- You can also drop files from Finder or Explorer straight onto the right pane. The left pane opens
+  the folder they came from, with them selected, and the upload starts.
+- Dropping files from Finder or Explorer on the left pane **moves** them into the folder it shows
+  (or the folder you drop on). Nothing is replaced: a name that's already taken is skipped with a
+  message. Moves stay on the same disk, and ⌘Z puts them back.
 
 Folders keep their structure. Six files move at a time, and big files go up in parallel parts.
 

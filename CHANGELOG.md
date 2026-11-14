@@ -5,6 +5,19 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Files dropped from Finder / Explorer onto a remote view** now also open their folder in the left
+  pane, with them selected, so you see where the upload comes from.
+
+### Added
+- **Drop files from Finder / Explorer onto the left pane to move them** into the folder it shows
+  (or the folder you drop on). Nothing is replaced, moves stay on the same disk, and ⌘Z undoes it.
+
+### Fixed
+- **Files dropped from Finder landed in the wrong place on Retina screens** (macOS, Linux): the
+  drop point was halved, so a drop on the right pane counted as the left pane, and a drop in a
+  folder's empty space went into a subfolder higher up.
+
 ## [0.4.39] - 2026-11-05
 
 ### Changed

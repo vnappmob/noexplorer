@@ -624,6 +624,18 @@ export class Pane {
     this.reveal(i);
   }
 
+  /** Selects the rows whose keys are in `keys` (trailing separators ignored) and scrolls to the first. */
+  selectKeys(keys: string[]) {
+    const norm = (k: string) => k.replace(/[\\/]+$/, "");
+    const want = new Set(keys.map(norm));
+    const hit = this.view.filter((e) => want.has(norm(e.key)));
+    this.selected = new Set(hit.map((e) => e.key));
+    this.anchor = hit.length ? this.view.indexOf(hit[0]) : -1;
+    this.paint();
+    if (this.anchor >= 0) this.reveal(this.anchor);
+    return hit;
+  }
+
   /** Index of the first selected row in `view`, or -1. */
   cursor() {
     return this.view.findIndex((e) => this.selected.has(e.key));

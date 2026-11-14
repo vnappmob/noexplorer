@@ -37,7 +37,8 @@ and you're done.
 
 - **Two panes**: your computer on the left, the bucket on the right. Drag either way to
   upload or download. Drop onto a folder or a breadcrumb to target it.
-- **Drop from Finder / Explorer** onto the bucket pane. Folders keep their structure.
+- **Drop from Finder / Explorer** onto the bucket pane to upload (the left pane opens their folder),
+  or onto the left pane to move them there. Folders keep their structure.
 - **Fast**: 6 files in parallel; large files use multipart upload with 4 parts in flight.
 - **Quick look** with Space: images, video, audio, PDF and text, local or remote.
 - **Folder sizes as you browse**, faster than ncdu: every folder on this computer gets its size

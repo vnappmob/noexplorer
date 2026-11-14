@@ -167,7 +167,9 @@ clicked. `updater.ts` runs a manual check. **`"tray-open-account"`** (payload: p
 pane to that account (or opens the account form) and focuses it.
 
 The UI also uses Tauri's built-in **drag-drop** events (`getCurrentWebview().onDragDropEvent`)
-for files dragged in from the OS.
+for files dragged in from the OS. A drop on a remote view first opens the files' folder in the
+left pane (`local.go` + `selectKeys`, when they share one) and then uploads; a drop on the left
+pane is a `move_local` into the target folder (same disk, never overwrite, undoable).
 
 ## Data flows
 

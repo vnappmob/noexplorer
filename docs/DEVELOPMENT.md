@@ -151,7 +151,8 @@ Run against `dev-s3.sh` **and**, before a release, against a real MinIO.
 - [ ] Left pane: Places menu, breadcrumbs, ↑, filter, sorting, show hidden files
 - [ ] Drag a file and a folder left → right; drop on a folder row and on a breadcrumb
 - [ ] Drag right → left (file and folder). A name collision gives `name (1).ext`
-- [ ] Drag a file from Finder/Explorer onto the right pane; dropping on the left pane shows a hint and does nothing
+- [ ] Drag files from Finder/Explorer (e.g. Downloads) onto the right pane: the left pane opens Downloads with them selected, the beam starts there, the upload runs
+- [ ] Drag files from Finder/Explorer onto the left pane: they move into its folder (or the folder row under the pointer); a taken name is skipped with a message; ⌘Z moves them back; dropping into the folder they're already in says so
 - [ ] Multi-select (⌘/Ctrl-click, Shift-click, ⌘A) and drag the selection
 - [ ] A big file (> 1 GB): progress, speed, **Cancel** (no leftover `.part`, multipart aborted)
 - [ ] Space preview: image, video, PDF, text (local and remote); ←/→ steps; Esc closes
