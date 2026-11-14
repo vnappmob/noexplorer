@@ -87,7 +87,8 @@ Next for them: real-world runs, then graduating each one out of Experimental.
   local images; presigned GETs for remote).
 - **Inspector pane**: metadata, S3 headers/tags/storage class, versions (and restoring one).
 - **Persist the size index** between launches (compact binary file, validated by folder mtimes).
-- **Drag out to Finder/Explorer** (native drag-start, downloads to temp first; `dnd.ts`).
+- **Drag out to other apps**: ✅ macOS (ADR-053, `dragout.rs`). Next: Windows (`IDropSource` +
+  `DoDragDrop`), Linux (GTK), file promises for Finder (download on drop).
 - **Pagination UX** for huge S3 prefixes: stream pages into the virtualized list
   (`remote.rs::list`).
 - **Linux live updates below a root** (fanotify where allowed, or a polling fallback), so the size
@@ -105,7 +106,7 @@ Next for them: real-world runs, then graduating each one out of Experimental.
 
 ## Known limitations (also in README)
 
-- You can't drag from the app out to Finder/Explorer. Use the left pane instead.
+- Dragging out of the app to other apps is macOS only (ADR-053). Elsewhere, use the left pane.
 - Self-signed HTTPS certificates are rejected.
 - Local files are only ever moved to the Trash, never deleted permanently (ADR-006/023).
 - Re-uploading always re-sends the bytes; there is no dedup or sync logic yet.

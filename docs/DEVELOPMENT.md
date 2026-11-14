@@ -152,6 +152,7 @@ Run against `dev-s3.sh` **and**, before a release, against a real MinIO.
 - [ ] Drag a file and a folder left → right; drop on a folder row and on a breadcrumb
 - [ ] Drag right → left (file and folder). A name collision gives `name (1).ext`
 - [ ] Drag files from Finder/Explorer (e.g. Downloads) onto the right pane: the left pane opens Downloads with them selected, the beam starts there, the upload runs
+- [ ] (macOS) Drag local rows past the window edge onto a browser's upload box and onto Finder: the file arrives; dropping back on the app does nothing. Remote files: "Preparing…", then the drag starts; releasing before that drops nothing
 - [ ] Drag files from Finder/Explorer onto the left pane: they move into its folder (or the folder row under the pointer); a taken name is skipped with a message; ⌘Z moves them back; dropping into the folder they're already in says so
 - [ ] Multi-select (⌘/Ctrl-click, Shift-click, ⌘A) and drag the selection
 - [ ] A big file (> 1 GB): progress, speed, **Cancel** (no leftover `.part`, multipart aborted)

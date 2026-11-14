@@ -12,6 +12,9 @@ versions: [SemVer](https://semver.org/).
 ### Added
 - **Drop files from Finder / Explorer onto the left pane to move them** into the folder it shows
   (or the folder you drop on). Nothing is replaced, moves stay on the same disk, and ⌘Z undoes it.
+- **Drag files out of NoExplorer** (macOS): drag rows past the window's edge onto a browser's
+  upload box, Finder or Mail. Remote files and folders (up to 200 MB) are downloaded first, then the drag
+  starts; keep the button down until it does.
 
 ### Fixed
 - **Files dropped from Finder landed in the wrong place on Retina screens** (macOS, Linux): the

@@ -76,8 +76,10 @@ libc = "0.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # NSFileManager trashItemAtURL (trash.rs), volume capacity (local.rs); already in the tree via Tauri.
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSFileManager", "NSURL", "NSString", "NSError", "NSValue"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSFileManager", "NSURL", "NSString", "NSError", "NSValue", "NSArray", "NSGeometry", "NSProcessInfo"] }
 objc2 = "0.6"
+# Drag files out to other apps (dragout.rs, ADR-053): AppKit drag sessions; already in the tree via Tauri.
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSResponder", "NSView", "NSWindow", "NSEvent", "NSGraphicsContext", "NSDragging", "NSDraggingItem", "NSDraggingSession", "NSImage", "NSPasteboard", "NSWorkspace"] }
 
 # Dev/test builds: line tables for our code (backtraces keep file:line), no debug info for
 # dependencies. No split-debuginfo setting: macOS already defaults to "unpacked", and "unpacked"

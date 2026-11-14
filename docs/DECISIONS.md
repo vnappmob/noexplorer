@@ -1105,3 +1105,35 @@ to 5 MB/s, 40 s 12 Mbps H.264 with its index at the end: first frame in 0.17 s t
 versus 0.24 s from a direct link (the S3 case), and a seek to 30 s in 1.5 s for both. Not yet seen
 in the real app window. The token lives only in memory and changes every launch; a local program
 that could read the app's memory could already read its keychain items.
+
+## ADR-053: Drag out to other apps with our own native drag session (macOS first)
+
+**Context.** Users want to drop files from NoExplorer onto a browser's upload box (or Finder,
+Mail). A webview can't hand real files to other apps through HTML5 drag & drop, and the app
+doesn't use HTML5 DnD anyway (ADR-003). Only a native drag session carrying file URLs works. The
+`drag` crate (CrabNebula) does that, but everything it needs (objc2, objc2-app-kit, windows, gtk)
+is already in the tree through Tauri, and the roadmap prefers our own small code over crates.
+
+**Decision.** `dragout.rs` starts the session itself: about 60 lines of AppKit (an
+`NSDraggingSource` that allows Copy outside the app only, an `NSDraggingItem` per file URL with its
+Finder icon, a synthesized left-mouse-dragged event, `beginDraggingSession` on the window's content
+view). `dnd.ts` hands over when the in-app drag (still mouse events) leaves the window with the
+button down. Remote files are downloaded first into `$TMP/noexplorer/drag-<uuid>/` (wiped at
+launch): browsers only take files that exist, and file promises work with Finder and Mail only.
+Remote folders are listed (`Remote::list_all`) and rebuilt there, empty ones included. Drags over
+200 MB, counted after listing and before any download, are refused with a message (download
+first; the backend checks, since folder sizes are usually unknown in the list). If the button
+came up while downloading, `drag_out` refuses to start (`pressedMouseButtons`), so nothing is
+dropped by accident. No new crate: only extra features of `objc2-app-kit` / `objc2-foundation`.
+
+**Timing.** Started once the pointer had left the window, the session began over the other app,
+which only noticed the drag on the next mouse move (users had to nudge it). So the session starts
+8 px inside the window edge, and crossing into the other app is that move. Remote items start
+downloading 64 px from the edge, so they're usually ready by then; a drag that comes near the edge
+and turns back has downloaded for nothing (bounded by the 200 MB cap, wiped at launch). When the
+download finishes after the pointer is already over the other app, the nudge is still needed.
+
+**Consequences.** macOS only for now. Windows (COM `IDropSource` + `CF_HDROP` + `DoDragDrop`) and
+Linux (GTK `drag_begin` with `text/uri-list`) need real machines to try; until then the drag just
+stays inside the window there. Remote drag-outs are copies in the temp folder, so ADR-006 holds.
+Not yet tried in the real app window (written and checked with clippy only).

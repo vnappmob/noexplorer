@@ -48,6 +48,7 @@ This is the deep reference. For orientation, read [AGENTS.md](../AGENTS.md) firs
 | `remote.rs` | Browsing commands | Thin wrappers over `Remote`: `list_buckets`, `list`, `remote_size`, `presign`, `media_url`, `read_text`, `mkdir`, `delete` |
 | `stream.rs` | Media stream | Loopback HTTP server on 127.0.0.1 (random port, secret token in the path) that relays a provider's ranged GET to the webview's player as bytes arrive, for video/audio previews without presigned URLs (ADR-052) |
 | `transfer.rs` | Transfer jobs | `upload`, `download`, `open_object`: expand files, schedule `FILE_CONCURRENCY` at a time, call `Remote::upload_file` / `download_file` |
+| `dragout.rs` | Drag out to other apps | `drag_out` (native AppKit drag session with file URLs, macOS only so far), `drag_out_prepare` (remote files → `$TMP/noexplorer/drag-<uuid>/`) (ADR-053) |
 | `local.rs` | Local disk (left pane) | `list_local` (+ crumbs and Places roots; tells `sizes` which private folders were opened), `local_size`, `read_local_text`, `mkdir_local`, `open_local`, `reveal` |
 | `scan.rs` | Folder-size engine | Parallel scanner (`scan`, `Totals`, `Sink`), macOS `getattrlistbulk` fast path, generic `read_dir` (ADR-022) |
 | `sizes.rs` | Live size index | `SizeIndex` (index of watched roots, focus folder, batched `"dir-sizes"` events), polite auto-scan policy, `notify` watchers, `folder_sizes` / `stop_sizes` |
@@ -115,6 +116,8 @@ means the active account (ADR-025).
 | `upload` | `bucket, prefix, paths` | job id | transfer | `paths` are absolute local files or folders. Folders keep their structure |
 | `download` | `bucket, prefix, items[{key,size}], dest?` | job id | transfer | Writes to `dest` (the left pane's folder), else to the configured or OS Downloads folder |
 | `open_object` | `bucket, key` | – | transfer | Downloads to `$TMP/noexplorer/<uuid>/` and opens with the default app |
+| `drag_out` | `paths` | – | dragout | Starts a native drag of local files from under the pointer (macOS; errors elsewhere, or when the button is already up) |
+| `drag_out_prepare` | `bucket, keys` | `string[]` | dragout | Downloads remote files to `$TMP/noexplorer/drag-<uuid>/` for `drag_out`; returns their paths |
 | `cancel` | `id` | – | jobs | Sets the job's cancel flag. In-flight multipart uploads are aborted |
 | `list_local` | `path?, hidden` | `LocalListing` | local | No `path` means the home folder. Includes `crumbs`, `roots` (Places, with "☁ " cloud places), `cloud` (mount points of online-only cloud folders → service) and `online` (online-only placeholders) |
 | `read_local_text` | `path, max` | string | local | |

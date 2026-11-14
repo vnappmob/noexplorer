@@ -48,6 +48,14 @@ Drag files from one view to another to **copy between accounts**, for example fr
 
 From the left pane, <kbd>F5</kbd> sends files to the view you used last. It has a colored bar when several are open.
 
+## Drag out to other apps
+
+On macOS you can drag files out of NoExplorer onto a browser's upload box, Finder or Mail: drag the
+rows past the edge of the window and keep going. Remote files and folders are downloaded first (up
+to 200 MB in one drag, counting everything inside folders), then the drag starts; keep the mouse
+button down until it does. For more than that, download them, then drag them from the left pane.
+
 :::note
-You can't drag files from NoExplorer out to Finder or Explorer yet. Drop them on the left pane instead.
+On Windows and Linux, dragging out of NoExplorer isn't available yet. Drop files on the left pane
+instead.
 :::

@@ -5,9 +5,13 @@
 //    See ADR-003.
 // 2. Files dragged in from Finder / Explorer arrive via Tauri's `onDragDropEvent` with
 //    absolute paths; dropping them on a remote view uploads them, on the left pane moves them.
+// 3. Dragging out to other apps (a browser's upload box, Finder…): when an in-app drag leaves the
+//    window with the button down, dragout.rs takes over with a native drag session (macOS only so
+//    far, ADR-053). Remote files are downloaded to a temp folder first.
 //
 // Drop targets: a folder row, a breadcrumb, or anywhere else in the pane (= its current folder).
 
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { transfer } from "./actions";
 import { moveItems } from "./fileops";
@@ -15,7 +19,7 @@ import type { Pane } from "./pane";
 import { local, paneOf } from "./panes";
 import { activeProfile } from "./state";
 import type { Item } from "./types";
-import { $, plural, toast } from "./util";
+import { $, fail, fmtSize, plural, toast } from "./util";
 
 type DropTarget = { pane: Pane; dir: string; el: Element | null };
 
@@ -57,6 +61,10 @@ let drag: {
   /** Row to single-select on a plain click (no drag) on an already-selected row; -1 = none. */
   collapseTo: number;
   target: DropTarget | null;
+  /** Left the window: handed to a native drag-out (or preparing one). */
+  out: boolean;
+  /** Remote items being downloaded for a drag-out, started near the window edge. */
+  prep?: Promise<string[]>;
 } | null = null;
 
 const DRAG_THRESHOLD = 5;
@@ -64,7 +72,73 @@ const DRAG_THRESHOLD = 5;
 /** Called from the row mousedown handler (main.ts) to arm a potential drag. */
 export function armDrag(from: Pane, x: number, y: number, collapseTo: number) {
   const items = from.selectedItems();
-  if (items.length) drag = { from, items, x, y, active: false, collapseTo, target: null };
+  if (items.length) drag = { from, items, x, y, active: false, collapseTo, target: null, out: false };
+}
+
+// ---------- 3. drag out to other apps ----------
+
+const CAN_DRAG_OUT = navigator.userAgent.includes("Mac");
+/** Remote files are downloaded before the drag can start; past this, downloading first is better.
+ *  Same limit as `dragout.rs` `DRAG_OUT_MAX`, which also counts what's inside folders. */
+const DRAG_OUT_MAX = 200 * 1024 * 1024;
+
+/**
+ * The native session starts this close to the window edge, still inside it. Started after the
+ * pointer had left, it began over the other app, which only noticed the drag on the next mouse
+ * move (the "nudge it a bit" lag). Started here, crossing into the other app is that move.
+ */
+const OUT_EDGE = 8;
+/** Remote items start downloading this close to the edge, so they're ready by the time it's crossed. */
+const PREP_EDGE = 64;
+
+/** Distance from the pointer to the nearest window edge (negative outside). */
+const edgeDistance = (ev: MouseEvent) =>
+  Math.min(ev.clientX, ev.clientY, window.innerWidth - 1 - ev.clientX, window.innerHeight - 1 - ev.clientY);
+
+/** Starts downloading a remote drag's items in the background; errors wait for the drag-out. */
+function prepare(d: NonNullable<typeof drag>) {
+  if (d.prep || !d.from.isRemote) return;
+  // Folder sizes are usually unknown here; the backend checks the real total after listing them.
+  if (d.items.reduce((s, e) => s + (e.dir ? 0 : e.size), 0) > DRAG_OUT_MAX) return;
+  d.prep = invoke<string[]>("drag_out_prepare", { ...d.from.where(), keys: d.items.map((e) => e.key) });
+  d.prep.catch(() => {}); // reported by dragOut, if the drag gets there
+}
+
+async function startDragOut(paths: string[]) {
+  try {
+    await invoke("drag_out", { paths });
+  } catch (e) {
+    // Released before the files were ready: simply no drag.
+    if (!/released/i.test(String(e))) fail(e);
+  }
+}
+
+/** The in-app drag left the window: hand it to the system so other apps can take the files. */
+async function dragOut() {
+  const d = drag;
+  if (!CAN_DRAG_OUT || !d?.active || d.out) return;
+  d.out = true;
+  d.target = null;
+  highlight(null);
+  if (!d.from.isRemote) {
+    endDrag();
+    return startDragOut(d.items.map((e) => e.key));
+  }
+  prepare(d);
+  if (!d.prep) {
+    endDrag();
+    return toast(`Over ${fmtSize(DRAG_OUT_MAX)}: download first, then drag from the left pane`, true);
+  }
+  $("ghost").textContent = `Preparing ${d.items.length === 1 ? d.items[0].name : plural(d.items.length, "item")}…`;
+  try {
+    const paths = await d.prep;
+    if (drag !== d) return; // the button came up while downloading
+    endDrag();
+    await startDragOut(paths);
+  } catch (e) {
+    if (drag === d) endDrag();
+    fail(e);
+  }
 }
 
 function endDrag() {
@@ -76,7 +150,12 @@ function endDrag() {
 
 function setupInternalDrag() {
   document.addEventListener("mousemove", (ev) => {
-    if (!drag) return;
+    if (!drag || drag.out) return;
+    if (drag.active && CAN_DRAG_OUT) {
+      const edge = edgeDistance(ev);
+      if (edge < OUT_EDGE) return void dragOut();
+      if (edge < PREP_EDGE) prepare(drag);
+    }
     if (!drag.active) {
       if (Math.hypot(ev.clientX - drag.x, ev.clientY - drag.y) < DRAG_THRESHOLD) return;
       drag.active = true;
@@ -107,7 +186,11 @@ function setupInternalDrag() {
     else if (d.active && d.target) transfer(d.from, d.items, d.target.dir, d.target.pane);
     else if (!d.active && d.collapseTo >= 0) d.from.selectIndex(d.collapseTo);
   });
-  window.addEventListener("blur", endDrag);
+  // WebKit keeps sending moves past the window edge while the button is down; this covers it if not.
+  document.addEventListener("mouseleave", () => void dragOut());
+  window.addEventListener("blur", () => {
+    if (!drag?.out) endDrag();
+  });
 }
 
 // ---------- 2. drops from the OS ----------

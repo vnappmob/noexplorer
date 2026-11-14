@@ -26,6 +26,7 @@ mod cloud;
 mod compare;
 mod config;
 mod diag;
+mod dragout;
 mod fileops;
 mod jobs;
 mod local;
@@ -135,6 +136,8 @@ pub fn run() {
             transfer::upload,
             transfer::download,
             transfer::open_object,
+            dragout::drag_out,
+            dragout::drag_out_prepare,
             local::list_local,
             local::local_size,
             local::volume_info,

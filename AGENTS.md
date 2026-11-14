@@ -84,6 +84,7 @@ src-tauri/src/       Backend (Rust). Entry: lib.rs run() registers every command
   cloud.rs           Online-only cloud folders by location (CloudStorage, iCloud, OneDrive, Google Drive volume): never scanned, ☁, Places Cloud group
   search.rs          Name search: query matcher (words, globs, ext:), parallel local walker streaming "search" events, remote via list_files
   sizes.rs           Live size index: background scans, watchers, "dir-sizes" events, remembered totals (folder-sizes.json)
+  dragout.rs         Drag out to other apps (macOS): native AppKit drag session; remote files downloaded to temp first (ADR-053)
   trash.rs           Move to Trash (macOS / Windows / freedesktop), no extra crates
   diag.rs            Diagnostic log: failed server requests (redacted) in the OS log folder; `log_file` command
   tray.rs            Tray/menu-bar icon: live transfer status, Show/Updates/Quit, hide-to-tray

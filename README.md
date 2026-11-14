@@ -158,7 +158,8 @@ shortcuts, FAQ and [privacy](https://noexplorer.vnappmob.com/docs/privacy).
 
 ## Limitations
 
-- You can't drag files from the app out to Finder/Explorer yet. Drop them in the left pane instead.
+- Dragging files out of the app (to a browser, Finder, Mail) works on macOS only so far; remote
+  files and folders up to 200 MB per drag. On Windows/Linux, drop them in the left pane instead.
 - Self-signed HTTPS certificates need the experimental option above (one pinned certificate per
   account); TLS checks are never switched off.
 - Copying between two different accounts goes through your computer, one file at a time
