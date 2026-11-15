@@ -18,7 +18,8 @@ export type ProviderId =
   | "onedrive"
   | "gcs"
   | "azure"
-  | "sftp";
+  | "sftp"
+  | "iphone";
 
 /** Providers shown in the picker only with their Settings → Experimental switch on. */
 export const EXPERIMENTAL_PROVIDERS: Partial<Record<ProviderId, keyof Experimental>> = {
@@ -197,6 +198,17 @@ export const PRESETS: Record<ProviderId, Preset> = {
     pathStyle: true,
     matches: () => false,
   },
+  iphone: {
+    kind: "iphone",
+    label: "iPhone / iPad",
+    hint: "Connect it with a cable, unlock it and tap Trust if it asks. You get the media area (photos and videos in DCIM, Downloads…) and the files of apps that share them, like in Files → On My iPhone. On Windows, install Apple Devices (or iTunes) first.",
+    endpointPlaceholder: "",
+    endpointRequired: false,
+    regionPlaceholder: "",
+    region: "",
+    pathStyle: true,
+    matches: () => false,
+  },
 };
 
 export function endpointHost(endpoint: string) {
@@ -218,6 +230,7 @@ export function describeAccount(p: Profile) {
   if (id === "box") return "Box";
   if (id === "onedrive") return p.access_key ? `OneDrive · ${p.access_key}` : "OneDrive";
   if (id === "sftp") return `SFTP · ${endpointHost(p.endpoint)}`;
+  if (id === "iphone") return p.endpoint ? "iPhone / iPad · by cable" : "Any connected iPhone / iPad";
   if (id === "azure") return `Azure · ${endpointHost(azureEndpoint(p)).split(".")[0]}`;
   if (id === "nextcloud" || id === "webdav") return `${PRESETS[id].label} · ${endpointHost(p.endpoint)}`;
   if (id === "aws") return p.region ? `AWS S3 · ${p.region}` : "AWS S3";
@@ -233,6 +246,8 @@ export const azureEndpoint = (p: Pick<Profile, "endpoint" | "access_key">) =>
 export const isS3 = (p: Pick<Profile, "kind"> | null | undefined) => !p?.kind || p.kind === "s3";
 /** Accounts with several containers (a bucket picker): S3 buckets, Azure containers. */
 export const hasContainers = (p: Pick<Profile, "kind"> | null | undefined) => isS3(p) || p?.kind === "azure";
+/** Accounts whose containers can be made here. */
+export const canMakeContainers = (p: Pick<Profile, "kind"> | null | undefined) => isS3(p) || p?.kind === "azure";
 
 /** How a provider looks in the picker and the account list: a monogram badge on a hue, a short
  * line, and its group. Plain monograms, not logos: the names are the vendors' trademarks. */
@@ -251,6 +266,7 @@ export const LOOK: Record<ProviderId, { mono: string; hue: number; blurb: string
   sftp: { mono: ">_", hue: 165, name: "SFTP", blurb: "Any SSH server" },
   box: { mono: "box", hue: 212, name: "Box", blurb: "Your own Box app · beta" },
   onedrive: { mono: "OD", hue: 214, name: "OneDrive", blurb: "Sign in with Microsoft" },
+  iphone: { mono: "iP", hue: 265, name: "iPhone / iPad", blurb: "By cable · experimental" },
 };
 
 export const PICKER_GROUPS: { title: string; ids: ProviderId[] }[] = [

@@ -108,6 +108,7 @@ Next for them: real-world runs, then graduating each one out of Experimental.
 
 - Dragging out of the app to other apps is macOS only (ADR-053). Elsewhere, use the left pane.
 - Self-signed HTTPS certificates are rejected.
+- iPhone / iPad (experimental, ADR-054): only the media area and apps that share files, by cable; files copied into the media area don't appear in Photos. Other apps' files only from a backup (ADR-055): read-only, and not from encrypted backups yet. Android phones (MTP) aren't supported yet.
 - Local files are only ever moved to the Trash, never deleted permanently (ADR-006/023).
 - Re-uploading always re-sends the bytes; there is no dedup or sync logic yet.
 - Linux: folder sizes and the live view only follow changes at the top of a scanned folder.

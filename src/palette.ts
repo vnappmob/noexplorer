@@ -10,6 +10,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { calcSize, deleteRemote, mkdir, paneAction, remoteName, transfer, trashLocal, TRASH_LABEL } from "./actions";
 import { describeAccount } from "./providers";
 import { openCompare } from "./compare";
+import { backUp, canBackUp, deleteBackup } from "./iphonebackup";
 import { setTextSize, setTheme, appearance } from "./appearance";
 import { icon } from "./icons";
 import type { Pane } from "./pane";
@@ -51,6 +52,10 @@ function build(): Entry[] {
   cmd("New folder", "folderPlus", () => mkdir(active));
   if (canCreateBuckets(remote))
     cmd(remote.profile()?.kind === "azure" ? "New container…" : "New bucket…", "plus", () => newBucket(remote));
+  if (canBackUp(remote)) {
+    cmd("Back up iPhone to read app files…", "archive", () => backUp(remote));
+    cmd("Delete iPhone backup…", "trash", () => deleteBackup(remote));
+  }
   if (canManagePolicy(remote)) cmd(`Access policy for “${remote.bucket}”…`, "key", () => openPolicy(remote));
   if (canSpeedTest())
     cmd("Speed test…", "gauge", () =>

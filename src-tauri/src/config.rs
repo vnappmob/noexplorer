@@ -37,6 +37,9 @@ pub enum ProviderKind {
     /// OneDrive through Microsoft Graph: `access_key` = the signed-in email (display only), refresh
     /// token in the keychain (`onedrive.rs`).
     Onedrive,
+    /// iPhone / iPad over a cable (experimental): `endpoint` = the device's UDID, "" = whichever is
+    /// connected (`iphone.rs`).
+    Iphone,
 }
 
 /// One remote account. Mirrors `Profile` in `src/types.ts`.
@@ -133,6 +136,8 @@ pub struct Experimental {
     pub remote_sizes: bool,
     /// Speed test between this computer and remotes, or two remotes.
     pub speed_test: bool,
+    /// iPhone / iPad accounts: the media area and apps' shared files over a cable (iphone.rs).
+    pub iphone: bool,
 }
 
 /// Everything in `config.json`. Mirrors `Settings` in `src/types.ts`.
@@ -184,6 +189,9 @@ impl Settings {
 fn default_name(p: &Profile) -> String {
     if p.kind == ProviderKind::S3 && is_aws(p) {
         return "AWS S3".into();
+    }
+    if p.kind == ProviderKind::Iphone {
+        return "iPhone".into();
     }
     let host = endpoint_host(&p.endpoint);
     if host.is_empty() { "S3".into() } else { host }

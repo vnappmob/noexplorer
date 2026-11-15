@@ -1137,3 +1137,127 @@ download finishes after the pointer is already over the other app, the nudge is 
 Linux (GTK `drag_begin` with `text/uri-list`) need real machines to try; until then the drag just
 stays inside the window there. Remote drag-outs are copies in the temp folder, so ADR-006 holds.
 Not yet tried in the real app window (written and checked with clippy only).
+
+## ADR-054: iPhone / iPad over the system's usbmuxd, with the `idevice` crate (experimental)
+
+**Context.** Users want to move files to and from a phone plugged into the computer. iOS shares
+two areas over USB without a jailbreak, both through Apple File Conduit (AFC): the media area
+(DCIM, Downloads, Books…) and the Documents folder of each app that sets `UIFileSharingEnabled`
+(house_arrest `VendDocuments`, Finder's "Files" tab). AFC still works this way on iOS 17/18; only
+developer services moved to RemoteXPC. The usual library is libimobiledevice (C, LGPL), which would
+have to be bundled for three OSes.
+
+**Decision.** A new provider, `Remote::IPhone` (`iphone.rs`), on the `idevice` crate: pure Rust,
+MIT, maintained and used by shipping apps; pinned (`=0.1.68`) because every 0.1.x release breaks
+its API. Features `usbmuxd`, `afc`, `house_arrest` and `ring` (the tree's rustls provider): 5 new
+crates. It talks to the OS's usbmuxd (macOS built in; Apple Devices / iTunes on Windows at
+127.0.0.1:27015; the `usbmuxd` package on Linux), so no driver ships with the app.
+
+- **Account = device.** `endpoint` holds the UDID ("" = whichever is connected), chosen in the form
+  from `iphone_devices`. A device that's unplugged is a connection error with Try again, like an
+  unreachable server; nothing appears or disappears on its own (ADR-029 keeps one model).
+- **Containers** are "Media" plus one per file-sharing app, named after the app (with its bundle id
+  when two names clash). The app list comes from installation_proxy `Browse`, spoken directly (four
+  plist frames) rather than through the crate's feature, which brings zip support for installs.
+- **No pairing of our own.** The `pair` feature would add 27 crates (rsa, x509-cert…). The system
+  already answers "Trust This Computer?" and keeps the pair record in usbmuxd; without one, the
+  error tells the user to unlock the phone and tap Trust (on Windows, to open Apple Devices once).
+- **Connections.** AFC is one request at a time per connection, so a few connections per container
+  are pooled (`POOL` = 4) and a listing stats its entries over all of them (one stat per entry is
+  how AFC lists). A pooled connection found dead is replaced once. The pooled-connection helper is a
+  macro: a method taking an async closure over `&mut AfcClient` made rustc unable to prove the
+  futures `Send` (higher-ranked lifetimes), which Tauri commands need.
+- **Writes** go to `.name.noexplorer-part` and are renamed into place (as SFTP does); copies on the
+  device pass through the app (AFC has no copy). Previews go through `nxr://` / the stream, which
+  read with `read_range`. Two files at a time: they share one USB link.
+
+**Consequences.** Files copied into the media area don't show up in Photos (that needs Photos'
+database; importing is a different feature). Checked against the real usbmuxd on macOS (it answers
+and lists devices) and with unit tests for paths, device choice, app names and the Browse exchange;
+the AFC round trip (`iphone_roundtrip`, `NOEXPLORER_TEST_IPHONE=1`) hasn't run on a real iPhone
+yet, so it stays experimental until it has, on macOS and on Windows with Apple Devices.
+
+**Update (devices without accounts).** A phone isn't something to configure: `devices.rs` follows
+usbmuxd's attach/detach events (its own thread: the listen stream isn't `Send`; idle while the
+experiment is off; reconnects every 3 s when usbmuxd is missing) and keeps the list the account
+menu shows under **Devices**: connected devices, one row per UDID with name/model from lockdown
+(no pairing needed) and whether a pair record exists (re-checked every 3 s until it does: tapping
+Trust sends no event), plus devices that only have a backup here. Changes are emitted as
+`"iphone-devices"`. A view on a device uses the account id `iphone:<UDID>`; `AppState::remote`
+builds that `Remote::IPhone` without a saved profile (refused while the experiment is off), and
+the UI builds its profile from the list (`profileOf` in state.ts). Devices never become the default
+account. Views on a device that comes or goes list again, so an unplugged phone falls back to its
+backup's containers or shows Try again. The "iPhone / iPad" entry left the Add account picker;
+accounts saved that way still work.
+
+**Update (folders, not buckets).** A phone has no buckets to pick: the account now has one
+container (`iphone::ROOT`) laid out as folders, `Media/`, `Apps/<app>/` and, once there's a
+backup, `Backup/<app>/`. `iphone::route` maps a key's first segments to the internal container
+(media area, an app's Documents, an app in the backup) and the rest of the key, so breadcrumbs,
+Back, the folder tree, search, Σ, favorites and Compare work across the whole device. The top level,
+`Apps/`, `Backup/` and each app's own folder are fixed: no uploads, folders, renames or deletes
+there. Copies between areas pass through the app (from the backup, files are uploaded from their
+backed-up copies); moves between areas are refused (copy, then delete). App names that contain
+`/` get `∕`. The backup actions moved from the bucket menu to the right-click menu (at the top of the
+device and in `Backup/`) and ⌘K.
+
+## ADR-055: Read apps' files from a backup NoExplorer makes itself (experimental)
+
+**Context.** Over USB iOS only shares the media area and the Documents folder of apps that turn
+on file sharing (ADR-054). Most apps (WhatsApp, Notes, most App Store apps) don't, and house_arrest
+`VendContainer` only opens apps signed for development. A device backup holds almost every app's
+data. Reading Finder's backups would need Full Disk Access on macOS (`MobileSync` is protected) and
+would depend on the user making them.
+
+**Decision.** NoExplorer asks the device for the backup itself, over mobilebackup2 (`idevice`'s
+`mobilebackup2` feature, no extra crates; its DeviceLink loop and file-system delegate do the
+protocol), into its own data folder (`<app data>/iphone-backups/<UDID>`, Finder's layout), as a job
+of kind `backup`. Around it, like libimobiledevice and pymobiledevice3: the AFC sync lock
+(`/com.apple.itunes.lock_sync`, refused while Finder syncs), and a check of `WillEncrypt` so an
+encrypted backup is refused before it starts instead of after an hour. The sync notifications
+(notification_proxy) are skipped.
+
+The backup is read from disk: `Manifest.db` (SQLite, through `rusqlite` with bundled SQLite: 5
+crates, one C library, no system SQLite to find on Windows) gives each file's domain, path and an
+NSKeyedArchiver `MBFile` with size and date. Each app becomes a read-only container `Backup · <app
+name>` (shown as the folder `Backup/<app name>/` since the folders update to ADR-054) (names saved from the device at backup time, so it works unplugged), holding its own domain
+plus `App Group · …` and `Extension · …` folders for the groups and extensions that belong to it;
+everything else (HomeDomain, MediaDomain…) is in `Backup · Other`. Writes there answer "read-only".
+The index is cached per account and read again when `Manifest.db` changes; during a backup the old
+one is kept. Deleting a backup moves it to the Trash (ADR-006/023 spirit: nothing permanent).
+
+**Consequences.** A backup is the whole device (no per-app backups since iOS 9's changes), as big as
+the phone's data, slow the first time and incremental after. Encrypted backups ("Encrypt local
+backup", required by some MDM setups and for Health/Keychain data) can't be read yet; decrypting
+them (keybag + per-file keys) is the next step if people need it. Restoring changes is out of
+scope. The reader is tested with a real SQLite manifest and archived metadata; the backup itself
+(`iphone_backup_roundtrip`) hasn't run on a real iPhone yet.
+
+**Update (failure handling).** Pulling the cable mid-backup hung forever: a socket to a vanished
+device doesn't reliably fail, and the cleanup (AFC unlock) waited on it too. Now every device
+request in `iphone.rs` is `guarded`: it ends when usbmuxd no longer lists the device's id (polled
+every 2 s while a request is in flight, so a replug with a new id counts too) or at a deadline
+(120 s per request, 20 s to connect, 5 s for usbmuxd itself), both treated as a lost connection
+that drops every pooled connection. The backup runs alongside a watchdog: unplugged, nothing from
+the device for 10 minutes (it may be waiting for its passcode, or preparing quietly), less than
+1 GB left on this computer's disk (2 GB needed to start), or cancel; the unlock and close get 3 s.
+A `noexplorer-incomplete` marker stays in the backup folder until a backup succeeds: the menu then
+offers "Finish the backup", and a manifest that can't be read is explained instead of shown as an
+SQLite error. Uploads cut off by a pulled cable leave `.name.noexplorer-part` on the device; listings
+hide them and the next upload of that file replaces them. `hung_requests_end` checks the guard
+against the real usbmuxd (an id it doesn't list ends the request in about 2 s).
+
+**Update (error 104, starting over).** A real 24 GB backup ended with MBErrorDomain 104 "Multiple
+errors uploading files" every time, after 120 k files. The crate's `MobileBackup2Client::connect`
+starts the service without the pair record's escrow keybag; Finder and libimobiledevice
+(`lockdownd_start_service_with_escrow_bag`) present it, which lets backupd read data-protected files
+while the screen is locked. Without it, files of protection classes A/B fail once the phone locks,
+and the device reports 104 at the end. `connect_backup` now starts mobilebackup2 with the
+`EscrowBag`. The failed backup on disk also showed why every retry started from zero: iOS writes a
+full backup into `Snapshot/` (Status.plist `SnapshotState` "uploading", `BackupState` "empty") and
+moves it into place only when it finishes, so an unfinished backup is never resumed. That isn't ours
+to change; messages now say so, and a first backup that never finished (no Manifest.db, only the
+`noexplorer-incomplete` marker) still shows `Backup/` with an explanation and can be deleted from
+the right-click menu to free its space. A 104 without an escrow keybag in the pair record suggests
+setting Auto-Lock to Never.
+

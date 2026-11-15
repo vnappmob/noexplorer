@@ -1,6 +1,7 @@
 // User actions that talk to the backend: transfer, open, link, delete, mkdir.
 // `paneAction` maps the context-menu / palette action names to these.
 
+import { backUp, deleteBackup } from "./iphonebackup";
 import { openSpeedTest } from "./speedtest";
 import { rememberRemote } from "./remotesizes";
 import { copyPublicLink, openPolicy } from "./policy";
@@ -217,6 +218,8 @@ export function paneAction(p: Pane, act: string) {
     "show-in-folder": () => one && showInFolder(p, one),
     "end-search": () => p.load(),
     link: () => one && copyLink(p, one),
+    "iphone-backup": () => backUp(p),
+    "iphone-delete-backup": () => deleteBackup(p),
     "public-link": () => one && copyPublicLink(p, one),
     // A selected folder is the one to suggest for "Public read: some folders".
     policy: () => openPolicy(p, one?.dir ? one.key : p.cwd),

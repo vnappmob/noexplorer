@@ -3,6 +3,7 @@
 import { paneAction, remoteName, TRASH_LABEL } from "./actions";
 import { canManagePolicy } from "./policy";
 import { canSpeedTest } from "./speedtest";
+import { backupHere } from "./iphonebackup";
 import { icon } from "./icons";
 import type { Pane } from "./pane";
 import { local, MAX_VIEWS, remote, remotes } from "./panes";
@@ -47,6 +48,12 @@ export function showMenu(p: Pane, x: number, y: number, above = false) {
   else items.push("-", ["mkdir", "New folder", "folderPlus"], ["refresh", "Refresh", "refresh"]);
   if (!p.isRemote) items.push(["hidden", app.showHidden ? "Hide hidden files" : "Show hidden files", "eye"]);
   if (canManagePolicy(p) && !p.search) items.push("-", ["policy", "Access policy…", "key"]);
+  // iPhone (experimental): every app's files come from a backup, shown in Backup/.
+  if (backupHere(p)) {
+    items.push("-", ["iphone-backup", "Back up iPhone to read app files…", "archive"]);
+    if (p.cwd.startsWith("Backup/") || p.entries.some((e) => e.key === "Backup/"))
+      items.push(["iphone-delete-backup", "Delete backup…", "trash"]);
+  }
   if (p.isRemote) {
     items.push("-");
     if (remotes.length < MAX_VIEWS) items.push(["split", "Split view: another account below", "split"]);

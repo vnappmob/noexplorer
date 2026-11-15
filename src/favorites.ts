@@ -5,7 +5,7 @@
 import { type Pane, paneHooks } from "./pane";
 import { local, remotes } from "./panes";
 import { loadBuckets } from "./settings";
-import { app } from "./state";
+import { profileOf } from "./state";
 import { store, toast } from "./util";
 
 export type Loc = { path: string; account?: string; bucket?: string };
@@ -19,8 +19,7 @@ const same = (a: Loc, b: Loc) => a.account === b.account && a.bucket === b.bucke
 function locName(l: Loc) {
   const base = trim(l.path).split(/[\\/]/).pop();
   if (base) return base;
-  if (l.account !== undefined)
-    return l.bucket || app.settings.profiles.find((x) => x.id === l.account)?.name || "Remote";
+  if (l.account !== undefined) return l.bucket || profileOf(l.account)?.name || "Remote";
   return l.path || "/";
 }
 

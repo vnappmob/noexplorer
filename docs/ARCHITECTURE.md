@@ -41,6 +41,9 @@ This is the deep reference. For orientation, read [AGENTS.md](../AGENTS.md) firs
 | `proxy.rs` | Preview proxy | The `nxr://` scheme: streams `Remote::read_range` to the webview with Range + CORS for providers without presigned URLs, local files (`~local`) and grid thumbnails (`~thumb`); answers on the main thread (ADR-035) |
 | `thumbs.rs` | Grid thumbnails | 256 px JPEG/PNG thumbnails, LRU caches in memory (16 MB) and on disk (48 MB); trims WebKit's disk cache at launch (ADR-036, ADR-037) |
 | `onedrive.rs` | OneDrive provider | `OneDrive`: Microsoft Graph by path, NoExplorer's public Entra app (PKCE, no secret), refresh token in the keychain, ≤ 4 MB PUT or 50 MiB upload-session chunks, 4 parallel ranged downloads ≥ 32 MiB, async copies via the monitor URL, recycle-bin deletes; `onedrive_login` (ADR-045) |
+| `devices.rs` | Connected iPhones / iPads (experimental) | usbmuxd listen on its own thread → the account menu's Devices group (`"iphone-devices"` event, `iphone_connected`); device accounts `iphone:<UDID>` without a saved profile (`profile`, used by `AppState::remote`) |
+| `iphone.rs` | iPhone / iPad provider (experimental) | `IPhone`: AFC over the system's usbmuxd (`idevice` crate), one container `iPhone` laid out as folders `Media/`, `Apps/<app>/`, `Backup/<app>/` (`route` → internal containers: media area, apps that share files (house_arrest VendDocuments, app list from installation_proxy Browse), a few pooled AFC connections per internal container, temp-name uploads renamed into place; `iphone_devices` (ADR-054) |
+| `iphone_backup.rs` | iPhone backups (experimental) | mobilebackup2 backup into the app data folder (`iphone-backups/<UDID>`, sync lock, encryption refused up front), `Index` from `Manifest.db` (SQLite) + archived `MBFile` sizes/dates, `Backup/<app>/` folders (app + its groups and extensions, the rest under `Other`); `iphone_backup`, `iphone_backup_info`, `iphone_delete_backup` (ADR-055) |
 | `box_api.rs` | Box provider (beta) | `BoxCom`: token refresh with rotation (keychain), path → ID cache, multipart and session uploads with SHA-1, versions, trash deletes, shared links; `box_login` (loopback OAuth) (ADR-027) |
 | `compare.rs` | Compare folders | `compare` / `diff`: local walk (junk, symlinks), `Remote::list_files` with hashes, pairing, parallel hash checks (MD5 / multipart ETag / SHA-1), `"compare-progress"` (ADR-028) |
 | `state.rs` | Shared state | `AppState { settings, remotes, cancels }`. **`remote(account)`** returns the cached `Arc<Remote>` for a profile id (active when `None`); `set_settings()` drops the clients of changed accounts only |
@@ -87,6 +90,11 @@ means the active account (ADR-025).
 | `nextcloud_login` | `server, id?, name` | `Settings` | webdav | Login Flow v2: opens the browser, polls until approved (20 min), saves the account with its app password in the keychain, makes it active |
 | `cancel_login` | – | – | webdav | Stops a waiting `nextcloud_login`, `box_login` or `onedrive_login` |
 | `onedrive_login` | `id?, name` | `Settings` | onedrive | Opens Microsoft's sign-in (auth code + PKCE) with a `http://localhost:<random port>` redirect, exchanges the code, saves the account (refresh token in the keychain) |
+| `iphone_connected` | – | `IPhoneDevice[]` (+ `connected`, `backup`) | devices | The Devices group: connected devices and those with a backup here; changes also arrive as the `"iphone-devices"` event |
+| `iphone_devices` | – | `IPhoneDevice[] {udid, name, class, model, usb, trusted}` | iphone | iPhones / iPads usbmuxd sees (cable before Wi-Fi), with whether the system has a pair record; name and model need no pairing |
+| `iphone_backup` | `account` | job id | iphone_backup | Backs up the account's iPhone (job kind `backup`; `bytes_total` is the device's estimate, `local_dir` the backup folder); refuses encrypted backups and a second backup of the same device |
+| `iphone_backup_info` | `account, size` | `IPhoneBackup {date, size?, encrypted, running}` or null | iphone_backup | The backup the account reads (its UDID, the connected device, else the latest); `size` walks it |
+| `iphone_delete_backup` | `account` | – | iphone_backup | Moves the backup folder to the Trash |
 | `box_login` | `client_id, client_secret, id?, name` | `Settings` | box_api | Opens Box's authorize page, waits on `127.0.0.1:53682/callback`, exchanges the code, saves the account (client secret + refresh token in the keychain) |
 | `compare` | `id, account?, bucket, prefix, local, verify` | `Diff` | compare | Local folder vs remote folder; emits `"compare-progress"`; `cancel(id)` stops it |
 | `upload_rel` | `account?, bucket, prefix, root, rels[]` | job id | transfer | Uploads `root/rel` to `prefix + rel` (Compare → Upload) |
@@ -134,7 +142,7 @@ The TS mirror is `JobEvent` in `src/types.ts`.
 
 ```jsonc
 {
-  "id": "uuid", "kind": "up" | "down" | "copy" | "delete" | "move" | "dup", "label": "a.txt, b.txt +3 more",
+  "id": "uuid", "kind": "up" | "down" | "copy" | "delete" | "move" | "dup" | "backup", "label": "a.txt, b.txt +3 more",
   "account": "profile-id", "bucket": "demo", "prefix": "backups/",   // remote side (copy: the destination)
   "src_account": null, "src_bucket": null,         // copy: the source view (for the beam)
   "src_dir": "/Users/me/Projects",                 // upload: local folder; copy: source prefix (lanes)

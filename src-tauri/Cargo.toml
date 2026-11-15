@@ -63,6 +63,15 @@ hmac = "0.13"
 # (your keys, agent, ~/.ssh/config and known_hosts).
 russh-sftp = "3"
 http = "1"
+# iPhone / iPad (iphone.rs, experimental, ADR-054): Apple File Conduit over the system's usbmuxd, in
+# pure Rust (MIT). Pinned: the API breaks on every 0.1.x release. `ring` like the rest of the tree's
+# rustls. No `pair` (27 more crates): the system answers "Trust This Computer?" (ADR-054). plist is
+# already built for Tauri.
+idevice = { version = "=0.1.68", default-features = false, features = ["ring", "usbmuxd", "afc", "house_arrest", "mobilebackup2"] }
+# iPhone backups (iphone_backup.rs, ADR-055): the device writes its file list as an SQLite database
+# (Manifest.db). Bundled SQLite: no system library to find on Windows.
+rusqlite = { version = "0.42", features = ["bundled"] }
+plist = "1"
 aws-smithy-runtime-api = { version = "1", features = ["client", "http-1x"] }
 notify = "8.2.0"
 # Grid thumbnails (thumbs.rs): Tauri already builds `image` (PNG); JPEG/WebP/GIF add small decoders.

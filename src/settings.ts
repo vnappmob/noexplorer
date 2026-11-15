@@ -15,6 +15,7 @@ import { type Pane, paneHooks } from "./pane";
 import {
   azureEndpoint,
   badge,
+  canMakeContainers,
   describeAccount,
   LOOK,
   PICKER_GROUPS,
@@ -25,10 +26,10 @@ import {
   SETUP,
   type ProviderId,
 } from "./providers";
-import { activeProfile, app, exp } from "./state";
+import { activeProfile, app, DEVICE_PREFIX, exp, isDevice, profileOf, rememberDevices } from "./state";
 import { icon } from "./icons";
 import { openMenu, type MenuItem } from "./popover";
-import type { BucketInfo, Experimental, General, Profile, Settings } from "./types";
+import type { BucketInfo, Experimental, General, IPhoneDevice, Profile, Settings } from "./types";
 import { renderExperimental } from "./experimental";
 import { requestSizes, stopSizes } from "./sizes";
 import { checkForUpdates } from "./updater";
@@ -183,7 +184,7 @@ function editAccount(p: Profile | null) {
   $<HTMLSelectElement>("acct-provider").value = provider;
   applyPreset(provider, false);
   // Nextcloud can sign in through the browser instead: no password to type.
-  secret.required = !p && provider !== "nextcloud" && provider !== "onedrive";
+  secret.required = !p && provider !== "nextcloud" && provider !== "onedrive" && provider !== "iphone";
   $<HTMLButtonElement>("acct-delete").hidden = !p;
   input("cert_pin").value = p?.cert_pin ?? "";
   renderCert();
@@ -243,10 +244,13 @@ function applyPreset(id: ProviderId, fill: boolean) {
     : box
       ? "Opens your browser to approve your Box app. Fill in the Client ID and secret below first."
       : "Opens your browser. Or enter a user name and an app password below.";
+  // iPhone: pick the device; no address or keys (the system pairs it, iphone.rs).
+  const ip = pr.kind === "iphone";
   $("acct-conn").hidden = od;
   $("acct-test").hidden = od && !editing; // nothing to test before signing in
-  $("acct-cred").hidden = od;
-  $("acct-endpoint-row").hidden = box || od;
+  $("acct-cred").hidden = od || ip;
+  $("acct-endpoint-row").hidden = box || od || ip;
+  $("acct-device-row").hidden = !ip;
   endpoint.required = pr.endpointRequired && !box;
   const azure = pr.kind === "azure";
   const sftp = pr.kind === "sftp";
@@ -277,9 +281,9 @@ function applyPreset(id: ProviderId, fill: boolean) {
           : sftp
             ? "Password or key passphrase (optional)"
             : "Password";
-  input("access_key").required = pr.kind !== "nextcloud" && !sftp && !od;
+  input("access_key").required = pr.kind !== "nextcloud" && !sftp && !od && !ip;
   // A new account needs its secret, except where signing in (or SSH keys) replaces it.
-  input("secret_key").required = !editing && pr.kind !== "nextcloud" && !sftp && !od;
+  input("secret_key").required = !editing && pr.kind !== "nextcloud" && !sftp && !od && !ip;
   syncAzurePlaceholder();
   // SFTP: SSH keys / agent by default; a password or key passphrase only when the server needs it.
   $("acct-key-row").hidden = !sftp;
@@ -296,7 +300,55 @@ function applyPreset(id: ProviderId, fill: boolean) {
   const parsed = SETUP[id]?.parse(endpoint.value) ?? null;
   rawEndpoint = !!SETUP[id] && !parsed;
   renderSetup(parsed ?? {});
+  if (ip) loadDevices();
   if (fill) firstField().focus();
+}
+
+// ---------- iPhone / iPad (experimental): which device ----------
+
+let devices: IPhoneDevice[] = [];
+
+const deviceLabel = (d: IPhoneDevice) =>
+  `${d.name}${d.model ? ` (${d.model})` : ""}${d.usb ? "" : " · Wi-Fi"}${d.trusted ? "" : " · not trusted yet"}`;
+
+/** Fills the device list from what's connected; the saved UDID stays selectable when it isn't. */
+async function loadDevices() {
+  const sel = $<HTMLSelectElement>("acct-device");
+  const note = $("acct-device-note");
+  note.textContent = "Looking for devices…";
+  try {
+    devices = await invoke<IPhoneDevice[]>("iphone_devices");
+    note.textContent = "";
+  } catch (e) {
+    devices = [];
+    note.textContent = String(e);
+  }
+  if (providerId() !== "iphone") return; // switched away meanwhile
+  const saved = input("endpoint").value.trim();
+  const opts = [`<option value="">Any connected iPhone or iPad</option>`]
+    .concat(devices.map((d) => `<option value="${esc(d.udid)}">${esc(deviceLabel(d))}</option>`))
+    .concat(
+      saved && !devices.some((d) => d.udid === saved)
+        ? [`<option value="${esc(saved)}">This account's device (not connected)</option>`]
+        : [],
+    );
+  sel.innerHTML = opts.join("");
+  // A new account: the only device, or the saved one.
+  sel.value = saved || (!editing && devices.length === 1 ? devices[0].udid : "");
+  onDeviceChange();
+  if (!devices.length && !note.textContent)
+    note.textContent = "No iPhone or iPad found. Connect it with a cable, unlock it, then Look again.";
+}
+
+function onDeviceChange() {
+  const udid = $<HTMLSelectElement>("acct-device").value;
+  input("endpoint").value = udid;
+  const d = devices.find((x) => x.udid === udid);
+  // A new account is named after its device until the user names it.
+  const name = input("name");
+  if (!editing && d && (!name.value || devices.some((x) => x.name === name.value))) name.value = d.name;
+  if (d && !d.trusted) $("acct-device-note").textContent = "Unlock it and tap Trust when it asks, then Look again.";
+  else if (d) $("acct-device-note").textContent = "";
 }
 
 // ---------- simple setup: the endpoint built from a few fields (providers.ts SETUP) ----------
@@ -313,7 +365,8 @@ function setupValues() {
 }
 
 /** Where typing starts: the first simple field, else the endpoint when it's needed, else the key. */
-function firstField(): HTMLInputElement {
+function firstField(): HTMLElement {
+  if (providerId() === "iphone") return $("acct-device");
   const ep = input("endpoint");
   return setupInputs()[0] ?? ($("acct-endpoint-row").hidden !== false || !ep.required ? input("access_key") : ep);
 }
@@ -336,7 +389,7 @@ function renderSetup(values: Record<string, string>) {
         .join("")
     : "";
   box.hidden = !simple || !st.fields.length;
-  $("acct-endpoint-row").hidden = simple || id === "box" || id === "onedrive";
+  $("acct-endpoint-row").hidden = simple || id === "box" || id === "onedrive" || id === "iphone";
   input("endpoint").required = !simple && PRESETS[id].endpointRequired && id !== "box";
   syncSetup();
 }
@@ -666,8 +719,9 @@ export async function setViewAccount(v: Pane, id: string) {
   v.account = id;
   v.bucket = "";
   v.cwd = "";
-  // Saving the default (config + tray menu) doesn't need to hold up the listing.
-  invoke<Settings>("set_active_profile", { id }).then((s) => (app.settings = s), fail);
+  // Saving the default (config + tray menu) doesn't need to hold up the listing. Devices aren't
+  // saved accounts: they never become the default.
+  if (!isDevice(id)) invoke<Settings>("set_active_profile", { id }).then((s) => (app.settings = s), fail);
   await loadBuckets(v, true);
 }
 
@@ -709,12 +763,65 @@ export function openProfileMenu(v: Pane, anchor = v.q(".profile-chip")) {
       run: () => p.id !== v.account && setViewAccount(v, p.id),
     });
   }
+  items.push(...deviceMenuItems(v));
   const favs = favoritesMenuItems("remote", (f) => openFavorite(f, v));
   if (favs.length) items.push({ header: "Favorites" }, ...favs);
   if (app.settings.profiles.length) items.push({ sep: true });
   items.push({ label: "Add account…", icon: "plus", run: addAccount });
   items.push({ label: "Manage accounts", icon: "sliders", badge: "⌘,", run: () => openSettings("accounts") });
   openMenu(anchor, items, { width: 300 });
+}
+
+// ---------- devices (experimental): connected iPhones / iPads, no account to add (devices.rs) ----------
+
+const dateOf = (ms: number) => new Date(ms).toLocaleDateString(undefined, { dateStyle: "medium" });
+
+/** The Devices group of the account menu: what's plugged in now, and devices with a backup here. */
+function deviceMenuItems(v: Pane): MenuItem[] {
+  if (!exp("iphone")) return [];
+  const items: MenuItem[] = [{ header: "Devices" }];
+  for (const d of app.devices) {
+    const id = DEVICE_PREFIX + d.udid;
+    const sub = !d.connected
+      ? `Not connected${d.backup ? ` · backup of ${dateOf(d.backup)}` : ""}`
+      : !d.trusted
+        ? "Unlock it and tap Trust"
+        : `${d.model || d.class} · ${d.usb ? "cable" : "Wi-Fi"}`;
+    items.push({
+      label: d.name,
+      sub,
+      icon: "phone",
+      iconClass: `acct-ico${d.connected ? "" : " off"}`,
+      checked: id === v.account,
+      run: () => id !== v.account && setViewAccount(v, id),
+    });
+  }
+  if (!app.devices.length) items.push({ header: "Connect an iPhone or iPad with a cable" });
+  return items;
+}
+
+/** Applies a new device list: views on a device that came or went list again (a device that left
+ * still shows its backup, if any), and a device plugged in says so. */
+function applyDevices(list: IPhoneDevice[], announce: boolean) {
+  const before = new Map(app.devices.map((d) => [d.udid, !!d.connected]));
+  app.devices = list;
+  rememberDevices(list);
+  for (const d of list)
+    if (announce && d.connected && !before.get(d.udid))
+      toast(`${d.name} connected · in the account menu under Devices`);
+  for (const v of remotes) {
+    if (!isDevice(v.account)) continue;
+    const d = list.find((x) => DEVICE_PREFIX + x.udid === v.account);
+    if ((before.get(v.account.slice(DEVICE_PREFIX.length)) ?? false) !== !!d?.connected) {
+      knownBuckets.delete(v.account);
+      loadBuckets(v);
+    } else renderPickers(v);
+  }
+}
+
+async function loadDeviceList(announce = false) {
+  const list = exp("iphone") ? await invoke<IPhoneDevice[]>("iphone_connected").catch(() => []) : [];
+  applyDevices(list, announce);
 }
 
 /** Creates a bucket (or Azure container) on `v`'s account and opens it. */
@@ -734,17 +841,18 @@ export async function newBucket(v: Pane) {
   }
 }
 
-export const canCreateBuckets = (v: Pane) => hasContainers(v.profile());
+export const canCreateBuckets = (v: Pane) => canMakeContainers(v.profile());
 
-export function openBucketMenu(v: Pane, anchor = v.q(".bucket-chip")) {
-  const items: MenuItem[] = v.buckets.map((b) => ({
-    label: b.name,
+export async function openBucketMenu(v: Pane, anchor = v.q(".bucket-chip")) {
+  const item = (b: BucketInfo, label = b.name): MenuItem => ({
+    label,
     icon: "bucket",
     iconClass: "bucket-ico",
     badge: b.region ?? undefined,
     checked: b.name === v.bucket,
     run: () => b.name !== v.bucket && selectBucket(v, b.name),
-  }));
+  });
+  const items: MenuItem[] = v.buckets.map((b) => item(b));
   if (!items.length) items.push({ header: "No buckets visible with this key" });
   if (canCreateBuckets(v)) {
     const azure = v.profile()?.kind === "azure";
@@ -760,7 +868,8 @@ export function openBucketMenu(v: Pane, anchor = v.q(".bucket-chip")) {
 
 /** Wires a new remote view's chips (called through `paneHooks.created`). */
 export function bindPickers(v: Pane) {
-  v.q(".profile-chip").onclick = () => (app.settings.profiles.length ? openProfileMenu(v) : addAccount());
+  v.q(".profile-chip").onclick = () =>
+    app.settings.profiles.length || (exp("iphone") && app.devices.length) ? openProfileMenu(v) : addAccount();
   v.q(".bucket-chip").onclick = () => openBucketMenu(v);
 }
 
@@ -776,7 +885,7 @@ export async function applySettings(s: Settings, show?: string) {
     remote.bucket = "";
     remote.cwd = "";
   }
-  // Views on a removed account fall back to the default account.
+  // Views on a removed account (or a device, with the experiment off) fall back to the default one.
   for (const v of remotes) if (!v.profile()) v.account = s.active;
   if (dialog().open) renderAccountList();
   await Promise.all(remotes.map((v) => loadBuckets(v)));
@@ -838,7 +947,8 @@ export async function loadBuckets(v: Pane, resetScroll = false) {
 export async function initSettings() {
   app.settings = await invoke<Settings>("get_settings");
   window.dispatchEvent(new Event("settings-loaded"));
-  const saved = savedViews().filter((v) => app.settings.profiles.some((p) => p.id === v.account));
+  await loadDeviceList();
+  const saved = savedViews().filter((v) => !!profileOf(v.account));
   const views = saved.length ? saved : [{ account: app.settings.active, bucket: "", prefix: "" }];
   for (const v of views) addView(v);
   if (app.settings.profiles.length) await Promise.all(remotes.map((v) => loadBuckets(v)));
@@ -870,6 +980,21 @@ export function setupSettings() {
     switchTo(remote);
   });
   listen("tray-add-account", addAccount);
+  // An iPhone backup finished or was deleted: its "Backup · …" containers changed, and the device
+  // may have joined or left the Devices group.
+  window.addEventListener("iphone-backup", (ev) => {
+    const account = (ev as CustomEvent<string>).detail;
+    knownBuckets.delete(account);
+    for (const v of remotes) if (v.account === account) loadBuckets(v);
+    loadDeviceList();
+  });
+  // Plugged in / out (devices.rs watches usbmuxd).
+  listen<IPhoneDevice[]>("iphone-devices", (ev) => exp("iphone") && applyDevices(ev.payload, true));
+  // The experiment turned on: list devices; off: views on devices go back to the default account.
+  window.addEventListener("experimental", async () => {
+    await loadDeviceList();
+    if (!exp("iphone")) await applySettings(app.settings);
+  });
   form().addEventListener("submit", saveAccount);
   $("acct-test").onclick = testAccount;
   input("access_key").addEventListener("input", syncAzurePlaceholder);
@@ -884,6 +1009,8 @@ export function setupSettings() {
   };
   $("acct-nc-cancel").onclick = () => invoke("cancel_login");
   $("acct-delete").onclick = deleteAccount;
+  $("acct-device").addEventListener("change", onDeviceChange);
+  $("acct-device-refresh").onclick = loadDevices;
   $("acct-add").onclick = () => editAccount(null);
   bindProvMenu();
   bindSetup();

@@ -5,6 +5,19 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **iPhone and iPad by cable** (experimental, Settings → Experimental): connected iPhones and
+  iPads appear by themselves under **Devices** in the account menu, and leave when unplugged (no
+  account to add). A device opens as folders: Media, Apps (apps that share files) and Backup. Browse its media area (photos and videos in DCIM, Downloads…) and the files of
+  apps that share them (Files → On My iPhone), copy both ways, preview, rename and delete. Tap Trust
+  on the phone the first time; on Windows, install Apple Devices or iTunes first.
+- **Read any app's files from an iPhone backup** (experimental): “Back up to read app files…” in
+  the right-click menu makes a full backup in NoExplorer's own folder, then each app shows up in the
+  iPhone's read-only Backup folder, even with the phone unplugged. Encrypted backups
+  aren't supported yet. Pulling the cable, a phone that stops answering, or a nearly full disk
+  stop the backup within seconds with the reason (instead of hanging). Backups no longer fail with “Multiple errors uploading files” (104) when the
+  phone locks itself: NoExplorer asks it to open protected files for the backup, as Finder does.
+
 ### Changed
 - **Move to… on a remote picks the folder from a tree** instead of a typed path. Folders you've
   already opened show at once; a folder not seen yet is listed as soon as you open or pick it. You

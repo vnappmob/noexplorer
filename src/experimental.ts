@@ -34,6 +34,11 @@ export const EXPERIMENTS: { key: keyof Experimental; title: string; desc: string
     desc: "Measure transfers between this computer and a remote, or two remotes: one large file, many small files, response time. Results are kept on this computer to compare services. In ⌘K and the right-click menu of a remote view.",
   },
   {
+    key: "iphone",
+    title: "iPhone and iPad",
+    desc: "An iPhone or iPad connected by cable as an account: its media area (photos and videos in DCIM, Downloads…) and the files of apps that share them. Copy both ways, preview, rename and delete. Plus every app's files, read-only, from a backup NoExplorer makes. The system pairs it: unlock it and tap Trust.",
+  },
+  {
     key: "box_beta",
     title: "Box accounts",
     desc: "Box in the account form, with your own Box app. It works against our test double but hasn't been tried on a real Box account yet.",

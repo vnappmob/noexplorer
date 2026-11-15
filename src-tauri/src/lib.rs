@@ -25,9 +25,12 @@ mod box_api;
 mod cloud;
 mod compare;
 mod config;
+mod devices;
 mod diag;
 mod dragout;
 mod fileops;
+mod iphone;
+mod iphone_backup;
 mod jobs;
 mod local;
 mod onedrive;
@@ -85,6 +88,7 @@ pub fn run() {
             let settings = config::load_settings(app.handle());
             resume::init(app.handle());
             thumbs::init(app.handle());
+            iphone_backup::init(app.handle());
             diag::init(app.handle());
             let g = &settings.general;
             resume::set_speed_limit(g.speed_limit_kbps);
@@ -93,6 +97,7 @@ pub fn run() {
             let _ = std::fs::remove_dir_all(transfer::temp_root());
             tray::setup(app.handle(), &settings)?;
             sizes::setup(app.handle());
+            devices::setup(app.handle());
             autostart::refresh(app.handle());
             // Login starts run hidden; an update relaunch reuses that argument, so it asks to show.
             if std::env::args().any(|a| a == HIDDEN_ARG) && !tray::take_relaunch_marker(app.handle()) {
@@ -141,6 +146,11 @@ pub fn run() {
             local::list_local,
             local::local_size,
             local::volume_info,
+            iphone::iphone_devices,
+            devices::iphone_connected,
+            iphone_backup::iphone_backup,
+            iphone_backup::iphone_backup_info,
+            iphone_backup::iphone_delete_backup,
             sizes::folder_sizes,
             webdav::nextcloud_login,
             webdav::cancel_login,

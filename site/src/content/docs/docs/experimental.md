@@ -34,6 +34,31 @@ Nobody can list a public bucket's files unless a custom policy allows it. **Copy
 
 Your access key needs permission to read and change bucket policies. Works with AWS S3, MinIO, Wasabi, DigitalOcean Spaces, Ceph, SeaweedFS and other servers that support S3 bucket policies. On AWS, **Block Public Access** (on by default for new buckets) refuses public policies: turn it off for the bucket in the AWS console first. Cloudflare R2, Google Cloud Storage and Oracle Cloud manage public access in their own consoles instead.
 
+## iPhone and iPad
+
+Plug in an iPhone or iPad and it shows up by itself in the account menu (the account name at the top of a remote view), under **Devices**. There's no account to add. Unplugging it takes it out of the list again, unless NoExplorer has a backup of it (below): then it stays there as **Not connected**, and you can still read that backup. Pick it, and it opens like a drive, with these folders at the top:
+
+- **Media**: the phone's media area, the one Image Capture and Windows see. Photos and videos are in `DCIM`, along with `Downloads`, `Books` and others. You can copy files out, preview them and delete them. Files copied *into* it don't appear in the Photos app (only importing does that); use an app's folder for files you want to open on the phone.
+- **Apps**: a folder per app that shares files, such as VLC or Documents: the files you see under Files → On My iPhone → that app, or in Finder's **Files** tab. Copy files in and out, make folders, rename and delete.
+
+Over the cable iOS only shares these two areas. For the files of **any** app, back the phone up (below).
+
+### Apps' files from a backup
+
+Most apps (WhatsApp, Notes…) don't share their files. Their data is in the phone's backup, so NoExplorer can make one: right-click at the top of the iPhone and choose **Back up iPhone to read app files…** (or <kbd>⌘ K</kbd> → **Back up iPhone**). It's the same full backup Finder or Apple Devices makes, kept in NoExplorer's own folder.
+
+Afterwards a **Backup** folder appears next to Media and Apps, with a folder per app (its shared app groups and extensions inside) and **Other** for the rest. These are read-only copies from the time of the backup: copy files out and preview them, even with the phone unplugged. Backing up again (right-click at the top or in Backup) brings them up to date: only what changed is copied. **Delete backup…** moves it to the Trash.
+
+- The first backup can take a while and needs about as much free space as the data on the phone. Keep the phone connected and unlocked; if it asks for its passcode, enter it.
+- **Encrypted backups can't be read yet.** If “Encrypt local backup” is on for this phone in Finder or Apple Devices, NoExplorer says so before starting; turning it off there asks for the backup password.
+- If the backup stops (the cable comes out, the phone stops answering for 10 minutes, this computer's disk gets down to its last GB, or you cancel), it says why. iOS only keeps a backup once it finishes, so backing up again **starts over** (a later backup after a finished one only copies what changed). Until then the previous finished backup stays readable; a first backup that never finished takes space but can't be read: delete it from the right-click menu.
+- **“Multiple errors uploading files” (104)**: the iPhone couldn't read some of its files. NoExplorer asks the iPhone to open its protected files for the backup, as Finder does; if it still happens, keep the iPhone unlocked on its Home Screen, close busy apps, restart it if needed, and back up again.
+- Files that apps keep out of backups (caches, some downloads) aren't there.
+
+**The first time**, unlock the phone and tap **Trust** when it asks about this computer. NoExplorer uses the trust your system already keeps: on macOS it's built in; on Windows, install **Apple Devices** from the Microsoft Store (or iTunes) and, if the phone doesn't ask, open it once with the phone connected; on Linux, install `usbmuxd`. Unplugging the phone stops what was going on within a few seconds and shows **Try again** in its view; a download continues where it stopped once the phone is back.
+
+Not yet tried on a real iPhone: please report what works and what doesn't.
+
 ## Box accounts
 
 Box in the account form, with your own Box app. It works against our test double but hasn't been tried on a real Box account yet. See [Connect your storage](/docs/accounts/#box-experimental).

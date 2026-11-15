@@ -2,7 +2,7 @@
 // referenced in each comment.
 
 /** `config::ProviderKind` — which provider an account uses. */
-export type ProviderKind = "s3" | "nextcloud" | "webdav" | "box" | "azure" | "sftp" | "onedrive";
+export type ProviderKind = "s3" | "nextcloud" | "webdav" | "box" | "azure" | "sftp" | "onedrive" | "iphone";
 
 /** `config::Profile` — one remote account. */
 export type Profile = {
@@ -44,6 +44,7 @@ export type Experimental = {
   bucket_policy: boolean;
   remote_sizes: boolean;
   speed_test: boolean;
+  iphone: boolean;
 };
 
 /** `config::Settings` — everything in config.json. */
@@ -51,6 +52,30 @@ export type Settings = { profiles: Profile[]; active: string; download_dir: stri
 
 /** `provider::BucketInfo` — an entry of the bucket picker. */
 export type BucketInfo = { name: string; region: string | null };
+
+/** `iphone_backup::BackupInfo` — the backup an iPhone account reads (`iphone_backup_info`). */
+export type IPhoneBackup = {
+  date: number;
+  size: number | null;
+  encrypted: boolean;
+  /** The last backup finished (else it was cut off: unplugged, cancelled, disk full…). */
+  complete: boolean;
+  running: boolean;
+};
+
+/** `iphone::DeviceInfo` — an iPhone / iPad usbmuxd sees (`iphone_devices`). */
+export type IPhoneDevice = {
+  udid: string;
+  name: string;
+  class: string;
+  model: string;
+  usb: boolean;
+  trusted: boolean;
+  /** `devices::DeviceInfo` (the Devices group): connected now, else only its backup is here. */
+  connected?: boolean;
+  /** When its backup here was made (Unix millis). */
+  backup?: number | null;
+};
 
 /** `remote::SizeInfo` — result of `remote_size` / `local_size`. */
 export type SizeInfo = { bytes: number; files: number; partial?: boolean };
@@ -131,7 +156,7 @@ export type LocalListing = {
 /** `jobs::JobEvent` — payload of the `"job"` event. */
 export type JobEvent = {
   id: string;
-  kind: "up" | "down" | "copy" | "delete" | "move" | "dup";
+  kind: "up" | "down" | "copy" | "delete" | "move" | "dup" | "backup";
   label: string;
   /** Profile id of the remote account. */
   account: string;

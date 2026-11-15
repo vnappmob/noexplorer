@@ -203,6 +203,14 @@
                   <fieldset class="set-group" id="acct-conn">
                     <legend>Connection</legend>
                     <div id="acct-setup" class="acct-setup" hidden></div>
+                    <label id="acct-device-row" hidden
+                      >Device
+                      <span class="key-pick"
+                        ><select id="acct-device"></select
+                        ><button type="button" id="acct-device-refresh">Look again</button></span
+                      >
+                      <small id="acct-device-note"></small>
+                    </label>
                     <label id="acct-endpoint-row"><span id="lbl-endpoint">Endpoint</span>
                       <input name="endpoint" placeholder="https://s3.example.com or http://192.168.1.10:9000" required spellcheck="false" />
                     </label>

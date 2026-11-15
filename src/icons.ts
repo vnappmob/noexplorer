@@ -42,6 +42,7 @@ export const ICONS: Record<string, string> = {
   doc: svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>'),
   pause: svg('<path d="M9 5v14M15 5v14"/>'),
   play: svg('<path d="M8 5l11 7-11 7z"/>'),
+  phone: svg('<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>'),
   cloud: svg('<path d="M7 18a5 5 0 1 1 .9-9.9A6 6 0 0 1 19 10a4 4 0 0 1-1 8z"/>'),
   bucket: svg('<path d="M4 7h16l-2 12a2 2 0 0 1-2 1.7H8A2 2 0 0 1 6 19z"/><ellipse cx="12" cy="7" rx="8" ry="2.5"/>'),
   grid: svg('<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>'),

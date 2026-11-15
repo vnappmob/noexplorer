@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { kindOf } from "./files";
 import { azureEndpoint } from "./providers";
 import { icon } from "./icons";
-import { app } from "./state";
+import { app, profileOf } from "./state";
 import type { BucketInfo, Crumb, Item, LocalListing, Profile, SortBy } from "./types";
 import { $, esc, fail, fmtDate, fmtSize, plural, store } from "./util";
 
@@ -211,7 +211,7 @@ export class Pane {
 
   /** Remote views: this view's account, or null when it has none (or it was removed). */
   profile(): Profile | null {
-    return app.settings.profiles.find((p) => p.id === this.account) ?? null;
+    return profileOf(this.account);
   }
 
   /** `account` + `bucket` for backend commands about this view. */
@@ -275,7 +275,9 @@ export class Pane {
                 ? "azure://"
                 : kind === "sftp"
                   ? "sftp://"
-                  : "dav://";
+                  : kind === "iphone"
+                    ? "iphone://"
+                    : "dav://";
     this.crumbs = [{ name: this.bucket || "—", path: "" }];
     let acc = "";
     for (const p of this.cwd.split("/").filter(Boolean)) {
@@ -330,6 +332,7 @@ export class Pane {
     if (p.kind === "onedrive") return `onedrive://${this.cwd}`;
     if (p.kind === "azure") return `${azureEndpoint(p)}/${this.bucket}/${this.cwd}`;
     if (p.kind === "sftp") return `${base}/${this.cwd}`;
+    if (p.kind === "iphone") return `iphone://${this.cwd}`;
     return `s3://${this.bucket}/${this.cwd}`;
   }
 
@@ -426,8 +429,10 @@ export class Pane {
           ? "box.com"
           : p.kind === "onedrive"
             ? "onedrive.live.com"
-            : (p.kind === "azure" ? azureEndpoint(p) : p.endpoint).replace(/^https?:\/\//, "").replace(/\/+$/, "") ||
-              "Amazon S3";
+            : p.kind === "iphone"
+              ? "by cable"
+              : (p.kind === "azure" ? azureEndpoint(p) : p.endpoint).replace(/^https?:\/\//, "").replace(/\/+$/, "") ||
+                "Amazon S3";
       this.list.innerHTML =
         n.kind === "connecting"
           ? `<div class="empty notice"><span class="spin" aria-hidden="true"></span><b>Connecting to ${esc(p.name)}…</b>${esc(host)}</div>`

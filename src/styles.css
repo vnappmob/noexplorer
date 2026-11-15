@@ -1602,6 +1602,11 @@ button.lane-box:hover,
   background: var(--accent-soft);
   color: var(--accent);
 }
+/* A device that isn't connected (only its backup is here): settings.ts deviceMenuItems. */
+.mi-ico.acct-ico.off {
+  background: var(--line);
+  color: var(--muted);
+}
 .mi-ico.bucket-ico {
   background: var(--bucket-soft);
   color: var(--bucket-ink);
@@ -3025,9 +3030,11 @@ button.danger.subtle:hover:not(:disabled) {
   display: flex;
   gap: 8px;
 }
-.key-pick input {
+.key-pick input,
+.key-pick select {
   flex: 1;
   min-width: 0;
+  color: var(--fg);
 }
 
 /* Appearance: theme previews and the text-size segments */

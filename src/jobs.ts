@@ -8,7 +8,7 @@ import { listen } from "@tauri-apps/api/event";
 import { icon } from "./icons";
 import { local, remotes } from "./panes";
 import { openRemote } from "./settings";
-import { app } from "./state";
+import { profileOf } from "./state";
 import type { Pane } from "./pane";
 import type { JobEvent, PendingJob } from "./types";
 import { $, esc, fail, fmtSize, plural, toast } from "./util";
@@ -37,10 +37,11 @@ const pct = (j: JobView) => {
 const whereOf = (j: JobView) =>
   isItemJob(j)
     ? `in ${j.bucket}/${j.prefix}`
-    : j.kind === "down"
+    : j.kind === "down" || j.kind === "backup"
       ? `→ ${j.local_dir ?? ""}`
       : `→ ${j.bucket}/${j.prefix}`;
 const ICON: Record<string, string> = {
+  backup: "archive",
   up: "arrowUp",
   down: "arrowDown",
   copy: "arrowRight",
@@ -48,7 +49,7 @@ const ICON: Record<string, string> = {
   move: "folder",
   dup: "copy",
 };
-const GLYPH: Record<string, string> = { up: "↑", down: "↓", copy: "→", delete: "×", move: "↪", dup: "⧉" };
+const GLYPH: Record<string, string> = { up: "↑", down: "↓", copy: "→", delete: "×", move: "↪", dup: "⧉", backup: "↓" };
 const numbersOf = (j: JobView) => {
   if (isItemJob(j)) {
     const [doing, done] = ITEM_JOBS[j.kind];
@@ -57,6 +58,11 @@ const numbersOf = (j: JobView) => {
     if (j.status === "done") return `${done} · ${plural(j.files_total, "item")}`;
     return j.status === "cancelled" ? `Stopped · ${j.files_done} done` : "Failed";
   }
+  // An iPhone backup: the device only says how far along it is, so the total is an estimate.
+  if (j.kind === "backup" && j.status === "running")
+    return j.bytes_done
+      ? `${fmtSize(j.bytes_done)}${j.bytes_total ? ` of ~${fmtSize(j.bytes_total)}` : ""}${j.speed > 0 ? ` · ${fmtSize(j.speed)}/s` : ""}`
+      : "Waiting for the iPhone… enter its passcode if it asks";
   if (j.status === "running" && j.paused) return `Paused · ${fmtSize(j.bytes_done)} / ${fmtSize(j.bytes_total)}`;
   return j.status === "running"
     ? j.files_total
@@ -71,7 +77,7 @@ const numbersOf = (j: JobView) => {
 
 /** Pause / resume for a running transfer. */
 const pauseBtn = (j: JobView) =>
-  j.status === "running" && !isItemJob(j)
+  j.status === "running" && !isItemJob(j) && j.kind !== "backup"
     ? `<button class="ib" data-pause="${j.id}" data-on="${!j.paused}" title="${j.paused ? "Resume" : "Pause"}" aria-label="${j.paused ? "Resume" : "Pause"} transfer">${icon(j.paused ? "play" : "pause")}</button>`
     : "";
 
@@ -266,7 +272,7 @@ function under(dir: string, cwd: string) {
  * the destination folder or a folder above it (the beam then aims at the row leading into it).
  */
 function placement(j: JobView): { from: Pane; to: Pane; dir: string } | null {
-  if (isItemJob(j)) return null;
+  if (isItemJob(j) || j.kind === "backup") return null;
   let from: Pane | null, to: Pane | null, srcDir: string | null, dstDir: string | null;
   if (j.kind === "up") [from, to, srcDir, dstDir] = [local, viewFor(j.account, j.bucket), j.src_dir, j.prefix];
   else if (j.kind === "down") [from, to, srcDir, dstDir] = [viewFor(j.account, j.bucket), local, j.prefix, j.local_dir];
@@ -341,7 +347,13 @@ function renderBeam() {
 // and the transfer flowing between them over the gap. One lane per such transfer. Clicking a box
 // opens that folder in its pane; clicking the middle opens both (and the lane goes away).
 
-const SCHEME: Record<string, string> = { s3: "s3://", nextcloud: "nextcloud://", webdav: "dav://", box: "box://" };
+const SCHEME: Record<string, string> = {
+  s3: "s3://",
+  nextcloud: "nextcloud://",
+  webdav: "dav://",
+  box: "box://",
+  iphone: "iphone://",
+};
 
 type Side = { icon: string; name: string; path: string; open: () => unknown };
 
@@ -350,7 +362,7 @@ function localSide(dir: string | null): Side {
 }
 
 function remoteSide(account: string | null, bucket: string | null, prefix: string | null): Side {
-  const p = app.settings.profiles.find((x) => x.id === account);
+  const p = profileOf(account);
   return {
     icon: "cloud",
     name: p?.name ?? "Remote",
@@ -364,7 +376,7 @@ function remoteSide(account: string | null, bucket: string | null, prefix: strin
 function sides(j: JobView): { left: Side; right: Side; rtl: boolean } {
   const dst = remoteSide(j.account, j.bucket, j.prefix);
   if (j.kind === "up") return { left: localSide(j.src_dir), right: dst, rtl: false };
-  if (j.kind === "down") return { left: localSide(j.local_dir), right: dst, rtl: true };
+  if (j.kind === "down" || j.kind === "backup") return { left: localSide(j.local_dir), right: dst, rtl: true };
   return { left: remoteSide(j.src_account, j.src_bucket, j.src_dir), right: dst, rtl: false };
 }
 
@@ -471,7 +483,8 @@ function onJob(ev: JobEvent) {
         if (v.account === ev.account && v.bucket === ev.bucket && (isItemJob(ev) || ev.prefix.startsWith(v.cwd)))
           v.load(true);
     if (ev.kind === "down" && ev.local_dir?.startsWith(local.cwd)) local.load(true);
-    const verbs: Record<string, string> = { up: "Uploaded", copy: "Copied", down: "Downloaded" };
+    if (ev.kind === "backup") window.dispatchEvent(new CustomEvent("iphone-backup", { detail: ev.account }));
+    const verbs: Record<string, string> = { up: "Uploaded", copy: "Copied", down: "Downloaded", backup: "Done" };
     const verb = ITEM_JOBS[ev.kind]?.[1] ?? verbs[ev.kind];
     if (ev.status === "done") toast(`${verb}: ${ev.label}`);
   }

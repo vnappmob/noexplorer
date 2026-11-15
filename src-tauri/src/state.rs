@@ -23,7 +23,11 @@ impl AppState {
     /// (rebuilt on next use); unchanged accounts keep theirs, with their caches (AWS regions).
     /// Running jobs hold their own `Arc<Remote>`, so they finish on the client they started with.
     pub fn set_settings(&self, s: Settings) {
-        self.remotes.lock().unwrap().retain(|id, (p, _)| s.profiles.iter().any(|q| q.id == *id && q == p));
+        // Connected devices aren't in the settings (devices.rs): theirs stay unless the experiment is off.
+        let devices = s.general.experimental.iphone;
+        self.remotes.lock().unwrap().retain(|id, (p, _)| {
+            (devices && crate::devices::is_device(id)) || s.profiles.iter().any(|q| q.id == *id && q == p)
+        });
         *self.settings.lock().unwrap() = s;
     }
 
@@ -41,7 +45,16 @@ impl AppState {
     /// AWS per-bucket regions (ADR-017).
     pub fn remote(&self, account: Option<&str>) -> Result<Arc<Remote>, String> {
         let s = self.settings.lock().unwrap();
+        // A connected iPhone / iPad (devices.rs): an account without a saved profile.
+        let device;
         let p = match account.filter(|a| !a.is_empty()) {
+            Some(id) if crate::devices::is_device(id) => {
+                if !s.general.experimental.iphone {
+                    return Err("Turn on “iPhone and iPad” in Settings → Experimental".into());
+                }
+                device = crate::devices::profile(id);
+                &device
+            }
             Some(id) => s.profiles.iter().find(|p| p.id == id).ok_or("That account no longer exists")?,
             None => s.active_profile().ok_or("No account configured — open Settings first")?,
         };

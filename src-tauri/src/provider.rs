@@ -15,6 +15,7 @@ use serde::Serialize;
 use crate::azure::Azure;
 use crate::box_api::BoxCom;
 use crate::config::{Profile, ProviderKind};
+use crate::iphone::IPhone;
 use crate::jobs::Job;
 use crate::onedrive::OneDrive;
 use crate::s3::S3;
@@ -59,6 +60,8 @@ pub enum Remote {
     Sftp(Sftp),
     /// OneDrive through Microsoft Graph (`onedrive.rs`).
     OneDrive(OneDrive),
+    /// iPhone / iPad over a cable (`iphone.rs`, experimental).
+    IPhone(IPhone),
 }
 
 impl Remote {
@@ -70,6 +73,7 @@ impl Remote {
             ProviderKind::Azure => Remote::Azure(Azure::new(p)),
             ProviderKind::Sftp => Remote::Sftp(Sftp::new(p)),
             ProviderKind::Onedrive => Remote::OneDrive(OneDrive::new(p)),
+            ProviderKind::Iphone => Remote::IPhone(IPhone::new(p)),
         }
     }
 
@@ -78,6 +82,8 @@ impl Remote {
     pub fn file_concurrency(&self) -> usize {
         match self {
             Remote::OneDrive(_) => 3,
+            // One USB link: more files at once only queue on it.
+            Remote::IPhone(_) => 2,
             _ => crate::transfer::FILE_CONCURRENCY,
         }
     }
@@ -91,6 +97,7 @@ impl Remote {
             Remote::OneDrive(o) => o.account(),
             Remote::Azure(a) => a.account(),
             Remote::Sftp(f) => f.account(),
+            Remote::IPhone(i) => i.account(),
         }
     }
 
@@ -102,6 +109,7 @@ impl Remote {
             Remote::OneDrive(o) => o.containers().await,
             Remote::Azure(a) => a.containers().await,
             Remote::Sftp(f) => f.containers().await,
+            Remote::IPhone(i) => i.containers().await,
         }
     }
 
@@ -174,6 +182,7 @@ impl Remote {
             Remote::OneDrive(o) => walk_files(prefix, |dir| async move { o.list(container, &dir).await }).await,
             Remote::Azure(a) => a.list_files(container, prefix).await,
             Remote::Sftp(f) => walk_files(prefix, |dir| async move { f.list(container, &dir).await }).await,
+            Remote::IPhone(i) => walk_files(prefix, |dir| async move { i.list(container, &dir).await }).await,
         }
     }
 
@@ -186,6 +195,7 @@ impl Remote {
             Remote::OneDrive(o) => o.list(container, prefix).await,
             Remote::Azure(a) => a.list(container, prefix).await,
             Remote::Sftp(f) => f.list(container, prefix).await,
+            Remote::IPhone(i) => i.list(container, prefix).await,
         }
     }
 
@@ -199,6 +209,11 @@ impl Remote {
             Remote::OneDrive(o) => o.list_all(container, prefix).await,
             Remote::Azure(a) => a.list_all(container, prefix).await,
             Remote::Sftp(f) => Ok(walk_files(prefix, |dir| async move { f.list(container, &dir).await })
+                .await?
+                .into_iter()
+                .map(|e| (e.key, e.size))
+                .collect()),
+            Remote::IPhone(i) => Ok(walk_files(prefix, |dir| async move { i.list(container, &dir).await })
                 .await?
                 .into_iter()
                 .map(|e| (e.key, e.size))
@@ -217,6 +232,8 @@ impl Remote {
             // Previews stream through the app (proxy.rs); SFTP has no share links.
             Remote::Sftp(f) if inline => Ok(crate::proxy::url(f.account(), container, key)),
             Remote::Sftp(_) => Err("SFTP can't make share links".into()),
+            Remote::IPhone(i) if inline => Ok(crate::proxy::url(i.account(), container, key)),
+            Remote::IPhone(_) => Err("An iPhone can't make share links".into()),
         }
     }
 
@@ -232,7 +249,7 @@ impl Remote {
             Remote::Dav(d) => d.get_range(key, start, last).await?,
             Remote::Box(b) => b.get_range(key, start, last).await?,
             Remote::OneDrive(o) => o.get_range(key, start, last).await?,
-            Remote::S3(_) | Remote::Azure(_) | Remote::Sftp(_) => return Ok(None),
+            Remote::S3(_) | Remote::Azure(_) | Remote::Sftp(_) | Remote::IPhone(_) => return Ok(None),
         }))
     }
 
@@ -245,6 +262,7 @@ impl Remote {
             Remote::OneDrive(o) => o.read_head(container, key, max).await,
             Remote::Azure(a) => a.read_head(container, key, max).await,
             Remote::Sftp(f) => f.read_head(key, max).await,
+            Remote::IPhone(i) => i.read_head(container, key, max).await,
         }
     }
 
@@ -265,6 +283,7 @@ impl Remote {
             Remote::OneDrive(o) => o.read_range(key, start, end, cap).await,
             Remote::Azure(a) => a.read_range(container, key, start, end, cap).await,
             Remote::Sftp(f) => f.read_range(key, start, end, cap).await,
+            Remote::IPhone(i) => i.read_range(container, key, start, end, cap).await,
         }
     }
 
@@ -287,6 +306,7 @@ impl Remote {
             Remote::OneDrive(o) => o.mkdir(container, prefix, name).await,
             Remote::Azure(a) => a.mkdir(container, prefix, name).await,
             Remote::Sftp(f) => f.mkdir(container, prefix, name).await,
+            Remote::IPhone(i) => i.mkdir(container, prefix, name).await,
         }
     }
 
@@ -311,6 +331,7 @@ impl Remote {
             Remote::OneDrive(o) => o.transfer_within(container, from, to, keep, job).await,
             Remote::Azure(a) => a.transfer_within(container, from, to, keep, job).await,
             Remote::Sftp(f) => f.transfer_within(container, from, to, keep, job).await,
+            Remote::IPhone(i) => i.transfer_within(container, from, to, keep, job).await,
         }
     }
 
@@ -324,6 +345,7 @@ impl Remote {
             Remote::OneDrive(o) => o.delete(container, keys, job).await,
             Remote::Azure(a) => a.delete(container, keys, job).await,
             Remote::Sftp(f) => f.delete(container, keys, job).await,
+            Remote::IPhone(i) => i.delete(container, keys, job).await,
         }
     }
 
@@ -342,6 +364,7 @@ impl Remote {
             Remote::OneDrive(o) => o.upload_file(container, key, path, size, job).await,
             Remote::Azure(a) => a.upload_file(container, key, path, size, job).await,
             Remote::Sftp(f) => f.upload_file(container, key, path, size, job).await,
+            Remote::IPhone(i) => i.upload_file(container, key, path, size, job).await,
         }
     }
 
@@ -354,6 +377,7 @@ impl Remote {
             Remote::OneDrive(o) => o.download_file(container, key, path, job).await,
             Remote::Azure(a) => a.download_file(container, key, path, job).await,
             Remote::Sftp(f) => f.download_file(container, key, path, job).await,
+            Remote::IPhone(i) => i.download_file(container, key, path, job).await,
         }
     }
 }
