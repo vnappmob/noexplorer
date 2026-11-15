@@ -32,7 +32,7 @@ Each running transfer has a pause button in the transfer card. Failed files retr
 
 ## Rename, move and duplicate
 
-<kbd>F2</kbd> renames the selected file or folder. The right-click menu has **Move to…** and **Duplicate**, and dragging onto a folder in the same pane moves there. <kbd>⌘ Z</kbd> undoes the last one. It works on this computer and on remotes, and never replaces a file that's already there.
+<kbd>F2</kbd> renames the selected file or folder. The right-click menu has **Move to…** and **Duplicate**, and dragging onto a folder in the same pane moves there. On a remote, **Move to…** shows the bucket's folders as a tree: folders you've opened before appear at once, and opening or picking one that hasn't been listed yet loads its subfolders right away (←/→ close and open, ↵ moves, **New folder** creates one in the picked folder; you can also type a path). <kbd>⌘ Z</kbd> undoes the last one. It works on this computer and on remotes, and never replaces a file that's already there.
 
 ## Your local files are safe
 

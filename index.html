@@ -383,6 +383,21 @@
       </form>
     </dialog>
 
+    <dialog id="move-pick" aria-labelledby="mv-title">
+      <form method="dialog" id="mv-form" class="mv-form">
+        <b id="mv-title"></b>
+        <div id="mv-tree" class="mv-tree" role="tree" aria-labelledby="mv-title"></div>
+        <label class="mv-dest"><span>Folder</span><input id="mv-path" spellcheck="false" autocomplete="off" placeholder="Top of the bucket" /></label>
+        <div class="buttons">
+          <button type="button" id="mv-new"><span data-icon="folderPlus"></span> New folder</button>
+          <span class="spacer"></span>
+          <!-- type="button": Enter submits with the first submit button, so only Move may be one. -->
+          <button type="button" id="mv-cancel">Cancel</button>
+          <button value="ok" class="primary" id="mv-ok">Move</button>
+        </div>
+      </form>
+    </dialog>
+
     <div id="toast" role="status" aria-live="polite" hidden></div>
   </body>
 </html>

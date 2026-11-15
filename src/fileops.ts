@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { trashLocal } from "./actions";
+import { pickMoveTarget } from "./movepick";
 import type { Pane } from "./pane";
 import { local, remotes } from "./panes";
 import type { Item, JobEvent } from "./types";
@@ -78,12 +79,7 @@ export async function renameItem(p: Pane, e: Item) {
 export async function moveItems(p: Pane, items: Item[], dest?: string) {
   if (!items.length) return;
   if (p.isRemote) {
-    const target =
-      dest ??
-      (await askText(
-        `Move ${items.length === 1 ? `“${items[0].name}”` : plural(items.length, "item")} to folder`,
-        p.cwd,
-      ));
+    const target = dest ?? (await pickMoveTarget(p, items));
     if (target == null) return;
     const dir = target.trim().replace(/^\/+/, "").replace(/\/?$/, "/").replace(/^\/$/, "");
     const pairs = items

@@ -52,6 +52,7 @@ src/                 Frontend (TypeScript, no framework). Entry: main.ts
   history.ts         Back (←, ⌘[, ⌘↑): up a level, restoring the parent's remembered scroll + selection; ⌘[ / ← / mouse back
   search.ts          Search below the current folder (↵ in the filter box): results in the pane, progress bar, Show in its folder
   tree.ts            Folder tree: ↑ opens a tree built from the folders listed so far (folders only, in memory)
+  movepick.ts        Move to… on a remote: folder-picker dialog on tree.ts's cache, lists unseen folders on open/pick
   speedtest.ts       Speed test dialog (experimental): From/To places, presets, results history
   policy.ts          Bucket access policies (experimental): presets ↔ policy JSON dialog, Copy public link
   backups.ts         Backup pairs (experimental): saved local ↔ remote folders, run = compare + upload_rel

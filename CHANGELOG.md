@@ -5,6 +5,11 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Move to… on a remote picks the folder from a tree** instead of a typed path. Folders you've
+  already opened show at once; a folder not seen yet is listed as soon as you open or pick it. You
+  can still type a path, and create a new folder from the dialog.
+
 ## [0.4.40] - 2026-11-14
 
 ### Changed

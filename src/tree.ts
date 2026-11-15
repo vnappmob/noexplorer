@@ -9,34 +9,41 @@ import { icon } from "./icons";
 import type { Pane } from "./pane";
 import { esc } from "./util";
 
-type Folder = { name: string; path: string };
+export type Folder = { name: string; path: string };
 
 /** Folders recorded per root, at most this many listings (oldest forgotten first). */
 const MAX = 5000;
 const cache = new Map<string, Map<string, Folder[]>>();
 
 const trim = (s: string) => s.replace(/[\\/]+$/, "");
-const rootOf = (p: Pane) => (p.isRemote ? `${p.account}|${p.bucket}` : "local");
+/** The cache a pane's folders live in: the local disk, or one remote account + bucket. */
+export const rootOf = (p: Pane) => (p.isRemote ? `${p.account}|${p.bucket}` : "local");
 /** A path as the pane navigates to it: remote prefixes end in "/" (the bucket root is ""). */
 const target = (p: Pane, path: string) => (p.isRemote && path ? `${trim(path)}/` : path);
 
-function folders(p: Pane) {
-  let m = cache.get(rootOf(p));
-  if (!m) cache.set(rootOf(p), (m = new Map()));
+/** Folder path (no trailing slash; a remote bucket's top is "") → its subfolders, for one root.
+ * Shared with the Move to picker (movepick.ts), which also fills it. */
+export function known(root: string) {
+  let m = cache.get(root);
+  if (!m) cache.set(root, (m = new Map()));
   return m;
 }
+const folders = (p: Pane) => known(rootOf(p));
 
-/** After every listing: remember this folder's subfolders. */
-export function record(p: Pane) {
-  const m = folders(p);
-  const k = trim(p.cwd);
+/** Remember the subfolders of `path` from one listing of it. */
+export function remember(root: string, path: string, entries: { key: string; name: string; dir: boolean }[]) {
+  const m = known(root);
+  const k = trim(path);
   m.delete(k);
   m.set(
     k,
-    p.entries.filter((e) => e.dir).map((e) => ({ name: e.name, path: trim(e.key) })),
+    entries.filter((e) => e.dir).map((e) => ({ name: e.name, path: trim(e.key) })),
   );
   if (m.size > MAX) m.delete(m.keys().next().value!);
 }
+
+/** After every listing: remember this folder's subfolders. */
+export const record = (p: Pane) => remember(rootOf(p), p.cwd, p.entries);
 
 // ---------- the dropdown ----------
 

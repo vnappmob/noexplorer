@@ -3327,6 +3327,78 @@ button.danger.subtle:hover:not(:disabled) {
   font-size: var(--fs-sm);
 }
 
+/* Move to… folder picker (movepick.ts): the same tree rows, in a dialog */
+#move-pick {
+  width: min(460px, 92vw);
+}
+.mv-form {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mv-tree {
+  display: flex;
+  flex-direction: column;
+  height: min(360px, 55vh);
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.mv-tree .tree-row {
+  flex: none;
+}
+.mv-tree .tree-row.sel {
+  background: var(--sel);
+  font-weight: 600;
+}
+.mv-tree .tree-row.off {
+  opacity: 0.45;
+  cursor: default;
+}
+.mv-tree .tree-row.off:hover {
+  background: none;
+}
+.mv-tree .tree-row .tn {
+  flex: 1;
+}
+.mv-tag {
+  flex: none;
+  font-style: normal;
+  font-weight: 400;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.mv-spin .i {
+  animation: spin 1s linear infinite;
+}
+.mv-note {
+  margin: 2px 0;
+  padding-left: calc(28px + var(--d, 0) * 16px);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+.mv-note.err {
+  color: var(--danger);
+}
+.mv-dest {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.mv-dest input {
+  flex: 1;
+  min-width: 0;
+}
+#mv-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* Search results (search.ts): the bar under the path bar, and each row's folder */
 .search-bar {
   position: relative;
