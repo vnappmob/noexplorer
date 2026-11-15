@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.41] - 2026-11-15
+
 ### Added
 - **iPhone and iPad by cable** (experimental, Settings → Experimental): connected iPhones and
   iPads appear by themselves under **Devices** in the account menu, and leave when unplugged (no
