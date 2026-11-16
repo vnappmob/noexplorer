@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.42] - 2026-11-16
+
 ### Fixed
 - Sorting by size on a remote (iPhone backups included) keeps folders in order when you come back
   to a folder: remembered folder sizes now count in the sort, not only in the Size column.
