@@ -5,6 +5,11 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Sorting by size on a remote (iPhone backups included) keeps folders in order when you come back
+  to a folder: remembered folder sizes now count in the sort, not only in the Size column.
+- Grid view can be sorted: Name, Size and Modified stay above the tiles.
+
 ## [0.4.41] - 2026-11-15
 
 ### Added

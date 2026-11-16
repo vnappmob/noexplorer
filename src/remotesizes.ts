@@ -85,12 +85,16 @@ function drawTotal(p: Pane) {
 export function remoteListed(p: Pane) {
   if (running.get(p) !== id(p, p.cwd)) p.el.classList.remove("scanning");
   if (p.search) return;
+  let filled = false;
   for (const e of p.entries) {
     const s = e.dir && known.get(id(p, e.key));
-    if (s) fill(e, s, false);
+    if (s) (fill(e, s, false), (filled = true));
   }
   drawTotal(p);
-  p.repaintRows();
+  // The listing was sorted while its folders still read 0 bytes: sorting by size has to see the
+  // remembered sizes, or coming back to a folder loses its order (Back then restores the scroll).
+  if (filled && p.sortBy === "size") p.render();
+  else p.repaintRows();
   if (autoOn(p)) countFolders(p);
 }
 

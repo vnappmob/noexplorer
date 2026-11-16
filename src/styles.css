@@ -1068,8 +1068,16 @@ button:focus-visible,
   align-content: start;
   padding-inline: 8px;
 }
+/* No columns to line up with in the grid: the header is just the sort buttons (Name · Size · Modified). */
+.pane.grid-mode .cols {
+  display: flex;
+  gap: 16px;
+}
+.pane.grid-mode .cols span:first-child {
+  flex: 1;
+}
 .pane.grid-mode .cols span:not(:first-child) {
-  visibility: hidden;
+  display: inline;
 }
 .row.cell {
   display: flex;

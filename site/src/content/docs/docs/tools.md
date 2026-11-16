@@ -24,7 +24,7 @@ For remote folders, select them and click **Σ Size** (or click it with nothing 
 
 ## Grid view
 
-The list / grid button in each pane header switches to big tiles with thumbnails of images and videos, on this computer and remote. Arrow keys move around the grid.
+The list / grid button in each pane header switches to big tiles with thumbnails of images and videos, on this computer and remote. Arrow keys move around the grid. Name, Size and Modified above the tiles sort them, as in the list.
 
 Image thumbnails are made once and kept in your system's cache folder (at most 48 MB; the least recently seen go first), so scrolling back and reopening a folder is instant. Photos and videos you open in quick look aren't kept on disk; with the thumbnails, NoExplorer's cache stays under about 70 MB. Remote images over 25 MB keep their icon.
 
