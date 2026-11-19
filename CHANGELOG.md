@@ -5,6 +5,8 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.43] - 2026-11-19
+
 ### Fixed
 - **Much lower energy use while NoExplorer sits in the menu bar.** Hidden to the tray it used
   about 3–4% CPU and macOS called it "Significant Energy"; it now stays near 0%. Animations stop
