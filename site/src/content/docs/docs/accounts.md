@@ -1,6 +1,6 @@
 ---
 title: Connect your storage
-description: Add S3 (AWS, R2, B2, Wasabi, Google Cloud, Oracle…), Azure Blob, Nextcloud, WebDAV, SFTP, OneDrive and (experimental) Box accounts.
+description: Add S3 (AWS, R2, B2, Wasabi, Google Cloud, Oracle…), Azure Blob, Nextcloud, WebDAV, SFTP and OneDrive accounts.
 sidebar:
   order: 2
 ---
@@ -54,16 +54,6 @@ Pick **OneDrive** and click **Sign in with Microsoft…**. Your browser opens Mi
 - Work or school accounts: NoExplorer is a verified publisher app (VNAppMob), which most organizations let you approve yourself. If Microsoft still says you need approval, ask your IT admin to allow **NoExplorer**.
 - NoExplorer asks only for your files (`Files.ReadWrite`), your basic profile (to name the account) and to stay signed in. Your password never reaches the app; the sign-in is kept in your system keychain.
 - Deleted items go to the OneDrive recycle bin. **Copy link** makes a view-only link (with an expiry where your plan allows one).
-
-## Box (experimental)
-
-Turn on **Settings → Experimental → Box accounts** to see Box in the provider list. It hasn't been tried on a real Box account yet.
-
-Box needs your own free Box app, because an open-source app can't keep a client secret private. It takes two minutes:
-
-1. In the [Box Developer Console](https://app.box.com/developers/console), choose **Create Platform App → Custom App → User Authentication (OAuth 2.0)**.
-2. Set the **Redirect URI** to `http://127.0.0.1:53682/callback` and tick *Read and write all files and folders*.
-3. In NoExplorer, pick **Box**, paste the **Client ID** and **Client secret**, and click **Sign in with Box…**.
 
 ## Azure Blob Storage
 

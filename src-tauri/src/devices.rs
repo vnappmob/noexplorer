@@ -5,11 +5,11 @@
 //!
 //! - Listed: every connected device (one row per UDID, cable before Wi-Fi), plus devices that
 //!   aren't connected but have a backup here (their apps' files stay readable, ADR-055).
-//! - The watcher runs on its own thread: usbmuxd's listen stream isn't `Send`. It idles while the
-//!   experiment is off, and reconnects every few seconds when usbmuxd isn't there (Windows without
-//!   Apple Devices) or goes away.
+//! - The watcher runs on its own thread: usbmuxd's listen stream isn't `Send`. It sleeps without a
+//!   timer while the experiment is off (woken when settings are saved), and reconnects every 5 s
+//!   (30 s while the window is hidden) when usbmuxd isn't there (Windows without Apple Devices).
 //! - "Trusted" changes without an event (the user taps Trust): untrusted devices are checked again
-//!   every few seconds.
+//!   every 3 s (15 s while hidden). With none of them, nothing wakes the thread but usbmuxd (ADR-057).
 
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
@@ -21,6 +21,7 @@ use idevice::lockdown::LockdownClient;
 use idevice::usbmuxd::{Connection, UsbmuxdDevice, UsbmuxdListenEvent};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
+use tokio::sync::Notify;
 
 use crate::config::{Profile, ProviderKind};
 use crate::state::AppState;
@@ -89,18 +90,49 @@ fn enabled(app: &AppHandle) -> bool {
     app.state::<AppState>().settings().general.experimental.iphone
 }
 
-/// Starts the watcher thread.
+/// Wakes the watcher: settings saved (the experiment may have been flipped) or the window was
+/// shown/hidden (re-check periods change). `notify_one` keeps a permit, so none is lost.
+static WAKE: Notify = Notify::const_new();
+
+pub fn settings_changed() {
+    WAKE.notify_one();
+}
+
+pub fn visibility_changed() {
+    WAKE.notify_one();
+}
+
+/// How long to wait before re-checking untrusted devices, or before reconnecting to an absent
+/// usbmuxd. Longer while the window is hidden: nobody is looking at the Devices group (ADR-057).
+fn period(recheck: bool) -> Duration {
+    match (recheck, crate::tray::visible()) {
+        (true, true) => Duration::from_secs(3),
+        (true, false) => Duration::from_secs(15),
+        (false, true) => Duration::from_secs(5),
+        (false, false) => Duration::from_secs(30),
+    }
+}
+
+/// Starts the watcher thread. It sleeps on [`WAKE`] while the experiment is off: no polling.
 pub fn setup(app: &AppHandle) {
     let app = app.clone();
     let _ = std::thread::Builder::new().name("iphone-watch".into()).spawn(move || {
         let Ok(rt) = tokio::runtime::Builder::new_current_thread().enable_all().build() else { return };
         rt.block_on(async move {
             loop {
-                if enabled(&app) {
-                    watch(&app).await;
-                    publish(&app, vec![]); // usbmuxd went away, or the experiment was turned off
+                if !enabled(&app) {
+                    WAKE.notified().await;
+                    continue;
                 }
-                tokio::time::sleep(Duration::from_secs(3)).await;
+                watch(&app).await;
+                publish(&app, vec![]); // usbmuxd went away, or the experiment was turned off
+                if enabled(&app) {
+                    // usbmuxd isn't there (Windows without Apple Devices): try again later.
+                    tokio::select! {
+                        _ = tokio::time::sleep(period(false)) => {}
+                        _ = WAKE.notified() => {}
+                    }
+                }
             }
         });
     });
@@ -170,9 +202,17 @@ async fn watch(app: &AppHandle) {
     let Ok(mut events) = m.listen().await else { return };
     let mut attached: HashMap<u32, UsbmuxdDevice> = HashMap::new();
     let mut info: HashMap<String, DeviceInfo> = HashMap::new();
-    let mut tick = tokio::time::interval(Duration::from_secs(3));
     loop {
+        // Attach/detach come from usbmuxd's listen stream; a timer runs only while a device still
+        // has something to tell (not trusted yet, or no model while locked).
+        let recheck = attached.values().any(|d| info.get(&d.udid).is_some_and(|i| !i.trusted || i.model.is_empty()));
         tokio::select! {
+            _ = WAKE.notified() => {
+                if !enabled(app) {
+                    return;
+                }
+                continue; // the window was shown or hidden: the period changes
+            }
             ev = events.next() => match ev {
                 // usbmuxd sends an Attached for every device already there, then the changes.
                 Some(Ok(UsbmuxdListenEvent::Connected(d))) => {
@@ -190,10 +230,7 @@ async fn watch(app: &AppHandle) {
                 }
                 _ => return, // usbmuxd closed or answered nonsense: start over
             },
-            _ = tick.tick() => {
-                if !enabled(app) {
-                    return;
-                }
+            _ = tokio::time::sleep(period(true)), if recheck => {
                 // Trust is granted on the device: no event for it. A device plugged in while
                 // locked may also have said nothing about itself yet.
                 for d in attached.values() {

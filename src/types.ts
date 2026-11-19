@@ -2,7 +2,7 @@
 // referenced in each comment.
 
 /** `config::ProviderKind` — which provider an account uses. */
-export type ProviderKind = "s3" | "nextcloud" | "webdav" | "box" | "azure" | "sftp" | "onedrive" | "iphone";
+export type ProviderKind = "s3" | "nextcloud" | "webdav" | "azure" | "sftp" | "onedrive" | "iphone";
 
 /** `config::Profile` — one remote account. */
 export type Profile = {
@@ -40,7 +40,6 @@ export type General = {
 export type Experimental = {
   self_signed: boolean;
   backup_pairs: boolean;
-  box_beta: boolean;
   bucket_policy: boolean;
   remote_sizes: boolean;
   speed_test: boolean;

@@ -44,7 +44,7 @@ This is the deep reference. For orientation, read [AGENTS.md](../AGENTS.md) firs
 | `devices.rs` | Connected iPhones / iPads (experimental) | usbmuxd listen on its own thread → the account menu's Devices group (`"iphone-devices"` event, `iphone_connected`); device accounts `iphone:<UDID>` without a saved profile (`profile`, used by `AppState::remote`) |
 | `iphone.rs` | iPhone / iPad provider (experimental) | `IPhone`: AFC over the system's usbmuxd (`idevice` crate), one container `iPhone` laid out as folders `Media/`, `Apps/<app>/`, `Backup/<app>/` (`route` → internal containers: media area, apps that share files (house_arrest VendDocuments, app list from installation_proxy Browse), a few pooled AFC connections per internal container, temp-name uploads renamed into place; `iphone_devices` (ADR-054) |
 | `iphone_backup.rs` | iPhone backups (experimental) | mobilebackup2 backup into the app data folder (`iphone-backups/<UDID>`, sync lock, encryption refused up front), `Index` from `Manifest.db` (SQLite) + archived `MBFile` sizes/dates, `Backup/<app>/` folders (app + its groups and extensions, the rest under `Other`); `iphone_backup`, `iphone_backup_info`, `iphone_delete_backup` (ADR-055) |
-| `box_api.rs` | Box provider (beta) | `BoxCom`: token refresh with rotation (keychain), path → ID cache, multipart and session uploads with SHA-1, versions, trash deletes, shared links; `box_login` (loopback OAuth) (ADR-027) |
+| `oauth.rs` | Browser sign-in helpers | Loopback listener for the OAuth redirect (`wait_for_code`), form/query encoding, RFC 3339 timestamps (OneDrive) |
 | `compare.rs` | Compare folders | `compare` / `diff`: local walk (junk, symlinks), `Remote::list_files` with hashes, pairing, parallel hash checks (MD5 / multipart ETag / SHA-1), `"compare-progress"` (ADR-028) |
 | `state.rs` | Shared state | `AppState { settings, remotes, cancels }`. **`remote(account)`** returns the cached `Arc<Remote>` for a profile id (active when `None`); `set_settings()` drops the clients of changed accounts only |
 | `jobs.rs` | Background jobs | `Job` (atomic counters, errors, cancel flag), `Job::spawn` (250 ms ticker + final event), `cancel` |
@@ -95,7 +95,6 @@ means the active account (ADR-025).
 | `iphone_backup` | `account` | job id | iphone_backup | Backs up the account's iPhone (job kind `backup`; `bytes_total` is the device's estimate, `local_dir` the backup folder); refuses encrypted backups and a second backup of the same device |
 | `iphone_backup_info` | `account, size` | `IPhoneBackup {date, size?, encrypted, running}` or null | iphone_backup | The backup the account reads (its UDID, the connected device, else the latest); `size` walks it |
 | `iphone_delete_backup` | `account` | – | iphone_backup | Moves the backup folder to the Trash |
-| `box_login` | `client_id, client_secret, id?, name` | `Settings` | box_api | Opens Box's authorize page, waits on `127.0.0.1:53682/callback`, exchanges the code, saves the account (client secret + refresh token in the keychain) |
 | `compare` | `id, account?, bucket, prefix, local, verify` | `Diff` | compare | Local folder vs remote folder; emits `"compare-progress"`; `cancel(id)` stops it |
 | `upload_rel` | `account?, bucket, prefix, root, rels[]` | job id | transfer | Uploads `root/rel` to `prefix + rel` (Compare → Upload) |
 | `copy_remote` | `srcAccount?, srcBucket, srcPrefix, items[{key,size}], dstAccount?, dstBucket, dstPrefix` | job id | transfer | Remote → remote (split views, ADR-029). Same S3 account: server-side CopyObject (≤ 5 GB); otherwise relayed through a temp file per object |
@@ -111,7 +110,7 @@ means the active account (ADR-025).
 | `public_url` | `account, bucket, key` | `string` | remote | A file's unsigned address (AWS virtual-hosted, path-style or the endpoint's host style) |
 | `create_bucket` | `account, name` | – | remote | Creates a bucket (S3-compatible, incl. GCS with its project) or an Azure container; name checked first (experimental `create_buckets`) |
 | `mkdir` | `bucket, prefix, name` | – | remote | Writes an empty `prefix+name/` marker object |
-| `delete` | `account?, bucket, keys[]` | job id | remote | Background job (kind `delete`): folders with everything inside; progress in `files_done/files_total` (S3: per batch of up to 1000, WebDAV/Box: per item); cancellable between steps |
+| `delete` | `account?, bucket, keys[]` | job id | remote | Background job (kind `delete`): folders with everything inside; progress in `files_done/files_total` (S3: per batch of up to 1000, WebDAV: per item); cancellable between steps |
 | `remote_move` | `account?, bucket, pairs[[from,to]], copy` | job id | fileops | Rename / move (`copy` false) or duplicate (true) inside one container, server-side (`Remote::transfer_within`); job kind `move` / `dup`; never overwrites |
 | `rename_local` | `path, name` | new path | fileops | Same-folder rename; refuses a taken name |
 | `move_local` | `paths, dest` | `{done, errors}` | fileops | Same-disk move; refuses taken names, other disks and moving a folder into itself |
@@ -134,6 +133,7 @@ means the active account (ADR-025).
 | `reveal` | `path` | – | local | Shows the item in Finder, Explorer or the Linux file manager |
 | `log_file` | – | `string` | diag | Path of the diagnostic log (created if missing), for Settings → About → Show log file |
 | `show_after_relaunch` | – | – | tray | Leaves a marker so the next start shows the window even with `--hidden` (the updater relaunches with the same arguments) |
+| `window_visible` | – | `boolean` | tray | Whether the window is shown (a login start begins hidden); changes arrive as `"window-visibility"` |
 
 ## Events
 
@@ -176,6 +176,11 @@ hashing) is emitted by `compare.rs` for the Compare dialog.
 clicked. `updater.ts` runs a manual check. **`"tray-open-account"`** (payload: profile id) and
 **`"tray-add-account"`** come from the tray's account items; `settings.ts` switches the remote
 pane to that account (or opens the account form) and focuses it.
+
+**`"window-visibility"`** (payload: `true` shown / `false` hidden to the tray) is emitted by
+`tray.rs` from `show_main` / `hide_main`. `main.ts` sets `data-asleep` on `<html>` while hidden,
+which stops every CSS animation; `window_visible` gives the state at startup (ADR-057). While
+hidden, `sizes.rs` sends no `"dir-sizes"` and only notes changes; it catches up on show.
 
 The UI also uses Tauri's built-in **drag-drop** events (`getCurrentWebview().onDragDropEvent`)
 for files dragged in from the OS. A drop on a remote view first opens the files' folder in the
@@ -312,7 +317,6 @@ Imports go one way to avoid cycles: `main → (actions, dnd, keyboard, menu, set
 |---|---|
 | Accounts + General (`Settings`, JSON, mode 0600; secret keys only when no OS store is available) | `<app config dir>/config.json`: macOS `~/Library/Application Support/com.vnappmob.noexplorer/`, Windows `%APPDATA%\com.vnappmob.noexplorer\`, Linux `~/.config/com.vnappmob.noexplorer/` |
 | OneDrive refresh tokens | OS credential store, `account = onedrive-refresh:<profile id>` (saved again whenever Microsoft sends a new one) |
-| Box refresh tokens | OS credential store, `account = box-refresh:<profile id>` (rotated on every refresh) |
 | Secret keys | OS credential store: Keychain / Credential Manager / Secret Service, `service = <app identifier>`, `account = <profile id>` |
 | UI preferences (`localStorage`) | `bucket@<profileId>`, `prefix@<profileId>`, `localPath`, `hidden`, `local.sortBy`, `local.sortDir`, `remote.sortBy`, `remote.sortDir`, `theme`, `textSize`, `split` |
 | "Open" temp files | `$TMP/noexplorer/` (wiped at startup) |

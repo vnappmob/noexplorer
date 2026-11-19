@@ -52,8 +52,7 @@ and you're done.
 - **S3, Google Cloud Storage, Azure Blob, OneDrive, Nextcloud, WebDAV and SFTP**: AWS, R2, B2,
   Wasabi, Oracle, MinIO… plus OneDrive (sign in with Microsoft), Nextcloud/ownCloud (sign in through
   the browser), any WebDAV server or NAS, and any SSH server (keys, agent, password or key
-  passphrase). Box is experimental. Previews and
-  transfers work the same way everywhere.
+  passphrase). Previews and transfers work the same way everywhere.
 - **Compare folders**: after a backup, see exactly what's missing or different on each side.
   Contents are checked by checksum without downloading, system junk (`.DS_Store`…) is explained,
   and one click uploads or downloads the difference.
@@ -85,7 +84,6 @@ Newer features ship in **Settings → Experimental**, off until you turn them on
 
 - **Backup pairs**: save "this folder ↔ that remote folder" and back it up in one click.
 - **Self-signed HTTPS**: trust a NAS's own certificate after comparing its fingerprint.
-- **Box accounts** with your own Box app (not yet tried on a real Box account).
 
 ## Install
 
@@ -115,12 +113,6 @@ and school accounts, no app or key to set up.
 Nextcloud…**. Approve in the browser and you're done (NoExplorer gets its own app password, kept
 in your system keychain). **WebDAV / NAS:** pick *WebDAV* and enter the folder URL, user name and
 password.
-
-**Box (beta):** Box needs your own (free) app, because an open-source app can't ship a secret. In
-the [Box Developer Console](https://app.box.com/developers/console): *Create Platform App →
-Custom App → User Authentication (OAuth 2.0)*. Set the **Redirect URI** to
-`http://127.0.0.1:53682/callback` and tick *Read and write all files and folders*. Then pick *Box*
-in NoExplorer, paste the **Client ID** and **Client secret**, and click **Sign in with Box…**.
 
 **S3 and compatible services:**
 

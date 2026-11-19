@@ -46,7 +46,7 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "str
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 quick-xml = "0.42"
 percent-encoding = "2"
-# Box (box_api.rs): SHA-1 digests for upload sessions, base64 for the Digest header; both already
+# SHA-1 (Compare against Nextcloud/OneDrive hashes) and base64 (OneDrive PKCE, Azure); both already
 # built for aws-smithy-checksums / the updater.
 sha1 = "0.11"
 # Compare (compare.rs): S3 ETags are MD5s; already built for aws-smithy-checksums.

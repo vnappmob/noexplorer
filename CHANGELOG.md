@@ -5,6 +5,19 @@ versions: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- **Much lower energy use while NoExplorer sits in the menu bar.** Hidden to the tray it used
+  about 3–4% CPU and macOS called it "Significant Energy"; it now stays near 0%. Animations stop
+  while the window is hidden, folder-size updates wait until you open the window, changes inside
+  build output, `node_modules`, `.git`, `~/Library` and `~/.cache` no longer trigger size
+  updates, and the iPhone watcher no longer checks every 3 seconds.
+
+### Removed
+- **Box accounts** (experimental). Signing in needed your own Box developer app with an exact
+  redirect address, and it never worked reliably. Saved Box accounts are dropped from the account
+  list; everything else in your settings stays. Box Drive folders on your computer are still shown
+  with a cloud icon.
+
 ## [0.4.42] - 2026-11-16
 
 ### Fixed

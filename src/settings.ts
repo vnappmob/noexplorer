@@ -226,32 +226,27 @@ function applyPreset(id: ProviderId, fill: boolean) {
   form()
     .querySelectorAll<HTMLElement>(".s3-only")
     .forEach((el) => (el.hidden = !s3));
-  const box = pr.kind === "box";
   // OneDrive: signing in is all there is (NoExplorer's own Microsoft app, onedrive.rs).
   const od = pr.kind === "onedrive";
-  $("acct-signin").hidden = pr.kind !== "nextcloud" && !box && !od;
+  $("acct-signin").hidden = pr.kind !== "nextcloud" && !od;
   $("acct-nc-login").textContent = od
     ? editing
       ? "Sign in again…"
       : "Sign in with Microsoft…"
-    : box
-      ? "Sign in with Box…"
-      : "Sign in with Nextcloud…";
+    : "Sign in with Nextcloud…";
   $("acct-signin-hint").textContent = od
     ? editing
       ? `Signed in as ${input("access_key").value || "your Microsoft account"}. Sign in again to renew access or switch accounts.`
       : "Opens your browser to sign in to Microsoft and allow NoExplorer to read and write your files."
-    : box
-      ? "Opens your browser to approve your Box app. Fill in the Client ID and secret below first."
-      : "Opens your browser. Or enter a user name and an app password below.";
+    : "Opens your browser. Or enter a user name and an app password below.";
   // iPhone: pick the device; no address or keys (the system pairs it, iphone.rs).
   const ip = pr.kind === "iphone";
   $("acct-conn").hidden = od;
   $("acct-test").hidden = od && !editing; // nothing to test before signing in
   $("acct-cred").hidden = od || ip;
-  $("acct-endpoint-row").hidden = box || od || ip;
+  $("acct-endpoint-row").hidden = od || ip;
   $("acct-device-row").hidden = !ip;
-  endpoint.required = pr.endpointRequired && !box;
+  endpoint.required = pr.endpointRequired;
   const azure = pr.kind === "azure";
   const sftp = pr.kind === "sftp";
   $("lbl-endpoint").textContent = s3
@@ -263,24 +258,20 @@ function applyPreset(id: ProviderId, fill: boolean) {
         : "WebDAV URL";
   $("lbl-access").textContent = s3
     ? "Access key"
-    : box
-      ? "Client ID"
-      : azure
-        ? "Storage account name"
-        : sftp
-          ? "User name (optional)"
-          : "User name";
+    : azure
+      ? "Storage account name"
+      : sftp
+        ? "User name (optional)"
+        : "User name";
   $("lbl-secret").textContent = s3
     ? "Secret key"
-    : box
-      ? "Client secret"
-      : azure
-        ? "Account key"
-        : pr.kind === "nextcloud"
-          ? "App password"
-          : sftp
-            ? "Password or key passphrase (optional)"
-            : "Password";
+    : azure
+      ? "Account key"
+      : pr.kind === "nextcloud"
+        ? "App password"
+        : sftp
+          ? "Password or key passphrase (optional)"
+          : "Password";
   input("access_key").required = pr.kind !== "nextcloud" && !sftp && !od && !ip;
   // A new account needs its secret, except where signing in (or SSH keys) replaces it.
   input("secret_key").required = !editing && pr.kind !== "nextcloud" && !sftp && !od && !ip;
@@ -389,8 +380,8 @@ function renderSetup(values: Record<string, string>) {
         .join("")
     : "";
   box.hidden = !simple || !st.fields.length;
-  $("acct-endpoint-row").hidden = simple || id === "box" || id === "onedrive" || id === "iphone";
-  input("endpoint").required = !simple && PRESETS[id].endpointRequired && id !== "box";
+  $("acct-endpoint-row").hidden = simple || id === "onedrive" || id === "iphone";
+  input("endpoint").required = !simple && PRESETS[id].endpointRequired;
   syncSetup();
 }
 
@@ -497,9 +488,8 @@ function syncProviderOptions() {
  * on (or when the account already trusts a certificate, so it can be removed). */
 function renderCert() {
   const pin = input("cert_pin").value;
-  const kind = PRESETS[$<HTMLSelectElement>("acct-provider").value as ProviderId].kind;
   const https = /^https:\/\//i.test(input("endpoint").value.trim());
-  $("acct-cert").hidden = !pin && !(exp("self_signed") && https && kind !== "box");
+  $("acct-cert").hidden = !pin && !(exp("self_signed") && https);
   $("acct-cert-text").textContent = pin
     ? `Trusts the certificate ${pin.slice(0, 11)}…${pin.slice(-5)}`
     : "Self-signed certificate? Trust it after checking its fingerprint.";
@@ -552,8 +542,7 @@ async function testAccount(): Promise<boolean> {
 /** Save = test first, then persist and switch the remote pane to this account. */
 async function saveAccount(ev: Event) {
   ev.preventDefault();
-  // Box and new OneDrive accounts are created by signing in (that's where the tokens come from).
-  if (readForm().kind === "box") return boxSignIn();
+  // New OneDrive accounts are created by signing in (that's where the tokens come from).
   if (readForm().kind === "onedrive" && !editing) return oneDriveSignIn();
   if (!(await testAccount())) return;
   try {
@@ -562,32 +551,6 @@ async function saveAccount(ev: Event) {
     dialog().close();
   } catch (e) {
     setMsg(`✗ ${e}`, "err");
-  }
-}
-
-/** Box with the user's own OAuth app: the browser approves, the backend saves the account and
- * its tokens (keychain). */
-async function boxSignIn() {
-  const clientId = input("access_key").value.trim();
-  if (!clientId) return (setMsg("Enter your Box app's Client ID first.", "err"), input("access_key").focus());
-  const btn = $<HTMLButtonElement>("acct-nc-login");
-  btn.disabled = true;
-  $("acct-nc-cancel").hidden = false;
-  setMsg("Approve the app in the browser window that just opened…");
-  try {
-    const s = await invoke<Settings>("box_login", {
-      clientId,
-      clientSecret: input("secret_key").value,
-      id: editing || null,
-      name: input("name").value,
-    });
-    await applySettings(s, s.active);
-    dialog().close();
-  } catch (e) {
-    setMsg(`✗ ${e}`, "err");
-  } finally {
-    btn.disabled = false;
-    $("acct-nc-cancel").hidden = true;
   }
 }
 
@@ -706,7 +669,7 @@ export function renderPickers(v: Pane) {
   v.q(".profile-label").textContent = p ? p.name : "Add account";
   v.q(".profile-sub").textContent = p && describeAccount(p) !== p.name ? describeAccount(p) : "";
   v.q(".bucket-label").textContent = v.bucket || (p ? "No bucket" : "—");
-  // WebDAV/Nextcloud/Box/SFTP have a single container: no bucket picker to show.
+  // WebDAV/Nextcloud/OneDrive/SFTP have a single container: no bucket picker to show.
   const buckets = !!p && hasContainers(p);
   const chip = v.q(".bucket-chip");
   chip.hidden = !buckets;
@@ -893,7 +856,7 @@ export async function applySettings(s: Settings, show?: string) {
 
 /** Each account's containers, from the last time they were listed. Switching back to an account
  * lists its folder straight away and refreshes this in the background: one round trip instead of
- * two (for Nextcloud/WebDAV/Box, listing containers is only a connection check). */
+ * two (for Nextcloud/WebDAV/OneDrive, listing containers is only a connection check). */
 const knownBuckets = new Map<string, BucketInfo[]>();
 
 /** Picks the view's bucket from `buckets`: keeps it, else the account's default, else the first. */
@@ -1005,7 +968,7 @@ export function setupSettings() {
   };
   $("acct-nc-login").onclick = () => {
     const kind = readForm().kind;
-    return kind === "box" ? boxSignIn() : kind === "onedrive" ? oneDriveSignIn() : nextcloudSignIn();
+    return kind === "onedrive" ? oneDriveSignIn() : nextcloudSignIn();
   };
   $("acct-nc-cancel").onclick = () => invoke("cancel_login");
   $("acct-delete").onclick = deleteAccount;

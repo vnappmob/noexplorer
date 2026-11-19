@@ -4,7 +4,7 @@
 //!   client secret). Authorization code + PKCE through the browser, redirected to a loopback port.
 //!   The refresh token goes to the keychain (`onedrive-refresh:<profile id>`) and is saved again
 //!   whenever Microsoft sends a new one; the access token lives in memory.
-//! - Graph addresses items by path (`/me/drive/root:/a/b:`), so unlike Box there's no ID cache.
+//! - Graph addresses items by path (`/me/drive/root:/a/b:`), so there's no ID cache.
 //! - Uploads: ≤ 4 MB in one PUT; larger files through an upload session in 50 MiB chunks (a
 //!   multiple of 320 KiB, as Graph requires; it accepts up to 60 MiB). Graph takes a session's
 //!   chunks strictly in order, one at a time, so big chunks are what keeps an upload moving: each
@@ -29,9 +29,9 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 
-use crate::box_api::{enc, form, parse_rfc3339, rfc3339_in, wait_for_code};
 use crate::config::Profile;
 use crate::jobs::Job;
+use crate::oauth::{enc, form, parse_rfc3339, rfc3339_in, wait_for_code};
 use crate::provider::{BucketInfo, Entry, drop_part, open_part, part_path, resume_offset};
 use crate::secrets::{OsStore, SecretStore};
 use crate::webdav::{file_stream, http};
@@ -925,7 +925,7 @@ mod tests {
             let mut m = state.lock().unwrap();
             let base = m.base.clone();
             if path == "/login/token" {
-                let f = crate::box_api::parse_query(&String::from_utf8_lossy(&body));
+                let f = crate::oauth::parse_query(&String::from_utf8_lossy(&body));
                 assert_eq!(f.get("client_id").map(String::as_str), Some(CLIENT_ID));
                 if f.get("refresh_token") != Some(&m.refresh) {
                     err(400, "invalid_grant")
@@ -1055,7 +1055,7 @@ mod tests {
                         kids.sort();
                         // Two per page: test paging through @odata.nextLink.
                         let skip: usize =
-                            crate::box_api::parse_query(query).get("skip").and_then(|s| s.parse().ok()).unwrap_or(0);
+                            crate::oauth::parse_query(query).get("skip").and_then(|s| s.parse().ok()).unwrap_or(0);
                         let page: Vec<Value> = kids
                             .iter()
                             .skip(skip)

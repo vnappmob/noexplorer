@@ -582,7 +582,7 @@ pub(crate) fn file_stream(
 
 // ---------- Nextcloud sign-in (Login Flow v2) ----------
 
-/// Set by `cancel_login`; checked by every browser sign-in that is waiting (Nextcloud, Box).
+/// Set by `cancel_login`; checked by every browser sign-in that is waiting (Nextcloud, OneDrive).
 pub(crate) static LOGIN_CANCEL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Signs in to a Nextcloud server through the browser and saves the account.
@@ -652,7 +652,7 @@ pub async fn nextcloud_login(
     crate::config::store_account(&app, &state, p)
 }
 
-/// Stops a browser sign-in (`nextcloud_login`, `box_login`) that is waiting.
+/// Stops a browser sign-in (`nextcloud_login`, `onedrive_login`) that is waiting.
 #[tauri::command]
 pub fn cancel_login() {
     LOGIN_CANCEL.store(true, Ordering::Relaxed);

@@ -29,6 +29,31 @@ import { bindPickers, initSettings, setupSettings, splitView } from "./settings"
 import { setupUpdater } from "./updater";
 import type { SortBy } from "./types";
 import { $, fail, store } from "./util";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+
+// Hidden to the tray (or the page otherwise not visible): `data-asleep` stops every CSS animation
+// so WebKit's display link stops too (ADR-057). The backend holds size events meanwhile.
+async function setupSleep() {
+  let shown = true;
+  const apply = () => {
+    const root = document.documentElement;
+    if (!shown || document.hidden) root.dataset.asleep = "";
+    else delete root.dataset.asleep;
+    // Another app in front: the decorative watermark float stops (progress animations keep going).
+    if (document.hasFocus()) delete root.dataset.unfocused;
+    else root.dataset.unfocused = "";
+  };
+  document.addEventListener("visibilitychange", apply);
+  window.addEventListener("focus", apply);
+  window.addEventListener("blur", apply);
+  await listen<boolean>("window-visibility", (e) => {
+    shown = e.payload;
+    apply();
+  });
+  shown = await invoke<boolean>("window_visible").catch(() => true);
+  apply();
+}
 
 // Remote files preview on Enter; local files open in their default app.
 paneHooks.openFile = (p, e) => (p.isRemote ? openPreview(p, e) : openItem(p, e));
@@ -208,6 +233,7 @@ async function main() {
   window.addEventListener("focus", () => local.load(true)); // pick up changes made outside the app
   setActive(local);
 
+  await setupSleep();
   await setupJobs();
   await setupDnd();
 

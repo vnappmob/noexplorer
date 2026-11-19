@@ -47,7 +47,7 @@ Press <kbd>Space</kbd> to preview images, video, audio, PDF and text files, on e
 
 ## Share links
 
-Right-click a remote file and choose **Copy link**. Anyone with the link can download the file for 7 days (S3), or until the share expires (Nextcloud, Box).
+Right-click a remote file and choose **Copy link**. Anyone with the link can download the file for 7 days (S3), or until the share expires (Nextcloud, OneDrive).
 
 ## Search
 

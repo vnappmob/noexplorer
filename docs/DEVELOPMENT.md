@@ -78,9 +78,9 @@ skipped and the other tests still run. On a fresh clone, run `npm run build` onc
 | `transfer::tests::s3_create_bucket`, `util::tests::bucket_names` | New bucket on dev S3, name rules |
 | `jobs::tests::*`, `resume::tests::*` | Job events never deadlock; retries, throttling |
 | `transfer::tests::s3_resume`, `s3_pause_limit_journal` | Resumable transfers: multipart continued from the server's parts, `.part` download continued, pause, speed limit, journal |
-| `fileops::tests::*`, round-trips | Rename / move / duplicate never overwrite (local), and remote move/copy on S3, Nextcloud and the Box mock |
+| `fileops::tests::*`, round-trips | Rename / move / duplicate never overwrite (local), and remote move/copy on S3 and Nextcloud |
 | `tls::tests::pinning_against_untrusted_proxy` | Self-signed HTTPS: refused by default, works pinned (S3 incl. multipart, WebDAV), refused with a wrong pin |
-| `webdav::tests::nextcloud_roundtrip`, `box_api::tests::*` | Nextcloud against dev Nextcloud; Box against the in-memory mock |
+| `webdav::tests::nextcloud_roundtrip` | Nextcloud against dev Nextcloud |
 
 The frontend has no automated tests yet (roadmap). Use the manual checklist below for UI changes.
 
@@ -144,7 +144,6 @@ Run against `dev-s3.sh` **and**, before a release, against a real MinIO.
 - [ ] ⌘⌫ on a local file/folder: it lands in the Trash (Finder "Put Back" works) and the next row is selected
 - [ ] Tray: lists the accounts (✓ on the active one); choosing another opens the window on it; with no account it offers "Add S3 Account…"
 - [ ] Nextcloud: **Sign in with Nextcloud…** opens the browser; after approving, the account appears and lists files. Space previews an image, a PDF and a video (seeking works). Upload a folder and a > 16 MB file, download them back, Copy link gives a `/s/…` share, delete
-- [ ] Box (needs a real Box app, see README): sign in, list, preview, upload small and > 50 MB files, re-upload (new version), download, Copy link, delete (goes to Box trash). Relaunch: still signed in (rotated refresh token was saved)
 - [ ] Compare: upload a folder, delete a remote file, edit a local file keeping its size, add `.DS_Store`; ⌘K → Compare shows each case, Verify marks the edit as "different content", junk is explained, Upload/Download fix it and a re-run says everything matches
 - [ ] WebDAV (any server): list, preview, upload into a new sub-folder, download, delete
 - [ ] A folder with thousands of files (`for i in $(seq 3000); do : > f$i; done`): splitter drag, scrolling to the end and arrow-key selection stay smooth

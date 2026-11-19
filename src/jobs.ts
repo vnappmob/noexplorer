@@ -351,7 +351,6 @@ const SCHEME: Record<string, string> = {
   s3: "s3://",
   nextcloud: "nextcloud://",
   webdav: "dav://",
-  box: "box://",
   iphone: "iphone://",
 };
 

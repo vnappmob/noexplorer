@@ -9,7 +9,7 @@ use std::sync::OnceLock;
 use tauri::AppHandle;
 
 /// The app identifier, set once at startup (`init`), so providers can reach the store without an
-/// `AppHandle` (Box rotates its refresh token on every refresh and must save the new one).
+/// `AppHandle` (OneDrive saves a new refresh token whenever Microsoft sends one).
 static SERVICE: OnceLock<String> = OnceLock::new();
 
 pub fn init(app: &AppHandle) {

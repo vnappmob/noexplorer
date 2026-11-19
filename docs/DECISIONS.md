@@ -535,7 +535,7 @@ whole file first: the app can't hand another program a link that needs our login
 <a id="adr-027"></a>
 
 ## ADR-027: Box through the user's own OAuth app (beta)
-Accepted · 2026-10-16
+Superseded by [ADR-056](#adr-056) · 2026-10-16
 
 **Context.** NoExplorer is open source, so it can't ship a Box client secret. The maintainer
 chose bring-your-own-app, the way rclone and Cyberduck handle it. There was no Box account
@@ -1261,3 +1261,56 @@ to change; messages now say so, and a first backup that never finished (no Manif
 the right-click menu to free its space. A 104 without an escrow keybag in the pair record suggests
 setting Auto-Lock to Never.
 
+<a id="adr-056"></a>
+
+## ADR-056: Box removed
+Accepted · 2026-11-16
+
+**Context.** Box (ADR-027) needed every user to create their own Box developer app and register
+the exact redirect URI. The maintainer's first real sign-in ended in Box's `redirect_uri_mismatch`
+page, Box never got past "beta" (only the in-memory mock ever ran), and keeping a provider nobody
+can easily set up costs code (~1,400 lines), tests and docs.
+**Decision.** Box is removed: `box_api.rs`, `ProviderKind::Box`, `Remote::Box`, the `box_login`
+command, the `box_beta` experiment, and the form, picker and docs entries. The loopback sign-in
+listener and the form/query/RFC 3339 helpers OneDrive shared with it moved to `oauth.rs`.
+`config::parse_settings` drops saved accounts with `kind: "box"`, because an unknown kind would
+otherwise make the whole `config.json` fail to load. Online-only Box Drive folders on the local
+disk (`cloud.rs`) are unrelated and still recognized.
+**Consequences.** Box users lose the account on upgrade (it was experimental and off by default).
+Their keychain entries (client secret, `box-refresh:<id>`) stay behind, harmless; they can be
+deleted in Keychain Access. Box can come back as a new ADR if a simpler sign-in exists.
+
+## ADR-057: Idle stays idle while hidden to the tray
+Accepted · 2026-11-19
+
+**Context.** Hidden to the menu bar with nothing to do, 0.4.42 used ~3.6% CPU in the app process
+and ~1.6% in its WebContent process (`top -l 13 -s 5`, energy "Significant"). `sample` showed why:
+the size watchers re-read folders that change all day (`getattrlistbulk` in the batcher, a home
+folder holding build output and caches), every re-read ended in a `"dir-sizes"` event that woke
+the hidden webview, and WebKit kept starting `CVDisplayLink` for the beam's `stroke-dashoffset`
+animation, which runs forever at `opacity: 0` once a transfer has drawn it.
+**Decision.**
+- `tray.rs` knows whether the window is shown (`visible()`), emits `"window-visibility"` and tells
+  `sizes.rs` / `devices.rs` when it changes; `window_visible` gives the UI the state at startup.
+- `sizes.rs`: changes inside `target/`, `node_modules/`, `.git/`, `~/Library` and `~/.cache` are
+  dropped in the watcher callback, before they wake the batcher (the folder the pane shows always
+  counts). Bursts settle for 1 s (was 400 ms). While hidden, changes are only noted (`parked`,
+  limited to indexed folders) and no `"dir-sizes"` is sent; `resume` re-reads them on show.
+- The UI sets `data-asleep` while hidden, which turns off every CSS animation and transition; the
+  faded-out beam no longer animates at all, and the floating watermarks stop while another app is
+  in front.
+- `devices.rs` no longer wakes every 3 s: with the experiment off it waits for a settings change;
+  with it on, attach/detach come from usbmuxd's Listen stream and a timer runs only while a device
+  is untrusted or unnamed (3 s, 15 s hidden). Reconnecting to an absent usbmuxd: 5 s, 30 s hidden.
+- Tauri's tokio runtime has 2 workers instead of one per core (`ASYNC_WORKERS`).
+**Measured** (`top -l 13 -s 5`, hidden, home folder watched, after the first scan): 0.4.42
+release 2.0–3.6% app + 0.4–1.6% WebContent; a debug build with this change 0.0% + 0.0% idle,
+0.03% + 0.00% while `cargo build` loops in a watched project, 0.20% + 0.02% with 20 writes/s
+into a plain home folder. `sample` shows no `CVDisplayLink` thread and no folder reads while hidden.
+**Rejected.** Destroying the webview when hidden: the UI holds the views, running jobs' lanes,
+search results and selection, and with the sources above stopped the hidden webview measures
+~0%. FSEvents exclusion paths / a latency above 0: `notify` doesn't expose them.
+**Consequences.** Sizes of folders inside the noisy ones keep their last scanned value until Σ or
+a new scan (a project's `target/` doesn't follow a build live). Two async workers are plenty for
+network I/O and short bursts; blocking work stays on `spawn_blocking`. If transfers ever look
+CPU-bound on fast LANs, raise `ASYNC_WORKERS` first.

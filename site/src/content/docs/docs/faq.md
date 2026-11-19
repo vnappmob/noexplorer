@@ -27,10 +27,6 @@ No. Downloads never overwrite (they become `name (1).ext`), and removing local f
 
 In your system's credential store (macOS Keychain, Windows Credential Manager or Linux Secret Service). They're never shown in the app and only sent to the server you configured.
 
-### Why does Box need my own app?
-
-Box sign-in needs a client secret, and an open-source app can't keep one secret. A free Box app takes two minutes, see [Connect your storage](/docs/accounts/#box-experimental).
-
 ### Closing the window doesn't quit the app
 
 That's so transfers can finish. Quit from the menu bar or tray icon, or turn off **Keep running in the background** in **Settings → General**.

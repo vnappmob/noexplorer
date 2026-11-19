@@ -7,6 +7,10 @@
 //!   going back to a folder is instant and sizes follow changes: only the changed folder is
 //!   re-read and the difference is applied to its ancestors. When the shown folder's own entries
 //!   change, the event says `relist` and the pane lists it again (live folder view).
+//! - Idle stays idle (ADR-057): changes inside build output, package caches, `.git`, `~/Library`
+//!   and `~/.cache` are dropped in the watcher callback, bursts settle for 1 s, and while the
+//!   window is hidden to the tray changes are only noted (`parked`) and no events are sent;
+//!   [`resume`] catches up when it's shown.
 //! - Automatic scans are polite: low-priority threads, never another volume, and on macOS they
 //!   skip folders that would trigger a privacy prompt (Desktop, Documents, Downloads, ~/Library…)
 //!   unless the user has already opened them in NoExplorer. The Σ button scans everything.
@@ -113,6 +117,10 @@ pub struct SizeIndex {
     granted: Mutex<HashSet<PathBuf>>,
     granted_file: Option<PathBuf>,
     seen: Mutex<Seen>,
+    /// Copy of `Inner::focus` for the watchers' event filter (no contention with scans).
+    focus_dir: Mutex<Option<PathBuf>>,
+    /// Changes seen while the window was hidden, re-read when it's shown ([`resume`]).
+    parked: Mutex<Changes>,
 }
 
 /// Last known totals of folders the local pane has shown, kept in `<OS cache dir>/folder-sizes.json`.
@@ -384,9 +392,57 @@ fn evict(g: &mut Inner) {
 
 // ---------- live updates ----------
 
+/// Folders whose insides change all day (builds, package caches, VCS objects) and that nobody
+/// browses for their size: changes inside them are dropped before they wake anything (ADR-057).
+/// Their totals stay as the last scan found them until Σ or a new scan.
+const NOISY_NAMES: [&str; 3] = ["target", "node_modules", ".git"];
+/// The same for these folders of the home folder.
+const NOISY_HOME: [&str; 2] = ["Library", ".cache"];
+
+/// Noisy places below `root`, as prefixes.
+fn noisy_prefixes(root: &Path) -> Vec<PathBuf> {
+    let Some(home) = dirs::home_dir() else { return vec![] };
+    NOISY_HOME.iter().map(|n| home.join(n)).filter(|p| !root.starts_with(p)).collect()
+}
+
+/// A change at `p` (watched from `root`) is inside a noisy folder. The noisy folder's own entry
+/// (created, removed) still counts: only what happens inside it is dropped.
+fn noisy(p: &Path, root: &Path, prefixes: &[PathBuf]) -> bool {
+    let Some(parent) = p.parent() else { return false };
+    let Ok(rel) = parent.strip_prefix(root) else { return false };
+    rel.components().any(|c| NOISY_NAMES.iter().any(|n| c.as_os_str() == *n))
+        || prefixes.iter().any(|x| parent.starts_with(x))
+}
+
+/// Debounce of file-system events: one update per changed folder per second at most.
+const SETTLE: Duration = Duration::from_millis(1000);
+
 fn watch(app: &AppHandle, root: &Path) -> Option<notify::RecommendedWatcher> {
     let (tx, rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
-    let mut w = notify::recommended_watcher(tx).ok()?;
+    let prefixes = noisy_prefixes(root);
+    let (filter_app, filter_root) = (app.clone(), root.to_path_buf());
+    // Runs on notify's thread for every event: drop what's inside noisy folders right there, so a
+    // build in the watched tree doesn't wake the batcher. The folder the pane shows always counts.
+    let handler = move |res: notify::Result<notify::Event>| {
+        let mut ev = match res {
+            Ok(ev) => ev,
+            Err(e) => {
+                let _ = tx.send(Err(e));
+                return;
+            }
+        };
+        if ev.attrs.flag() != Some(notify::event::Flag::Rescan) {
+            let focus = filter_app.state::<SizeIndex>().focus_dir.lock().unwrap().clone();
+            ev.paths.retain(|p| {
+                !noisy(p, &filter_root, &prefixes) || focus.as_deref().is_some_and(|f| p.parent() == Some(f))
+            });
+            if ev.paths.is_empty() {
+                return;
+            }
+        }
+        let _ = tx.send(Ok(ev));
+    };
+    let mut w = notify::recommended_watcher(handler).ok()?;
     // FSEvents and ReadDirectoryChangesW watch a tree natively. inotify needs one watch per folder
     // (a low system limit), so Linux only follows the root's own entries.
     let mode = if cfg!(target_os = "linux") { RecursiveMode::NonRecursive } else { RecursiveMode::Recursive };
@@ -399,24 +455,20 @@ fn watch(app: &AppHandle, root: &Path) -> Option<notify::RecommendedWatcher> {
             let mut batch = Changes::default();
             let mut add = |ev: notify::Result<notify::Event>| {
                 if let Ok(ev) = ev {
-                    let rescan = ev.attrs.flag() == Some(notify::event::Flag::Rescan);
-                    for p in ev.paths {
-                        if rescan {
-                            batch.dirs.insert(p.clone());
-                            batch.rescan.insert(p);
-                        } else if let Some(d) = p.parent() {
-                            batch.dirs.insert(d.to_path_buf());
-                            batch.paths.insert(p);
-                        }
-                    }
+                    batch.add(ev);
                 }
             };
             add(first);
-            std::thread::sleep(Duration::from_millis(400));
+            std::thread::sleep(SETTLE);
             while let Ok(ev) = rx.try_recv() {
                 add(ev);
             }
-            refresh_dirs(&app, batch);
+            if crate::tray::visible() {
+                refresh_dirs(&app, batch);
+            } else {
+                // Hidden to the tray: only note what changed; `resume` re-reads it on show.
+                app.state::<SizeIndex>().park(batch);
+            }
         }
     });
     Some(w)
@@ -431,6 +483,60 @@ struct Changes {
     paths: HashSet<PathBuf>,
     /// Folders the OS asks to re-read in full (FSEvents dropped the details).
     rescan: HashSet<PathBuf>,
+}
+
+impl Changes {
+    fn add(&mut self, ev: notify::Event) {
+        let rescan = ev.attrs.flag() == Some(notify::event::Flag::Rescan);
+        for p in ev.paths {
+            if rescan {
+                self.dirs.insert(p.clone());
+                self.rescan.insert(p);
+            } else if let Some(d) = p.parent() {
+                self.dirs.insert(d.to_path_buf());
+                self.paths.insert(p);
+            }
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.dirs.is_empty()
+    }
+}
+
+impl SizeIndex {
+    /// Keeps changes for later (window hidden): only folders in the index, so it stays bounded
+    /// by the index however long the window stays hidden.
+    fn park(&self, c: Changes) {
+        let dirs: HashSet<PathBuf> = {
+            let g = self.inner.lock().unwrap();
+            c.dirs.into_iter().filter(|d| g.map.contains_key(d)).collect()
+        };
+        if dirs.is_empty() {
+            return;
+        }
+        let mut p = self.parked.lock().unwrap();
+        p.paths.extend(c.paths.into_iter().filter(|x| x.parent().is_some_and(|d| dirs.contains(d))));
+        p.rescan.extend(c.rescan.into_iter().filter(|x| dirs.contains(x)));
+        p.dirs.extend(dirs);
+    }
+}
+
+/// The window is shown again: re-read what changed while it was hidden and send the events held back.
+pub fn resume(app: &AppHandle) {
+    let Some(idx) = app.try_state::<SizeIndex>() else { return };
+    let parked = std::mem::take(&mut *idx.parked.lock().unwrap());
+    // The emitter checks visibility under this lock: taking it here means it either saw the new
+    // state or is already waiting, so this wake-up isn't lost.
+    drop(idx.inner.lock().unwrap());
+    idx.wake.notify_all();
+    if !parked.is_empty() {
+        let app = app.clone();
+        std::thread::spawn(move || {
+            background_priority();
+            refresh_dirs(&app, parked);
+        });
+    }
 }
 
 /// Re-reads changed folders (deepest first) and applies the difference up the tree.
@@ -567,7 +673,8 @@ fn bytes_name(b: &[u8]) -> String {
 // ---------- events ----------
 
 /// Sends batched `"dir-sizes"` events for the focus folder (one thread for the app's lifetime,
-/// asleep until something finishes).
+/// asleep until something finishes). Nothing is sent while the window is hidden: what's dirty
+/// waits for [`resume`], so a hidden webview isn't woken to redraw rows nobody sees.
 pub fn setup(app: &AppHandle) {
     let granted_file = app.path().app_config_dir().ok().map(|d| d.join("granted.json"));
     let granted: HashSet<PathBuf> = granted_file
@@ -583,7 +690,7 @@ pub fn setup(app: &AppHandle) {
         loop {
             {
                 let mut g = idx.inner.lock().unwrap();
-                while g.dirty.is_empty() {
+                while g.dirty.is_empty() || !crate::tray::visible() {
                     g = idx.wake.wait(g).unwrap();
                 }
             }
@@ -646,6 +753,7 @@ pub fn folder_sizes(
         known.or_else(|| crate::cloud::Places::new().root_of(&folder).map(|r| r.1))
     };
     let need = {
+        *idx.focus_dir.lock().unwrap() = Some(folder.clone());
         let mut g = idx.inner.lock().unwrap();
         g.focus = Some(folder.clone());
         g.dirty.clear();
@@ -671,6 +779,7 @@ pub fn folder_sizes(
 /// Drops the focus (the local pane left this folder, or auto sizes were turned off).
 #[tauri::command]
 pub fn stop_sizes(idx: State<'_, SizeIndex>) {
+    *idx.focus_dir.lock().unwrap() = None;
     let mut g = idx.inner.lock().unwrap();
     g.focus = None;
     if let Some(r) = g.running.take() {
@@ -732,6 +841,19 @@ mod tests {
         big.save(true);
         assert!(Seen::load(Some(file)).map.len() <= MAX_SEEN, "pruned to the limit");
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn changes_inside_noisy_folders_are_dropped() {
+        let root = Path::new("/w/proj");
+        let pre = [PathBuf::from("/h/Library")];
+        assert!(noisy(Path::new("/w/proj/target/debug/x.o"), root, &pre));
+        assert!(noisy(Path::new("/w/proj/web/node_modules/a/b.js"), root, &pre));
+        assert!(noisy(Path::new("/w/proj/.git/objects/ab"), root, &pre));
+        assert!(!noisy(Path::new("/w/proj/target"), root, &pre), "the folder's own entry still counts");
+        assert!(!noisy(Path::new("/w/proj/src/main.rs"), root, &pre));
+        assert!(!noisy(Path::new("/w/target/x"), Path::new("/w/target"), &pre), "only below the root");
+        assert!(noisy(Path::new("/h/Library/Caches/x"), Path::new("/h"), &pre));
     }
 
     #[test]

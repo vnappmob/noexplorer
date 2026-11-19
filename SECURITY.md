@@ -7,7 +7,7 @@ Don't open public issues for security problems.
 We aim to acknowledge reports within 3 business days.
 
 Scope notes:
-- Secret keys, app passwords and Box tokens live in the OS credential store (Keychain, Credential
+- Secret keys, app passwords and sign-in tokens live in the OS credential store (Keychain, Credential
   Manager, Secret Service; ADR-020). `config.json` (mode 0600) holds them only when no store
   exists, and they never reach the UI or the logs.
 - TLS is never switched off. Self-signed servers work only by pinning one certificate's SHA-256

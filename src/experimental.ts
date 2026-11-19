@@ -38,11 +38,6 @@ export const EXPERIMENTS: { key: keyof Experimental; title: string; desc: string
     title: "iPhone and iPad",
     desc: "An iPhone or iPad connected by cable as an account: its media area (photos and videos in DCIM, Downloads…) and the files of apps that share them. Copy both ways, preview, rename and delete. Plus every app's files, read-only, from a backup NoExplorer makes. The system pairs it: unlock it and tap Trust.",
   },
-  {
-    key: "box_beta",
-    title: "Box accounts",
-    desc: "Box in the account form, with your own Box app. It works against our test double but hasn't been tried on a real Box account yet.",
-  },
 ];
 
 /** Fills the Experimental tab (index.html #exp-form). */

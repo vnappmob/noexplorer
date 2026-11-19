@@ -1736,6 +1736,24 @@ button.lane-box:hover,
   }
 }
 
+/* Idle stays idle (ADR-057): an endless animation keeps WebKit's display link firing even at
+   opacity 0 or with the window hidden to the tray. The faded-out beam stops; the floating
+   watermarks stop while another app is in front (data-unfocused, ~3% CPU while they float); a
+   hidden window (data-asleep, set by main.ts) stops everything. */
+#beam:not(.on) path {
+  animation: none;
+}
+html[data-unfocused] .mark-svg,
+html[data-unfocused] .mark-mini {
+  animation: none;
+}
+html[data-asleep] *,
+html[data-asleep] *::before,
+html[data-asleep] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
 /* preview */
 .modal {
   position: fixed;

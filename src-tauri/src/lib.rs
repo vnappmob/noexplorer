@@ -21,7 +21,6 @@
 mod askpass;
 mod autostart;
 mod azure;
-mod box_api;
 mod cloud;
 mod compare;
 mod config;
@@ -33,6 +32,7 @@ mod iphone;
 mod iphone_backup;
 mod jobs;
 mod local;
+mod oauth;
 mod onedrive;
 mod provider;
 mod proxy;
@@ -60,10 +60,31 @@ use tauri::{Manager, WindowEvent};
 /// Passed by the autostart launcher: start in the tray without showing the window.
 pub(crate) const HIDDEN_ARG: &str = "--hidden";
 
+/// Async worker threads. The work on them is network I/O and short CPU bursts (blocking work goes
+/// to `spawn_blocking`, which has its own pool); Tauri's default of one per core gave 12 parked
+/// threads on an M-series Mac (ADR-057).
+const ASYNC_WORKERS: usize = 2;
+
+/// Gives Tauri a tokio runtime with [`ASYNC_WORKERS`] workers instead of its one-per-core default.
+fn use_small_runtime() {
+    let Ok(rt) = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(ASYNC_WORKERS)
+        .thread_name("tokio-rt-worker")
+        .enable_all()
+        .build()
+    else {
+        return; // Tauri builds its default one
+    };
+    tauri::async_runtime::set(rt.handle().clone());
+    // Lives as long as the app: Tauri only keeps the handle.
+    std::mem::forget(rt);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Started by `ssh` as its askpass program: answer and exit, no app (askpass.rs).
     askpass::run_if_asked();
+    use_small_runtime();
     let app = tauri::Builder::default()
         // Must be first: a second launch just focuses the running instance (which may be in the tray).
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| tray::show_main(app)))
@@ -154,7 +175,6 @@ pub fn run() {
             sizes::folder_sizes,
             webdav::nextcloud_login,
             webdav::cancel_login,
-            box_api::box_login,
             onedrive::onedrive_login,
             speedtest::speed_test,
             compare::compare,
@@ -181,6 +201,7 @@ pub fn run() {
             search::search_remote,
             search::cancel_search,
             tray::show_after_relaunch,
+            tray::window_visible,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

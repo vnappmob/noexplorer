@@ -59,10 +59,6 @@ Afterwards a **Backup** folder appears next to Media and Apps, with a folder per
 
 Not yet tried on a real iPhone: please report what works and what doesn't.
 
-## Box accounts
-
-Box in the account form, with your own Box app. It works against our test double but hasn't been tried on a real Box account yet. See [Connect your storage](/docs/accounts/#box-experimental).
-
 ## Self-signed HTTPS
 
 Lets an account trust its server's own certificate, after you compare its fingerprint. See [Connect your storage](/docs/accounts/#self-signed-https-experimental).

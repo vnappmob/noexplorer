@@ -6,7 +6,7 @@
 //!   (never followed) are reported separately, so they don't look like lost files.
 //! - Content checks never download anything: the local file is hashed and compared with what the
 //!   server already reports — S3 ETags (plain MD5, or multipart MD5-of-MD5s: we try the part size
-//!   our uploader used, then common ones from other tools), Box SHA-1, Nextcloud checksums.
+//!   our uploader used, then common ones from other tools), Nextcloud checksums.
 //!   Files whose server hash can't be reproduced (e.g. SSE-KMS ETags) count as "same size".
 //! - Progress goes out as `"compare-progress"` events; `cancel(id)` stops it.
 

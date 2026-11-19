@@ -6,9 +6,12 @@
 //!   appears next to the icon.
 //! - Closing the window hides it (when `general.run_in_background` is on, see `lib.rs`);
 //!   jobs keep running. On macOS the Dock icon is hidden while the window is hidden.
+//! - [`visible`] says whether the window is shown; hiding/showing emits `"window-visibility"` and
+//!   lets `sizes.rs` / `devices.rs` park and resume their work (ADR-057).
 //! - "Check for Updates…" emits `"tray-check-updates"`; the UI (`updater.ts`) does the check.
 
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem};
@@ -79,6 +82,34 @@ fn tray(app: &AppHandle) -> Option<TrayIcon> {
     app.tray_by_id("main")
 }
 
+/// The main window is shown (not hidden to the tray). Background work that only feeds the UI
+/// (folder-size updates, device re-checks) parks while it's false (ADR-057).
+static VISIBLE: AtomicBool = AtomicBool::new(true);
+
+pub fn visible() -> bool {
+    VISIBLE.load(Relaxed)
+}
+
+/// Records the window state and tells the UI (`"window-visibility"`: it pauses animations) and
+/// the modules that parked work while hidden.
+fn set_visible(app: &AppHandle, on: bool) {
+    if VISIBLE.swap(on, Relaxed) == on {
+        return;
+    }
+    let _ = app.emit("window-visibility", on);
+    if on {
+        crate::sizes::resume(app);
+    }
+    crate::devices::visibility_changed();
+}
+
+/// Whether the window is shown, for the UI at startup (a login start begins hidden, before the
+/// UI could hear `"window-visibility"`).
+#[tauri::command]
+pub fn window_visible() -> bool {
+    visible()
+}
+
 pub fn show_main(app: &AppHandle) {
     #[cfg(target_os = "macos")]
     let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
@@ -87,6 +118,7 @@ pub fn show_main(app: &AppHandle) {
         let _ = w.show();
         let _ = w.set_focus();
     }
+    set_visible(app, true);
 }
 
 pub fn hide_main(app: &AppHandle) {
@@ -96,6 +128,7 @@ pub fn hide_main(app: &AppHandle) {
     // Menu-bar-only while hidden: no Dock icon, no app switcher entry.
     #[cfg(target_os = "macos")]
     let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+    set_visible(app, false);
 }
 
 pub fn setup(app: &AppHandle, settings: &Settings) -> tauri::Result<()> {

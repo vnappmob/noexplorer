@@ -9,9 +9,9 @@ NoExplorer has no accounts, no analytics and no tracking. It talks only to the p
 
 ## What the app connects to
 
-- **The storage you add** (your S3 server, Nextcloud, WebDAV server, Box, and the experimental Google Cloud Storage, Azure and SFTP). Only what you ask for: listing folders, moving files, previews, links.
+- **The storage you add** (your S3 server, Google Cloud Storage, Azure, Nextcloud, WebDAV server, SFTP server, OneDrive). Only what you ask for: listing folders, moving files, previews, links.
 - **GitHub**, to check for updates (at startup and every few hours) and to download them. This sends no personal data. Turn it off in **Settings → General → Check for updates automatically**.
-- **Your browser**, when you sign in to Nextcloud or Box. You approve the sign-in on their site, and NoExplorer receives an app password or token.
+- **Your browser**, when you sign in to Nextcloud or OneDrive. You approve the sign-in on their site, and NoExplorer receives an app password or token.
 
 Nothing else: no usage statistics, no crash reports, no information sent to VNAppMob.
 

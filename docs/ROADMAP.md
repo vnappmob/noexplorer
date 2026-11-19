@@ -27,7 +27,7 @@ One patch release per step, released only when the maintainer approves.
    MOVE, COPY, DELETE), Nextcloud chunked upload v2 for big files, and sign-in with **Login
    Flow v2** (browser approval, app password into the keychain). Also covers ownCloud, NAS WebDAV
    and any WebDAV server.
-2. ✅ (beta) **Box** (ADR-027): needs a first run against real Box (no test account here; covered by
+2. ❌ **Box** (ADR-027, removed in ADR-056 on 2026-11-16: the bring-your-own-app sign-in failed on the first real try). Was: needs a first run against real Box (no test account here; covered by
    an in-memory mock). Original plan — REST API with **bring-your-own OAuth app** (Custom App, user authentication). Users
    paste the Client ID and secret; sign-in is PKCE through the system browser with a loopback
    redirect. A path↔ID cache (Box is ID-based) and chunked upload over 50 MB.
@@ -35,7 +35,7 @@ One patch release per step, released only when the maintainer approves.
    account, bucket and folder (⌘\ split, ⌘W close, Tab cycles). Dragging between views copies
    server-side on the same S3 account (≤ 5 GB) and relays file by file through a temp file
    between different accounts or providers, with progress in the activity card. Later: stream
-   without the temp file, and server-side copy within one Nextcloud/Box account.
+   without the temp file, and server-side copy within one Nextcloud account.
 
 Not planned: Google Drive (dropped by the maintainer on 2026-10-16), and exposing sync-client
 folders (iCloud Drive, `~/Library/CloudStorage`) as Places. iCloud Drive has no public API for
@@ -52,7 +52,7 @@ virtualized lists (ADR-021) · tray account switcher.
 1 and 2), favorites, resumable transfers with pause and a speed limit, thumbnail grid. Tabs and
 back/forward history were tried and removed (not useful enough).
 **Still experimental (Settings → Experimental, off by default, ADR-031):** backup pairs, self-signed
-HTTPS (ADR-032), Box. Create buckets, Back (up as left) and the folder tree became standard on
+HTTPS (ADR-032). Box was removed on 2026-11-16 (ADR-056). Create buckets, Back (up as left) and the folder tree became standard on
 2026-10-19. Azure Blob, Google Cloud Storage and SFTP
 became standard on 2026-10-19. (A native window look and a
 Vietnamese UI shipped too and were removed at the maintainer's request.)

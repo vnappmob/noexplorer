@@ -25,9 +25,6 @@ pub enum ProviderKind {
     Nextcloud,
     /// Any WebDAV server; `endpoint` is the full collection URL.
     Webdav,
-    /// Box with the user's own OAuth app: `access_key` = client ID, `secret_key` = client secret,
-    /// refresh token in the keychain (`box_api.rs`).
-    Box,
     /// Azure Blob Storage: `access_key` = storage account name, `secret_key` = account key,
     /// `endpoint` optional (`azure.rs`).
     Azure,
@@ -128,8 +125,6 @@ pub struct Experimental {
     pub self_signed: bool,
     /// Saved local ↔ remote folder pairs: Compare and upload in one click.
     pub backup_pairs: bool,
-    /// Box accounts (beta: tested against a mock only).
-    pub box_beta: bool,
     /// Bucket access policies: view, set (public-read presets or JSON) and remove; public links.
     pub bucket_policy: bool,
     /// Remote folder sizes counted in the background on S3/Azure (capped per folder).
@@ -199,7 +194,11 @@ fn default_name(p: &Profile) -> String {
 
 /// Reads either format. v1 = one flat `{endpoint, access_key, …, download_dir}` object.
 pub fn parse_settings(bytes: &[u8]) -> Option<Settings> {
-    let v: serde_json::Value = serde_json::from_slice(bytes).ok()?;
+    let mut v: serde_json::Value = serde_json::from_slice(bytes).ok()?;
+    if let Some(list) = v.get_mut("profiles").and_then(|l| l.as_array_mut()) {
+        // Box accounts (removed in 0.4.43) would make the whole file fail to load: drop them.
+        list.retain(|p| p.get("kind").and_then(|k| k.as_str()) != Some("box"));
+    }
     if v.get("profiles").is_some() {
         return serde_json::from_value(v).ok();
     }
@@ -369,6 +368,7 @@ fn commit(app: &AppHandle, state: &AppState, mut s: Settings) -> Result<Settings
     write_settings(app, &mut s)?;
     state.set_settings(s.clone());
     crate::tray::set_accounts(app, &s);
+    crate::devices::settings_changed();
     Ok(redacted(&s))
 }
 
@@ -395,7 +395,6 @@ pub fn delete_profile(app: AppHandle, state: State<'_, AppState>, id: String) ->
     s.remove(&id);
     let store = OsStore::new(&app);
     store.delete(&id);
-    store.delete(&crate::box_api::refresh_key(&id)); // Box sign-in, if any
     store.delete(&crate::onedrive::refresh_key(&id)); // OneDrive sign-in, if any
     commit(&app, &state, s)
 }
@@ -553,6 +552,16 @@ mod tests {
         assert_eq!(s.profiles[0].region, "us-east-1");
         let again = parse_settings(&serde_json::to_vec(&s).unwrap()).unwrap();
         assert_eq!(again, s);
+    }
+
+    #[test]
+    fn removed_box_accounts_are_dropped_not_fatal() {
+        let s = parse_settings(
+            br#"{"profiles":[{"id":"b","kind":"box"},{"id":"a","endpoint":"http://x"}],"active":"b","general":{"experimental":{"box_beta":true}}}"#,
+        )
+        .unwrap();
+        assert_eq!(s.profiles.len(), 1);
+        assert_eq!(s.active_profile().map(|p| p.id.as_str()), Some("a"));
     }
 
     #[test]

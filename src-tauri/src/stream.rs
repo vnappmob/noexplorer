@@ -1,5 +1,5 @@
 //! Loopback streaming for video and audio previews of providers without presigned URLs (WebDAV,
-//! OneDrive, Box, SFTP), ADR-052.
+//! OneDrive, SFTP), ADR-052.
 //!
 //! `nxr://` (proxy.rs) must answer with a whole body, so a player waits for every piece to
 //! download before it gets a byte of it, and a video from a NAS took seconds to start where an S3

@@ -14,7 +14,6 @@ export type ProviderId =
   | "oci"
   | "nextcloud"
   | "webdav"
-  | "box"
   | "onedrive"
   | "gcs"
   | "azure"
@@ -22,9 +21,7 @@ export type ProviderId =
   | "iphone";
 
 /** Providers shown in the picker only with their Settings → Experimental switch on. */
-export const EXPERIMENTAL_PROVIDERS: Partial<Record<ProviderId, keyof Experimental>> = {
-  box: "box_beta",
-};
+export const EXPERIMENTAL_PROVIDERS: Partial<Record<ProviderId, keyof Experimental>> = {};
 
 type Preset = {
   label: string;
@@ -115,17 +112,6 @@ export const PRESETS: Record<ProviderId, Preset> = {
     hint: "Your Nextcloud (or ownCloud) address. Sign in through the browser, or use your user name and an app password (Settings → Security → Devices & sessions).",
     endpointPlaceholder: "https://cloud.example.com",
     endpointRequired: true,
-    regionPlaceholder: "",
-    region: "",
-    pathStyle: true,
-    matches: () => false,
-  },
-  box: {
-    kind: "box",
-    label: "Box",
-    hint: "Uses your own Box app: Box Developer Console → Create Platform App → Custom App → User Authentication (OAuth 2.0). Set the Redirect URI to http://127.0.0.1:53682/callback, tick Read and Write all files and folders, then paste the Client ID and Client secret here.",
-    endpointPlaceholder: "",
-    endpointRequired: false,
     regionPlaceholder: "",
     region: "",
     pathStyle: true,
@@ -227,7 +213,6 @@ export function guessProvider(p: Pick<Profile, "endpoint"> & { kind?: ProviderKi
 /** One-line summary for account lists: "AWS S3 · ap-southeast-1", "minio.example.com". */
 export function describeAccount(p: Profile) {
   const id = guessProvider(p);
-  if (id === "box") return "Box";
   if (id === "onedrive") return p.access_key ? `OneDrive · ${p.access_key}` : "OneDrive";
   if (id === "sftp") return `SFTP · ${endpointHost(p.endpoint)}`;
   if (id === "iphone") return p.endpoint ? "iPhone / iPad · by cable" : "Any connected iPhone / iPad";
@@ -264,7 +249,6 @@ export const LOOK: Record<ProviderId, { mono: string; hue: number; blurb: string
   nextcloud: { mono: "NC", hue: 205, name: "Nextcloud / ownCloud", blurb: "Sign in with your browser" },
   webdav: { mono: "DAV", hue: 250, name: "WebDAV", blurb: "NAS or any WebDAV server" },
   sftp: { mono: ">_", hue: 165, name: "SFTP", blurb: "Any SSH server" },
-  box: { mono: "box", hue: 212, name: "Box", blurb: "Your own Box app · beta" },
   onedrive: { mono: "OD", hue: 214, name: "OneDrive", blurb: "Sign in with Microsoft" },
   iphone: { mono: "iP", hue: 265, name: "iPhone / iPad", blurb: "By cable · experimental" },
 };
@@ -272,7 +256,7 @@ export const LOOK: Record<ProviderId, { mono: string; hue: number; blurb: string
 export const PICKER_GROUPS: { title: string; ids: ProviderId[] }[] = [
   { title: "Object storage", ids: ["aws", "custom", "r2", "b2", "wasabi", "do", "gcs", "azure", "oci"] },
   { title: "File servers", ids: ["nextcloud", "webdav", "sftp"] },
-  { title: "Cloud drives", ids: ["onedrive", "box"] },
+  { title: "Cloud drives", ids: ["onedrive"] },
 ];
 
 /** A provider badge (`.pbadge`); `sm` for lists. */

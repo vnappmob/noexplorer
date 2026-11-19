@@ -7,7 +7,7 @@ const ld = {
   "@type": "SoftwareApplication",
   name: "NoExplorer",
   description:
-    "A two-pane file manager: your computer on the left, your cloud storage on the right. Drag to upload or download. For S3, Nextcloud, WebDAV and Box.",
+    "A two-pane file manager: your computer on the left, your cloud storage on the right. Drag to upload or download. For S3, Nextcloud, WebDAV, OneDrive and SFTP.",
   applicationCategory: "UtilitiesApplication",
   operatingSystem: "macOS, Windows, Linux",
   url: site,
@@ -26,7 +26,7 @@ const ld = {
     <title>NoExplorer: drag files between your computer and your cloud</title>
     <meta
       name="description"
-      content="Your computer on the left, your cloud on the right. Drag to upload or download. Free and open source for macOS, Windows and Linux, for S3, Nextcloud, WebDAV and Box."
+      content="Your computer on the left, your cloud on the right. Drag to upload or download. Free and open source for macOS, Windows and Linux, for S3, Nextcloud, WebDAV, OneDrive and SFTP."
     />
     <link rel="canonical" href={site} />
     <meta property="og:type" content="website" />
@@ -45,7 +45,7 @@ const ld = {
     <meta name="twitter:image" content="https://noexplorer.vnappmob.com/og.png" />
     <meta name="twitter:title" content="NoExplorer" />
     <meta name="twitter:description" content="Your computer on the left, your cloud on the right. Drag to upload or download." />
-    <meta name="keywords" content="S3 client, S3 file manager, MinIO client, Nextcloud client, WebDAV client, Box, dual-pane file manager, backup, macOS, Windows, Linux, open source" />
+    <meta name="keywords" content="S3 client, S3 file manager, MinIO client, Nextcloud client, WebDAV client, OneDrive, SFTP client, dual-pane file manager, backup, macOS, Windows, Linux, open source" />
     <script type="application/ld+json" set:html={JSON.stringify(ld)} />
     <meta name="theme-color" content="#0b0d12" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#fbfbfd" media="(prefers-color-scheme: light)" />
@@ -85,7 +85,6 @@ const ld = {
           <li><span aria-hidden="true">🟠</span>R2 · B2 · Wasabi</li>
           <li><span aria-hidden="true">☁️</span>Nextcloud</li>
           <li><span aria-hidden="true">🌐</span>WebDAV &amp; NAS</li>
-          <li><span aria-hidden="true">📦</span>Box</li>
         </ul>
 
         <!-- The app, drawn in HTML so it stays crisp and follows the page's light/dark theme. -->
@@ -212,7 +211,7 @@ const ld = {
             <a href="/docs/tools/#quick-look"><i aria-hidden="true">👀</i><b>Quick look</b><span>Images, video, PDF and text, without downloading.</span></a>
           </li>
           <li>
-            <a href="/docs/accounts/"><i aria-hidden="true">🔌</i><b>Your storage</b><span>S3, R2, B2, Wasabi, MinIO, Nextcloud, WebDAV, Box.</span></a>
+            <a href="/docs/accounts/"><i aria-hidden="true">🔌</i><b>Your storage</b><span>S3, R2, B2, Wasabi, MinIO, Nextcloud, WebDAV, OneDrive.</span></a>
           </li>
           <li>
             <a href="/docs/privacy/"><i aria-hidden="true">🔒</i><b>Private by design</b><span>Keys in your keychain, no accounts, no tracking.</span></a>
